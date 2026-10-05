@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Block Strike Mobile - Full Prototype</title>
+    <style>
+        * { touch-action: none; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; }
+
+        /* Прицел */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%;
+            width: 10px; height: 10px; margin: -5px 0 0 -5px;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%; pointer-events: none; z-index: 10;
+        }
+        #crosshair::after {
+            content: ''; position: absolute; top: 3px; left: 3px;
+            width: 2px; height: 2px; background: red; border-radius: 50%;
+        }
+
+        /* Зоны касаний */
+        #touch-move-area { position: absolute; left: 0; top: 0; width: 50%; height: 100%; z-index: 5; }
+        #touch-look-area { position: absolute; right: 0; top: 0; width: 50%; height: 100%; z-index: 5; }
+
+        /* Динамический Джойстик */
+        #joystick-base {
+            position: absolute; width: 100px; height: 100px;
+            border: 3px solid rgba(255, 255, 255, 0.4); border-radius: 50%;
+            background: rgba(0, 0, 0, 0.2); display: none; pointer-events: none; z-index: 6;
+            transform: translate(-50%, -50%);
+        }
+        #joystick-knob {
+            position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
+            background: rgba(255, 255, 255, 0.6); border-radius: 50%;
+            transform: translate(-50%, -50%); pointer-events: none;
+        }
+
+        /* Кнопки управления */
+        .btn {
+            position: absolute; z-index: 20;
+            background: rgba(0, 0, 0, 0.5); border: 2px solid rgba(255, 255, 255, 0.7);
+            border-radius: 50%; color: white; font-weight: bold; font-size: 13px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .btn:active { background: rgba(255, 255, 255, 0.4); }
+
+        #btn-fire { right: 25px; bottom: 35px; width: 75px; height: 75px; background: rgba(220, 50, 50, 0.6); font-size: 15px; }
+        #btn-jump { right: 115px; bottom: 25px; width: 55px; height: 55px; }
+        #btn-crouch { right: 115px; bottom: 90px; width: 55px; height: 55px; }
+        #btn-crouch.active { background: rgba(50, 200, 50, 0.6); }
+        #btn-reload { right: 25px; bottom: 125px; width: 60px; height: 60px; background: rgba(200, 150, 30, 0.6); }
+
+        /* HUD Игрока */
+        #hud {
+            position: absolute; top: 15px; left: 15px; z-index: 20;
+            color: white; font-weight: bold; text-shadow: 2px 2px 4px #000;
+            font-size: 16px; pointer-events: none;
+        }
+        #hit-log {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+            color: #ff3333; font-weight: bold; font-size: 22px;
+            text-shadow: 2px 2px 4px #000; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 20; text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="crosshair"></div>
+    <div id="touch-move-area"></div>
+    <div id="touch-look-area"></div>
+
+    <!-- UI Элементы -->
+    <div id="joystick-base"><div id="joystick-knob"></div></div>
+    <div id="btn-fire" class="btn">ОГОНЬ</div>
+    <div id="btn-jump" class="btn">ПРЫЖОК</div>
+    <div id="btn-crouch" class="btn">ПРИСЕСТЬ</div>
+    <div id="btn-reload" class="btn">R</div>
+
+    <div id="hud">
+        ПА ТРОНЫ: <span id="ammo">12 / 36</span><br>
+        СОСТОЯНИЕ: <span id="state-text">Стоит</span>
+    </div>
+
+    <div id="hit-log">ГОЛОВА! -70 HP</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // --- 1. СЦЕНА И КАМЕРА ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x7ec0ee); // Небо Block Strike
+        scene.fog = new THREE.Fog(0x7ec0ee, 20, 60);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        // Свет
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(20, 40, 20);
+        scene.add(dirLight);
+        scene.add(new THREE.AmbientLight(0x707070));
+
+        // Игрок (Контейнеры вращения)
+        const yawObject = new THREE.Object3D();
+        const pitchObject = new THREE.Object3D();
+        pitchObject.add(camera);
+        yawObject.add(pitchObject);
+        yawObject.position.set(0, 1.6, 5);
+        scene.add(yawObject);
+
+        // --- 2. МОДЕЛЬКА ОРУЖИЯ И РУК (BLOCK STRIKE VIEWMODEL) ---
+        const weaponGroup = new THREE.Group();
+        camera.add(weaponGroup);
+
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcd94, roughness: 0.6 }); // Цвет кожи
+        const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 }); // Затвор
+        const gunGripMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }); // Рукоять
+
+        // Правая рука
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.35), skinMat);
+        rightArm.position.set(0.2, -0.18, -0.3);
+        weaponGroup.add(rightArm);
+
+        // Левая рука
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.35), skinMat);
+        leftArm.position.set(-0.15, -0.22, -0.35);
+        leftArm.rotation.y = 0.2;
+        weaponGroup.add(leftArm);
+
+        // Пистолет
+        const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.07), gunGripMat);
+        gunGrip.position.set(0.18, -0.12, -0.4);
+        gunGrip.rotation.x = 0.2;
+        weaponGroup.add(gunGrip);
+
+        const gunSlide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.28), gunBodyMat);
+        gunSlide.position.set(0.18, -0.05, -0.45);
+        weaponGroup.add(gunSlide);
+
+        weaponGroup.position.set(0.05, -0.05, 0);
+
+        // --- 3. КАРТА И ВРАГИ С ХИТБОКСАМИ ---
+        // Пол
+        const floorGeo = new THREE.PlaneGeometry(100, 100);
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x406020 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // Сетка стен на фоне
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x999999 });
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(20, 6, 1), wallMat);
+        wall.position.set(0, 3, -15);
+        scene.add(wall);
+
+        // Создание блочного манекена персонажа Block Strike
+        const enemies = [];
+
+        function createEnemy(x, z) {
+            const enemyGroup = new THREE.Group();
+            enemyGroup.position.set(x, 0, z);
+
+            const matBlue = new THREE.MeshStandardMaterial({ color: 0x2255bb }); // Одежда
+            const matHead = new THREE.MeshStandardMaterial({ color: 0xffcd94 }); // Голова
+            const matPants = new THREE.MeshStandardMaterial({ color: 0x333333 }); // Ноги
+
+            // 1. Голова (Head)
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), matHead);
+            head.position.set(0, 1.6, 0);
+            head.userData = { bodyPart: 'head', enemy: enemyGroup };
+            enemyGroup.add(head);
+
+            // 2. Тело (Body)
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.25), matBlue);
+            body.position.set(0, 1.1, 0);
+            body.userData = { bodyPart: 'body', enemy: enemyGroup };
+            enemyGroup.add(body);
+
+            // 3. Руки (Arms)
+            const armL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), matBlue);
+            armL.position.set(-0.36, 1.08, 0);
+            armL.userData = { bodyPart: 'arm', enemy: enemyGroup };
+            enemyGroup.add(armL);
+
+            const armR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 0.18), matBlue);
+            armR.position.set(0.36, 1.08, 0);
+            armR.userData = { bodyPart: 'arm', enemy: enemyGroup };
+            enemyGroup.add(armR);
+
+            // 4. Ноги (Legs)
+            const legL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.7, 0.22), matPants);
+            legL.position.set(-0.13, 0.45, 0);
+            legL.userData = { bodyPart: 'leg', enemy: enemyGroup };
+            enemyGroup.add(legL);
+
+            const legR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.7, 0.22), matPants);
+            legR.position.set(0.13, 0.45, 0);
+            legR.userData = { bodyPart: 'leg', enemy: enemyGroup };
+            enemyGroup.add(legR);
+
+            enemyGroup.userData = { hp: 100, maxHp: 100 };
+            scene.add(enemyGroup);
+            enemies.push(enemyGroup);
+        }
+
+        // Спавним 3 манекенов
+        createEnemy(0, -6);
+        createEnemy(-3, -8);
+        createEnemy(3, -8);
+
+        // --- 4. СЕНСОРНОЕ УПРАВЛЕНИЕ (TOUCH ENGINE) ---
+        let moveTouchId = null, lookTouchId = null;
+        let touchStartPos = { x: 0, y: 0 };
+        let joystickVector = { x: 0, y: 0 };
+        let lookLastPos = { x: 0, y: 0 };
+
+        const moveArea = document.getElementById('touch-move-area');
+        const lookArea = document.getElementById('touch-look-area');
+        const jsBase = document.getElementById('joystick-base');
+        const jsKnob = document.getElementById('joystick-knob');
+
+        // Динамический джойстик (Левая часть)
+        moveArea.addEventListener('touchstart', (e) => {
+            for (let t of e.changedTouches) {
+                if (moveTouchId === null) {
+                    moveTouchId = t.identifier;
+                    touchStartPos = { x: t.clientX, y: t.clientY };
+                    jsBase.style.left = t.clientX + 'px';
+                    jsBase.style.top = t.clientY + 'px';
+                    jsBase.style.display = 'block';
+                    jsKnob.style.transform = `translate(-50%, -50%)`;
+                    joystickVector = { x: 0, y: 0 };
+                }
+            }
+        });
+
+        moveArea.addEventListener('touchmove', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    const dx = t.clientX - touchStartPos.x;
+                    const dy = t.clientY - touchStartPos.y;
+                    const dist = Math.hypot(dx, dy);
+                    const maxR = 40;
+                    const angle = Math.atan2(dy, dx);
+                    const clampedDist = Math.min(dist, maxR);
+
+                    const knobX = Math.cos(angle) * clampedDist;
+                    const knobY = Math.sin(angle) * clampedDist;
+                    jsKnob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
+
+                    joystickVector.x = knobX / maxR;
+                    joystickVector.y = knobY / maxR;
+                }
+            }
+        });
+
+        const resetJoystick = (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    moveTouchId = null;
+                    jsBase.style.display = 'none';
+                    joystickVector = { x: 0, y: 0 };
+                }
+            }
+        };
+        moveArea.addEventListener('touchend', resetJoystick);
+        moveArea.addEventListener('touchcancel', resetJoystick);
+
+        // Обзор (Правая часть)
+        lookArea.addEventListener('touchstart', (e) => {
+            for (let t of e.changedTouches) {
+                if (lookTouchId === null) {
+                    lookTouchId = t.identifier;
+                    lookLastPos = { x: t.clientX, y: t.clientY };
+                }
+            }
+        });
+
+        lookArea.addEventListener('touchmove', (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === lookTouchId) {
+                    const dx = t.clientX - lookLastPos.x;
+                    const dy = t.clientY - lookLastPos.y;
+
+                    yawObject.rotation.y -= dx * 0.004;
+                    pitchObject.rotation.x -= dy * 0.004;
+                    pitchObject.rotation.x = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, pitchObject.rotation.x));
+
+                    lookLastPos = { x: t.clientX, y: t.clientY };
+                }
+            }
+        });
+
+        const resetLook = (e) => {
+            for (let t of e.changedTouches) {
+                if (t.identifier === lookTouchId) lookTouchId = null;
+            }
+        };
+        lookArea.addEventListener('touchend', resetLook);
+        lookArea.addEventListener('touchcancel', resetLook);
+
+        // --- 5. ГЕЙМПЛЕЙ: ПРЫЖОК, ПРИСЕДАНИЕ, СТРЕЛЬБА ---
+        let velocityY = 0;
+        let isGrounded = true;
+        let isCrouching = false;
+        const targetHeight = { current: 1.6 };
+
+        // Переключатель приседания (Toggle)
+        const btnCrouch = document.getElementById('btn-crouch');
+        btnCrouch.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isCrouching = !isCrouching;
+            btnCrouch.classList.toggle('active', isCrouching);
+            document.getElementById('state-text').innerText = isCrouching ? "Сидит" : "Стоит";
+        });
+
+        // Прыжок
+        document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isGrounded) {
+                velocityY = 8.0;
+                isGrounded = false;
+            }
+        });
+
+        // Боезапас и Стрельба
+        let currentAmmo = 12;
+        let reserveAmmo = 36;
+        let isReloading = false;
+        const raycaster = new THREE.Raycaster();
+
+        function updateAmmoUI() {
+            document.getElementById('ammo').innerText = `${currentAmmo} / ${reserveAmmo}`;
+        }
+
+        // Перезарядка
+        document.getElementById('btn-reload').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isReloading || currentAmmo === 12 || reserveAmmo <= 0) return;
+            isReloading = true;
+            document.getElementById('ammo').innerText = "ПЕРЕЗАРЯДКА...";
+            
+            setTimeout(() => {
+                const needed = 12 - currentAmmo;
+                const toAdd = Math.min(needed, reserveAmmo);
+                currentAmmo += toAdd;
+                reserveAmmo -= toAdd;
+                isReloading = false;
+                updateAmmoUI();
+            }, 1200);
+        });
+
+        // Выстрел и расчет урона
+        const hitLog = document.getElementById('hit-log');
+        let hitTimeout;
+
+        function showHitText(text, color = "#ff3333") {
+            hitLog.innerText = text;
+            hitLog.style.color = color;
+            hitLog.style.opacity = '1';
+            clearTimeout(hitTimeout);
+            hitTimeout = setTimeout(() => hitLog.style.opacity = '0', 800);
+        }
+
+        document.getElementById('btn-fire').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isReloading) return;
+            if (currentAmmo <= 0) {
+                showHitText("НЕТ ПАТРОНОВ!", "#ffff00");
+                return;
+            }
+
+            currentAmmo--;
+            updateAmmoUI();
+
+            // Анимация отдачи
+            weaponGroup.position.z = 0.08;
+            weaponGroup.rotation.x = 0.1;
+
+            // Рейкаст из центра экрана
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Собираем все хитбоксы врагов
+            let hitboxes = [];
+            enemies.forEach(e => {
+                if (e.userData.hp > 0) hitboxes.push(...e.children);
+            });
+
+            const intersects = raycaster.intersectObjects(hitboxes);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const part = hitMesh.userData.bodyPart;
+                const enemy = hitMesh.userData.enemy;
+
+                let damage = 0;
+                let partName = "";
+
+                if (part === 'head') {
+                    damage = 70;
+                    partName = "ГОЛОВА";
+                } else if (part === 'body') {
+                    damage = Math.floor(Math.random() * 31) + 20; // 20 - 50
+                    partName = "ТЕЛО";
+                } else if (part === 'arm') {
+                    damage = Math.floor(Math.random() * 16) + 10; // 10 - 25
+                    partName = "РУКА";
+                } else if (part === 'leg') {
+                    damage = Math.floor(Math.random() * 16) + 10; // 10 - 25
+                    partName = "НОГА";
+                }
+
+                enemy.userData.hp -= damage;
+                showHitText(`${partName}! -${damage} HP\n(Осталось: ${Math.max(0, enemy.userData.hp)} HP)`);
+
+                // Если убит — падает
+                if (enemy.userData.hp <= 0) {
+                    enemy.rotation.x = -Math.PI / 2;
+                    enemy.position.y = 0.2;
+                    showHitText(`УБИТ (-${damage} HP)`, "#00ff00");
+                }
+            }
+        });
+
+        // --- 6. ИГРОВОЙ ЦИКЛ (ANIMATE) ---
+        let lastTime = performance.now();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = performance.now();
+            const delta = Math.min((time - lastTime) / 1000, 0.1);
+            lastTime = time;
+
+            // Возврат оружия после отдачи
+            weaponGroup.position.z += (0.05 - weaponGroup.position.z) * 0.2;
+            weaponGroup.rotation.x += (0 - weaponGroup.rotation.x) * 0.2;
+
+            // Плавное приседание (Изменение высоты глаз)
+            const desiredY = isCrouching ? 0.9 : 1.6;
+            targetHeight.current += (desiredY - targetHeight.current) * 10.0 * delta;
+
+            // Движение игрока
+            const speed = isCrouching ? 3.5 : 7.0;
+            const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
+            const side = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
+            forward.y = 0; forward.normalize();
+            side.y = 0; side.normalize();
+
+            yawObject.position.addScaledVector(forward, -joystickVector.y * speed * delta);
+            yawObject.position.addScaledVector(side, joystickVector.x * speed * delta);
+
+            // Гравитация и прыжок
+            velocityY -= 22.0 * delta;
+            yawObject.position.y += velocityY * delta;
+
+            if (yawObject.position.y <= targetHeight.current) {
+                yawObject.position.y = targetHeight.current;
+                velocityY = 0;
+                isGrounded = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
