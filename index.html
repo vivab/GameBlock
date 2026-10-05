@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Block Strike Mobile - Full Updated Version</title>
+    <title>Block Strike Mobile - Refined Edition</title>
     <style>
         * { touch-action: none; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; }
@@ -11,12 +11,12 @@
         /* Прицел */
         #crosshair {
             position: absolute; top: 50%; left: 50%;
-            width: 12px; height: 12px; margin: -6px 0 0 -6px;
-            border: 2px solid rgba(255, 255, 255, 0.8);
+            width: 10px; height: 10px; margin: -5px 0 0 -5px;
+            border: 2px solid rgba(255, 255, 255, 0.85);
             border-radius: 50%; pointer-events: none; z-index: 10;
         }
         #crosshair::after {
-            content: ''; position: absolute; top: 4px; left: 4px;
+            content: ''; position: absolute; top: 3px; left: 3px;
             width: 2px; height: 2px; background: red; border-radius: 50%;
         }
 
@@ -33,7 +33,7 @@
         }
         #joystick-knob {
             position: absolute; top: 50%; left: 50%; width: 40px; height: 40px;
-            background: rgba(255, 255, 255, 0.7); border-radius: 50%;
+            background: rgba(255, 255, 255, 0.75); border-radius: 50%;
             transform: translate(-50%, -50%); pointer-events: none;
         }
 
@@ -52,36 +52,35 @@
         #btn-crouch.active { background: rgba(50, 200, 50, 0.6); }
         #btn-reload { right: 25px; bottom: 125px; width: 60px; height: 60px; background: rgba(200, 150, 30, 0.6); }
 
-        /* HUD & Мини-карта */
+        /* HUD & Радар */
         #hud {
             position: absolute; top: 15px; left: 15px; z-index: 20;
             color: white; font-weight: bold; text-shadow: 2px 2px 4px #000;
-            font-size: 15px; pointer-events: none;
+            font-size: 16px; pointer-events: none;
         }
         #minimap-container {
             position: absolute; top: 15px; right: 15px; z-index: 20;
-            width: 120px; height: 120px; border-radius: 50%;
-            border: 2px solid rgba(255, 255, 255, 0.7); overflow: hidden;
-            background: rgba(0, 0, 0, 0.6); pointer-events: none;
+            width: 110px; height: 110px; border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.8); overflow: hidden;
+            background: rgba(0, 0, 0, 0.65); pointer-events: none;
         }
         #minimap { width: 100%; height: 100%; }
 
-        /* Лог попаданий и Уведомление об убийстве */
-        #hit-log {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            color: #ff3333; font-weight: bold; font-size: 20px;
-            text-shadow: 2px 2px 4px #000; opacity: 0; transition: opacity 0.2s;
-            pointer-events: none; z-index: 20; text-align: center;
+        /* Чат Убийств (Kill Feed) */
+        #kill-feed {
+            position: absolute; top: 135px; right: 15px; z-index: 20;
+            display: flex; flex-direction: column; align-items: flex-end;
+            gap: 6px; pointer-events: none;
         }
-        #kill-banner {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255,255,255,0.4);
-            color: #fff; padding: 8px 16px; border-radius: 8px; font-weight: bold;
-            font-size: 14px; z-index: 30; display: none; text-align: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        .kill-entry {
+            background: rgba(0, 0, 0, 0.75);
+            padding: 4px 10px; border-radius: 4px;
+            font-size: 13px; font-weight: bold; color: #bbb;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-shadow: 1px 1px 2px #000;
         }
-        #kill-banner span.weapon { color: #ffcc00; }
-        #kill-banner span.victim { color: #ff5555; }
+        .name-white { color: #ffffff !important; text-decoration: underline; }
+        .name-other { color: #ff8888; }
     </style>
 </head>
 <body>
@@ -97,17 +96,16 @@
     <div id="btn-reload" class="btn">R</div>
 
     <div id="hud">
-        ПА ТРОНЫ: <span id="ammo">12 / 36</span><br>
-        СТАТУС: <span id="state-text">Стоит</span>
+        ПА ТРОНЫ: <span id="ammo">12 / 36</span>
     </div>
 
-    <!-- Мини-карта -->
+    <!-- Радар -->
     <div id="minimap-container">
-        <canvas id="minimap" width="120" height="120"></canvas>
+        <canvas id="minimap" width="110" height="110"></canvas>
     </div>
 
-    <div id="hit-log">ГОЛОВА! -70 HP</div>
-    <div id="kill-banner">Игрок ➔ <span class="weapon">Glock 17 (Default)</span> ➔ <span class="victim">Бот #1</span></div>
+    <!-- Чат Убийств -->
+    <div id="kill-feed"></div>
 
     <script type="importmap">
         {
@@ -143,7 +141,7 @@
         yawObject.position.set(0, 1.6, 8);
         scene.add(yawObject);
 
-        // --- 2. МОДЕЛЬКА ОРУЖИЯ (VIEWMODEL) ---
+        // --- 2. ДВУРУЧНАЯ МОДЕЛЬ ОРУЖИЯ (VIEWMODEL) ---
         const weaponGroup = new THREE.Group();
         camera.add(weaponGroup);
 
@@ -151,15 +149,19 @@
         const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 });
         const gunGripMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
-        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.35), skinMat);
-        rightArm.position.set(0.2, -0.18, -0.3);
+        // Правая рука (держит рукоятку)
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.35), skinMat);
+        rightArm.position.set(0.18, -0.16, -0.3);
+        rightArm.rotation.set(-0.1, -0.1, 0);
         weaponGroup.add(rightArm);
 
-        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.35), skinMat);
-        leftArm.position.set(-0.15, -0.22, -0.35);
-        leftArm.rotation.y = 0.2;
+        // Левая рука (обхватывает снизу / поддерживает)
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.35), skinMat);
+        leftArm.position.set(0.08, -0.18, -0.28);
+        leftArm.rotation.set(-0.1, 0.35, 0.2);
         weaponGroup.add(leftArm);
 
+        // Пистолет
         const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.07), gunGripMat);
         gunGrip.position.set(0.18, -0.12, -0.4);
         gunGrip.rotation.x = 0.2;
@@ -171,7 +173,7 @@
 
         weaponGroup.position.set(0.05, -0.05, 0);
 
-        // --- 3. КАРТА И МОДЕЛИ ИГРОКОВ (T и CT) ---
+        // --- 3. КАРТА, КОЛЛИЗИИ И МОДЕЛИ NPC C ЧЕРТАМИ ЛИЦА ---
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshStandardMaterial({ color: 0x406020 })
@@ -179,7 +181,7 @@
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        // Препятствия для проверки видимости
+        // Препятствия (Стены)
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
         const wall1 = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 1), wallMat);
         wall1.position.set(-2, 2, 0);
@@ -189,21 +191,19 @@
         wall2.position.set(4, 2, -2);
         scene.add(wall2);
 
-        const worldObstacles = [floor, wall1, wall2];
+        const worldObstacles = [wall1, wall2];
 
-        // Улучшенная сборка модели персонажа (Т или СТ)
+        // Создание персонажа с детализированным лицом
         function createCharacter(team, name, x, z) {
             const group = new THREE.Group();
             group.position.set(x, 0, z);
 
-            // Цвета по ТЗ:
-            // T: Красная куртка, чёрные штаны, чёрная обувь
-            // CT: Синяя куртка, чёрные штаны, чёрная обувь
             const coatColor = (team === 'T') ? 0xd32f2f : 0x1976d2;
             const matJacket = new THREE.MeshStandardMaterial({ color: coatColor, roughness: 0.5 });
             const matPants = new THREE.MeshStandardMaterial({ color: 0x151515 });
             const matShoes = new THREE.MeshStandardMaterial({ color: 0x050505 });
             const matHead = new THREE.MeshStandardMaterial({ color: 0xffcd94 });
+            const matFaceDetail = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
             // 1. Голова
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), matHead);
@@ -211,13 +211,26 @@
             head.userData = { bodyPart: 'head', enemy: group };
             group.add(head);
 
-            // 2. Тело (Куртка)
+            // Черты лица (Глаза и рот/маска)
+            const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.02), matFaceDetail);
+            eyeL.position.set(-0.09, 1.65, -0.2);
+            group.add(eyeL);
+
+            const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.02), matFaceDetail);
+            eyeR.position.set(0.09, 1.65, -0.2);
+            group.add(eyeR);
+
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.02), matFaceDetail);
+            mouth.position.set(0, 1.52, -0.2);
+            group.add(mouth);
+
+            // 2. Тело
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.28), matJacket);
             body.position.set(0, 1.1, 0);
             body.userData = { bodyPart: 'body', enemy: group };
             group.add(body);
 
-            // 3. Руки (Куртка + Кисти)
+            // 3. Руки
             [-0.36, 0.36].forEach(armX => {
                 const arm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), matJacket);
                 arm.position.set(armX, 1.08, 0);
@@ -225,14 +238,13 @@
                 group.add(arm);
             });
 
-            // 4. Ноги (Штаны)
+            // 4. Ноги и обувь
             [-0.14, 0.14].forEach(legX => {
                 const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), matPants);
                 leg.position.set(legX, 0.45, 0);
                 leg.userData = { bodyPart: 'leg', enemy: group };
                 group.add(leg);
 
-                // Обувь
                 const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.26), matShoes);
                 shoe.position.set(legX, 0.08, 0.03);
                 group.add(shoe);
@@ -259,7 +271,7 @@
             createCharacter('CT', 'Бот Спецназ #1', 6, -4)
         ];
 
-        // --- 4. СЕНСОРНОЕ УПРАВЛЕНИЕ И СТРЕЛЬБА ---
+        // --- 4. СЕНСОРНОЕ УПРАВЛЕНИЕ ---
         let moveTouchId = null, lookTouchId = null, fireTouchId = null;
         let touchStartPos = { x: 0, y: 0 };
         let joystickVector = { x: 0, y: 0 };
@@ -271,7 +283,6 @@
         const jsKnob = document.getElementById('joystick-knob');
         const btnFire = document.getElementById('btn-fire');
 
-        // Левая область - Джойстик
         moveArea.addEventListener('touchstart', (e) => {
             for (let t of e.changedTouches) {
                 if (moveTouchId === null) {
@@ -318,7 +329,6 @@
         moveArea.addEventListener('touchend', resetJoystick);
         moveArea.addEventListener('touchcancel', resetJoystick);
 
-        // Правая область - Обзор и контроль отдачи
         function handleCameraLook(dx, dy) {
             yawObject.rotation.y -= dx * 0.004;
             pitchObject.rotation.x -= dy * 0.004;
@@ -353,10 +363,10 @@
         lookArea.addEventListener('touchend', resetLook);
         lookArea.addEventListener('touchcancel', resetLook);
 
-        // Кнопка Огонь (Удержание + Контроль отдачи пальцем)
+        // Кнопка стрельбы
         let isHoldingFire = false;
         let lastFireTime = 0;
-        const fireRate = 180; // Задержка между выстрелами (мс)
+        const fireRate = 180;
 
         btnFire.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -372,7 +382,7 @@
                 if (t.identifier === fireTouchId) {
                     const dx = t.clientX - lookLastPos.x;
                     const dy = t.clientY - lookLastPos.y;
-                    handleCameraLook(dx, dy); // Управление отдачей
+                    handleCameraLook(dx, dy);
                     lookLastPos = { x: t.clientX, y: t.clientY };
                 }
             }
@@ -389,16 +399,15 @@
         btnFire.addEventListener('touchend', stopFire);
         btnFire.addEventListener('touchcancel', stopFire);
 
-        // --- 5. ГЕЙМПЛЕЙ: ОТДАЧА, РАЗБРОС, УРОН И КИЛЛФИД ---
+        // --- 5. ЧАТ УБИЙСТВ И СТРЕЛЬБА ---
         let currentAmmo = 12, reserveAmmo = 36, isReloading = false;
-        let spreadAcc = 0; // Накопление разброса
+        let spreadAcc = 0;
         const raycaster = new THREE.Raycaster();
 
         function updateAmmoUI() {
             document.getElementById('ammo').innerText = `${currentAmmo} / ${reserveAmmo}`;
         }
 
-        // Перезарядка
         document.getElementById('btn-reload').addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (isReloading || currentAmmo === 12 || reserveAmmo <= 0) return;
@@ -414,48 +423,40 @@
             }, 1200);
         });
 
-        // Показ лога выстрела
-        const hitLog = document.getElementById('hit-log');
-        let hitTimeout;
-        function showHitText(text, color = "#ff3333") {
-            hitLog.innerText = text;
-            hitLog.style.color = color;
-            hitLog.style.opacity = '1';
-            clearTimeout(hitTimeout);
-            hitTimeout = setTimeout(() => hitLog.style.opacity = '0', 600);
+        // Функция добавления события в Чат Убийств
+        function addKillFeed(killerName, victimName) {
+            const feed = document.getElementById('kill-feed');
+            const entry = document.createElement('div');
+            entry.className = 'kill-entry';
+
+            const isKillerPlayer = (killerName === "Игрок");
+            const isVictimPlayer = (victimName === "Игрок");
+
+            const killerClass = isKillerPlayer ? 'name-white' : 'name-other';
+            const victimClass = isVictimPlayer ? 'name-white' : 'name-other';
+
+            entry.innerHTML = `<span class="${killerClass}">${killerName}</span> <span style="color:#ff3333;">💀</span> <span class="${victimClass}">${victimName}</span>`;
+            feed.appendChild(entry);
+
+            if (feed.children.length > 5) feed.removeChild(feed.children[0]);
+            setTimeout(() => { if (entry.parentNode) entry.parentNode.removeChild(entry); }, 4000);
         }
 
-        // Показ плашки убийства
-        function showKillBanner(killer, weapon, victim) {
-            const banner = document.getElementById('kill-banner');
-            banner.innerHTML = `${killer} ➔ <span class="weapon">${weapon} (Default)</span> ➔ <span class="victim">${victim}</span>`;
-            banner.style.display = 'block';
-            setTimeout(() => banner.style.display = 'none', 2500);
-        }
-
-        // Выстрел
         function shootPistol() {
-            if (isReloading) return;
-            if (currentAmmo <= 0) {
-                showHitText("НЕТ ПАТРОНОВ!", "#ffff00");
-                return;
-            }
+            if (isReloading || currentAmmo <= 0) return;
 
             currentAmmo--;
             updateAmmoUI();
 
-            // 1. Отдача (Подбрасывает камеру вверх)
             pitchObject.rotation.x += 0.025;
             weaponGroup.position.z = 0.08;
 
-            // 2. Накопление разброса пуль
             spreadAcc = Math.min(spreadAcc + 0.015, 0.05);
             const spreadX = (Math.random() - 0.5) * spreadAcc;
             const spreadY = (Math.random() - 0.5) * spreadAcc;
 
             raycaster.setFromCamera(new THREE.Vector2(spreadX, spreadY), camera);
 
-            // Сбор всех живых хитбоксов
             let hitboxes = [];
             enemies.forEach(e => {
                 if (!e.userData.isDead) hitboxes.push(...e.children);
@@ -468,24 +469,21 @@
                 const part = hitMesh.userData.bodyPart;
                 const enemy = hitMesh.userData.enemy;
 
-                let damage = 0, partName = "";
-                if (part === 'head') { damage = 70; partName = "ГОЛОВА"; }
-                else if (part === 'body') { damage = Math.floor(Math.random() * 31) + 20; partName = "ТЕЛО"; }
-                else if (part === 'arm') { damage = Math.floor(Math.random() * 16) + 10; partName = "РУКА"; }
-                else if (part === 'leg') { damage = Math.floor(Math.random() * 16) + 10; partName = "НОГА"; }
+                let damage = 0;
+                if (part === 'head') damage = 70;
+                else if (part === 'body') damage = Math.floor(Math.random() * 31) + 20;
+                else damage = Math.floor(Math.random() * 16) + 10;
 
                 enemy.userData.hp -= damage;
-                showHitText(`${partName}! -${damage} HP`);
 
-                // Убийство и Респавн
                 if (enemy.userData.hp <= 0 && !enemy.userData.isDead) {
                     enemy.userData.isDead = true;
                     enemy.rotation.x = -Math.PI / 2;
                     enemy.position.y = 0.2;
 
-                    showKillBanner("Игрок", "Glock 17", enemy.userData.name);
+                    // Отправка в Чат Убийств
+                    addKillFeed("Игрок", enemy.userData.name);
 
-                    // Респавн через 3 секунды
                     setTimeout(() => {
                         enemy.userData.isDead = false;
                         enemy.userData.hp = 100;
@@ -496,41 +494,39 @@
             }
         }
 
-        // --- 6. РАДАР / МИНИ-КАРТА ---
+        // --- 6. ИСПРАВЛЕННЫЙ РАДАР (ПЛАВНЫЙ И ЦЕНТРИРОВАННЫЙ) ---
         const canvas = document.getElementById('minimap');
         const ctx = canvas.getContext('2d');
 
         function updateMinimap(now) {
-            ctx.clearRect(0, 0, 120, 120);
+            ctx.clearRect(0, 0, 110, 110);
 
-            const mapCenterX = 60, mapCenterY = 60;
-            const scale = 3.5; // Масштаб отображения
-
-            // 1. Линии обзора игрока
+            const mapCenterX = 55, mapCenterY = 55;
+            const scale = 3.5;
             const playerRot = yawObject.rotation.y;
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.lineWidth = 1;
+
+            // 1. Игрок смотрит всегда НАВЕРХ на радаре
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(mapCenterX, mapCenterY);
-            ctx.lineTo(mapCenterX + Math.sin(playerRot - 0.5) * 40, mapCenterY - Math.cos(playerRot - 0.5) * 40);
+            ctx.lineTo(mapCenterX - 15, mapCenterY - 25);
             ctx.moveTo(mapCenterX, mapCenterY);
-            ctx.lineTo(mapCenterX + Math.sin(playerRot + 0.5) * 40, mapCenterY - Math.cos(playerRot + 0.5) * 40);
+            ctx.lineTo(mapCenterX + 15, mapCenterY - 25);
             ctx.stroke();
 
-            // Маркер игрока (Белая точка)
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(mapCenterX, mapCenterY, 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. Враги на радаре
+            // 2. Враги с поворотом карты относительно взгляда
             const eyePos = yawObject.position.clone();
             eyePos.y += 0.8;
 
             enemies.forEach(enemy => {
                 if (enemy.userData.isDead) return;
 
-                // Проверка видимости (Raycast от игрока к врагу)
                 const enemyHeadPos = enemy.position.clone();
                 enemyHeadPos.y += 1.6;
 
@@ -539,7 +535,6 @@
 
                 const losRay = new THREE.Raycaster(eyePos, dir, 0, dist - 0.2);
                 const blocks = losRay.intersectObjects(worldObstacles);
-
                 const isVisible = (blocks.length === 0);
 
                 if (isVisible) {
@@ -550,37 +545,42 @@
                     enemy.userData.isVisible = false;
                 }
 
-                // Отрисовка маркеров
-                const dx = (enemy.position.x - yawObject.position.x) * scale;
-                const dz = (enemy.position.z - yawObject.position.z) * scale;
-                const mapX = mapCenterX + dx;
-                const mapY = mapCenterY + dz;
+                // Расчет относительной позиции на повернутой карте
+                const relX = enemy.position.x - yawObject.position.x;
+                const relZ = enemy.position.z - yawObject.position.z;
+
+                const rotX = relX * Math.cos(-playerRot) - relZ * Math.sin(-playerRot);
+                const rotZ = relX * Math.sin(-playerRot) + relZ * Math.cos(-playerRot);
+
+                const mapX = mapCenterX + rotX * scale;
+                const mapY = mapCenterY + rotZ * scale;
 
                 if (enemy.userData.isVisible) {
-                    // Красная закрашенная точка (Видим прямо сейчас)
                     ctx.fillStyle = '#ff0000';
                     ctx.beginPath();
                     ctx.arc(mapX, mapY, 3.5, 0, Math.PI * 2);
                     ctx.fill();
                 } else if (enemy.userData.lastSeenPos) {
-                    // Исчезающее колечко на месте последнего контакта (до 3 сек)
                     const timeSince = now - enemy.userData.lastSeenTime;
                     if (timeSince < 3000) {
                         const alpha = 1.0 - (timeSince / 3000);
-                        const lastDx = mapCenterX + (enemy.userData.lastSeenPos.x - yawObject.position.x) * scale;
-                        const lastDz = mapCenterY + (enemy.userData.lastSeenPos.z - yawObject.position.z) * scale;
+                        const lastRelX = enemy.userData.lastSeenPos.x - yawObject.position.x;
+                        const lastRelZ = enemy.userData.lastSeenPos.z - yawObject.position.z;
+
+                        const lastRotX = lastRelX * Math.cos(-playerRot) - lastRelZ * Math.sin(-playerRot);
+                        const lastRotZ = lastRelX * Math.sin(-playerRot) + lastRelZ * Math.cos(-playerRot);
 
                         ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
                         ctx.lineWidth = 2;
                         ctx.beginPath();
-                        ctx.arc(lastDx, lastDz, 4, 0, Math.PI * 2);
+                        ctx.arc(mapCenterX + lastRotX * scale, mapCenterY + lastRotZ * scale, 4, 0, Math.PI * 2);
                         ctx.stroke();
                     }
                 }
             });
         }
 
-        // --- 7. ДВИЖЕНИЕ И ПРИСЕДАНИЕ ---
+        // --- 7. ДВИЖЕНИЕ С КОЛЛИЗИЯМИ И МЕНЬШИМ ПРЫЖКОМ ---
         let velocityY = 0, isGrounded = true, isCrouching = false;
         const targetHeight = { current: 1.6 };
 
@@ -589,13 +589,39 @@
             e.preventDefault();
             isCrouching = !isCrouching;
             btnCrouch.classList.toggle('active', isCrouching);
-            document.getElementById('state-text').innerText = isCrouching ? "Сидит" : "Стоит";
         });
 
+        // Уменьшенный прыжок (было 8.0 -> стало 5.2)
         document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
             e.preventDefault();
-            if (isGrounded) { velocityY = 8.0; isGrounded = false; }
+            if (isGrounded) { velocityY = 5.2; isGrounded = false; }
         });
+
+        // Проверка твердых коллизий (Стены и Враги)
+        const playerRadius = 0.4;
+
+        function canMoveTo(nextPos) {
+            // Проверка стен
+            for (let obj of worldObstacles) {
+                const box = new THREE.Box3().setFromObject(obj);
+                box.min.x -= playerRadius; box.max.x += playerRadius;
+                box.min.z -= playerRadius; box.max.z += playerRadius;
+
+                if (nextPos.x >= box.min.x && nextPos.x <= box.max.x &&
+                    nextPos.z >= box.min.z && nextPos.z <= box.max.z) {
+                    return false;
+                }
+            }
+
+            // Проверка живых NPC
+            for (let enemy of enemies) {
+                if (enemy.userData.isDead) continue;
+                const dist = Math.hypot(nextPos.x - enemy.position.x, nextPos.z - enemy.position.z);
+                if (dist < playerRadius + 0.45) return false;
+            }
+
+            return true;
+        }
 
         // --- 8. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ ---
         let lastTime = performance.now();
@@ -607,32 +633,35 @@
             const delta = Math.min((time - lastTime) / 1000, 0.1);
             lastTime = time;
 
-            // Стрельба зажатием
             if (isHoldingFire && (time - lastFireTime > fireRate)) {
                 shootPistol();
                 lastFireTime = time;
             }
 
-            // Гашение отдачи и разброса
             weaponGroup.position.z += (0.05 - weaponGroup.position.z) * 0.2;
             spreadAcc = Math.max(0, spreadAcc - delta * 0.1);
 
-            // Приседание
             const desiredY = isCrouching ? 0.9 : 1.6;
             targetHeight.current += (desiredY - targetHeight.current) * 10.0 * delta;
 
-            // Движение
             const speed = isCrouching ? 3.5 : 7.0;
             const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(yawObject.quaternion);
             const side = new THREE.Vector3(1, 0, 0).applyQuaternion(yawObject.quaternion);
             forward.y = 0; forward.normalize();
             side.y = 0; side.normalize();
 
-            yawObject.position.addScaledVector(forward, -joystickVector.y * speed * delta);
-            yawObject.position.addScaledVector(side, joystickVector.x * speed * delta);
+            // Покомпонентное перемещение с проверкой коллизий (Слайдинг вдоль стен)
+            const moveX = (forward.x * -joystickVector.y + side.x * joystickVector.x) * speed * delta;
+            const moveZ = (forward.z * -joystickVector.y + side.z * joystickVector.x) * speed * delta;
+
+            const nextPosX = yawObject.position.clone(); nextPosX.x += moveX;
+            if (canMoveTo(nextPosX)) yawObject.position.x = nextPosX.x;
+
+            const nextPosZ = yawObject.position.clone(); nextPosZ.z += moveZ;
+            if (canMoveTo(nextPosZ)) yawObject.position.z = nextPosZ.z;
 
             // Гравитация
-            velocityY -= 22.0 * delta;
+            velocityY -= 20.0 * delta;
             yawObject.position.y += velocityY * delta;
 
             if (yawObject.position.y <= targetHeight.current) {
@@ -641,9 +670,7 @@
                 isGrounded = true;
             }
 
-            // Обновление радара
             updateMinimap(time);
-
             renderer.render(scene, camera);
         }
 
