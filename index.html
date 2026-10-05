@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Block Strike Mobile - Refined Edition</title>
+    <title>Block Strike Mobile - Custom Viewmodel</title>
     <style>
         * { touch-action: none; user-select: none; -webkit-user-select: none; box-sizing: border-box; }
         body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; }
@@ -96,7 +96,7 @@
     <div id="btn-reload" class="btn">R</div>
 
     <div id="hud">
-        ПА ТРОНЫ: <span id="ammo">12 / 36</span>
+        ПАТРОНЫ: <span id="ammo">7 / 21</span>
     </div>
 
     <!-- Радар -->
@@ -141,39 +141,49 @@
         yawObject.position.set(0, 1.6, 8);
         scene.add(yawObject);
 
-        // --- 2. ДВУРУЧНАЯ МОДЕЛЬ ОРУЖИЯ (VIEWMODEL) ---
+        // --- 2. МОДЕЛЬ РУК И ОРУЖИЯ В СТИЛЕ BLOCK STRIKE (DEAGLE) ---
         const weaponGroup = new THREE.Group();
         camera.add(weaponGroup);
 
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcd94 });
-        const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3 });
-        const gunGripMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffcd94, roughness: 0.8 });
+        const gunBodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.4 });
+        const gunSlideMat = new THREE.MeshStandardMaterial({ color: 0x3d3d3d, roughness: 0.3 }); // Светлый затвор под Deagle Sandy
+        const gunGripMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.6 });
 
-        // Правая рука (держит рукоятку)
-        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.35), skinMat);
-        rightArm.position.set(0.18, -0.16, -0.3);
-        rightArm.rotation.set(-0.1, -0.1, 0);
+        // Правая рука (держит пистолет сзади)
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.4), skinMat);
+        rightArm.position.set(0.22, -0.22, -0.25);
+        rightArm.rotation.set(-0.15, -0.15, 0);
         weaponGroup.add(rightArm);
 
-        // Левая рука (обхватывает снизу / поддерживает)
-        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.35), skinMat);
-        leftArm.position.set(0.08, -0.18, -0.28);
-        leftArm.rotation.set(-0.1, 0.35, 0.2);
+        // Левая рука (снизу для поддержки)
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.35), skinMat);
+        leftArm.position.set(0.08, -0.26, -0.32);
+        leftArm.rotation.set(-0.05, 0.3, 0.1);
         weaponGroup.add(leftArm);
 
-        // Пистолет
-        const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.15, 0.07), gunGripMat);
-        gunGrip.position.set(0.18, -0.12, -0.4);
-        gunGrip.rotation.x = 0.2;
+        // Геометрия тяжелого пистолета (Deagle style)
+        const gunGrip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.09), gunGripMat);
+        gunGrip.position.set(0.2, -0.14, -0.36);
+        gunGrip.rotation.x = 0.25;
         weaponGroup.add(gunGrip);
 
-        const gunSlide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.28), gunBodyMat);
-        gunSlide.position.set(0.18, -0.05, -0.45);
+        const gunFrame = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, 0.22), gunBodyMat);
+        gunFrame.position.set(0.2, -0.07, -0.42);
+        weaponGroup.add(gunFrame);
+
+        const gunSlide = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.1, 0.32), gunSlideMat);
+        gunSlide.position.set(0.2, 0.0, -0.44);
         weaponGroup.add(gunSlide);
 
-        weaponGroup.position.set(0.05, -0.05, 0);
+        // Мушка / детали затвора
+        const gunSight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.04), gunBodyMat);
+        gunSight.position.set(0.2, 0.06, -0.58);
+        weaponGroup.add(gunSight);
 
-        // --- 3. КАРТА, КОЛЛИЗИИ И МОДЕЛИ NPC C ЧЕРТАМИ ЛИЦА ---
+        weaponGroup.position.set(0.06, -0.02, 0);
+
+        // --- 3. КАРТА, КОЛЛИЗИИ И МОДЕЛЬКИ NPC ---
         const floor = new THREE.Mesh(
             new THREE.PlaneGeometry(100, 100),
             new THREE.MeshStandardMaterial({ color: 0x406020 })
@@ -181,7 +191,6 @@
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        // Препятствия (Стены)
         const wallMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
         const wall1 = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 1), wallMat);
         wall1.position.set(-2, 2, 0);
@@ -193,7 +202,6 @@
 
         const worldObstacles = [wall1, wall2];
 
-        // Создание персонажа с детализированным лицом
         function createCharacter(team, name, x, z) {
             const group = new THREE.Group();
             group.position.set(x, 0, z);
@@ -205,13 +213,13 @@
             const matHead = new THREE.MeshStandardMaterial({ color: 0xffcd94 });
             const matFaceDetail = new THREE.MeshBasicMaterial({ color: 0x111111 });
 
-            // 1. Голова
+            // Голова
             const head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.38), matHead);
             head.position.set(0, 1.6, 0);
             head.userData = { bodyPart: 'head', enemy: group };
             group.add(head);
 
-            // Черты лица (Глаза и рот/маска)
+            // Лицо
             const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.02), matFaceDetail);
             eyeL.position.set(-0.09, 1.65, -0.2);
             group.add(eyeL);
@@ -224,13 +232,13 @@
             mouth.position.set(0, 1.52, -0.2);
             group.add(mouth);
 
-            // 2. Тело
+            // Тело
             const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.65, 0.28), matJacket);
             body.position.set(0, 1.1, 0);
             body.userData = { bodyPart: 'body', enemy: group };
             group.add(body);
 
-            // 3. Руки
+            // Руки
             [-0.36, 0.36].forEach(armX => {
                 const arm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.18), matJacket);
                 arm.position.set(armX, 1.08, 0);
@@ -238,7 +246,7 @@
                 group.add(arm);
             });
 
-            // 4. Ноги и обувь
+            // Ноги
             [-0.14, 0.14].forEach(legX => {
                 const leg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.6, 0.2), matPants);
                 leg.position.set(legX, 0.45, 0);
@@ -363,10 +371,96 @@
         lookArea.addEventListener('touchend', resetLook);
         lookArea.addEventListener('touchcancel', resetLook);
 
-        // Кнопка стрельбы
         let isHoldingFire = false;
         let lastFireTime = 0;
-        const fireRate = 180;
+        const fireRate = 220; // Одиночный скорострельный стиль Deagle
+        let currentAmmo = 7, reserveAmmo = 21, isReloading = false;
+        let spreadAcc = 0;
+        const raycaster = new THREE.Raycaster();
+
+        function updateAmmoUI() {
+            document.getElementById('ammo').innerText = `${currentAmmo} / ${reserveAmmo}`;
+        }
+
+        document.getElementById('btn-reload').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (isReloading || currentAmmo === 7 || reserveAmmo <= 0) return;
+            isReloading = true;
+            document.getElementById('ammo').innerText = "ПЕРЕЗАРЯДКА...";
+            setTimeout(() => {
+                const needed = 7 - currentAmmo;
+                const toAdd = Math.min(needed, reserveAmmo);
+                currentAmmo += toAdd;
+                reserveAmmo -= toAdd;
+                isReloading = false;
+                updateAmmoUI();
+            }, 1400);
+        });
+
+        function addKillFeed(killerName, victimName) {
+            const feed = document.getElementById('kill-feed');
+            const entry = document.createElement('div');
+            entry.className = 'kill-entry';
+
+            const isKillerPlayer = (killerName === "Игрок");
+            const isVictimPlayer = (victimName === "Игрок");
+
+            const killerClass = isKillerPlayer ? 'name-white' : 'name-other';
+            const victimClass = isVictimPlayer ? 'name-white' : 'name-other';
+
+            entry.innerHTML = `<span class="${killerClass}">${killerName}</span> <span style="color:#ff3333;">💀</span> <span class="${victimClass}">${victimName}</span>`;
+            feed.appendChild(entry);
+
+            if (feed.children.length > 5) feed.removeChild(feed.children[0]);
+            setTimeout(() => { if (entry.parentNode) entry.parentNode.removeChild(entry); }, 4000);
+        }
+
+        function shootPistol() {
+            if (isReloading || currentAmmo <= 0) return;
+
+            currentAmmo--;
+            updateAmmoUI();
+
+            pitchObject.rotation.x += 0.035; // Сильная отдача для Deagle
+            weaponGroup.position.z = 0.1;
+
+            spreadAcc = Math.min(spreadAcc + 0.02, 0.06);
+            const spreadX = (Math.random() - 0.5) * spreadAcc;
+            const spreadY = (Math.random() - 0.5) * spreadAcc;
+
+            raycaster.setFromCamera(new THREE.Vector2(spreadX, spreadY), camera);
+
+            let hitboxes = [];
+            enemies.forEach(e => {
+                if (!e.userData.isDead) hitboxes.push(...e.children);
+            });
+
+            const intersects = raycaster.intersectObjects(hitboxes);
+
+            if (intersects.length > 0) {
+                const hitMesh = intersects[0].object;
+                const part = hitMesh.userData.bodyPart;
+                const enemy = hitMesh.userData.enemy;
+
+                let damage = (part === 'head') ? 100 : 55; // Убийство в голову с одного выстрела
+                enemy.userData.hp -= damage;
+
+                if (enemy.userData.hp <= 0 && !enemy.userData.isDead) {
+                    enemy.userData.isDead = true;
+                    enemy.rotation.x = -Math.PI / 2;
+                    enemy.position.y = 0.2;
+
+                    addKillFeed("Игрок", enemy.userData.name);
+
+                    setTimeout(() => {
+                        enemy.userData.isDead = false;
+                        enemy.userData.hp = 100;
+                        enemy.rotation.x = 0;
+                        enemy.position.copy(enemy.userData.spawnPos);
+                    }, 3000);
+                }
+            }
+        }
 
         btnFire.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -399,113 +493,16 @@
         btnFire.addEventListener('touchend', stopFire);
         btnFire.addEventListener('touchcancel', stopFire);
 
-        // --- 5. ЧАТ УБИЙСТВ И СТРЕЛЬБА ---
-        let currentAmmo = 12, reserveAmmo = 36, isReloading = false;
-        let spreadAcc = 0;
-        const raycaster = new THREE.Raycaster();
-
-        function updateAmmoUI() {
-            document.getElementById('ammo').innerText = `${currentAmmo} / ${reserveAmmo}`;
-        }
-
-        document.getElementById('btn-reload').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (isReloading || currentAmmo === 12 || reserveAmmo <= 0) return;
-            isReloading = true;
-            document.getElementById('ammo').innerText = "ПЕРЕЗАРЯДКА...";
-            setTimeout(() => {
-                const needed = 12 - currentAmmo;
-                const toAdd = Math.min(needed, reserveAmmo);
-                currentAmmo += toAdd;
-                reserveAmmo -= toAdd;
-                isReloading = false;
-                updateAmmoUI();
-            }, 1200);
-        });
-
-        // Функция добавления события в Чат Убийств
-        function addKillFeed(killerName, victimName) {
-            const feed = document.getElementById('kill-feed');
-            const entry = document.createElement('div');
-            entry.className = 'kill-entry';
-
-            const isKillerPlayer = (killerName === "Игрок");
-            const isVictimPlayer = (victimName === "Игрок");
-
-            const killerClass = isKillerPlayer ? 'name-white' : 'name-other';
-            const victimClass = isVictimPlayer ? 'name-white' : 'name-other';
-
-            entry.innerHTML = `<span class="${killerClass}">${killerName}</span> <span style="color:#ff3333;">💀</span> <span class="${victimClass}">${victimName}</span>`;
-            feed.appendChild(entry);
-
-            if (feed.children.length > 5) feed.removeChild(feed.children[0]);
-            setTimeout(() => { if (entry.parentNode) entry.parentNode.removeChild(entry); }, 4000);
-        }
-
-        function shootPistol() {
-            if (isReloading || currentAmmo <= 0) return;
-
-            currentAmmo--;
-            updateAmmoUI();
-
-            pitchObject.rotation.x += 0.025;
-            weaponGroup.position.z = 0.08;
-
-            spreadAcc = Math.min(spreadAcc + 0.015, 0.05);
-            const spreadX = (Math.random() - 0.5) * spreadAcc;
-            const spreadY = (Math.random() - 0.5) * spreadAcc;
-
-            raycaster.setFromCamera(new THREE.Vector2(spreadX, spreadY), camera);
-
-            let hitboxes = [];
-            enemies.forEach(e => {
-                if (!e.userData.isDead) hitboxes.push(...e.children);
-            });
-
-            const intersects = raycaster.intersectObjects(hitboxes);
-
-            if (intersects.length > 0) {
-                const hitMesh = intersects[0].object;
-                const part = hitMesh.userData.bodyPart;
-                const enemy = hitMesh.userData.enemy;
-
-                let damage = 0;
-                if (part === 'head') damage = 70;
-                else if (part === 'body') damage = Math.floor(Math.random() * 31) + 20;
-                else damage = Math.floor(Math.random() * 16) + 10;
-
-                enemy.userData.hp -= damage;
-
-                if (enemy.userData.hp <= 0 && !enemy.userData.isDead) {
-                    enemy.userData.isDead = true;
-                    enemy.rotation.x = -Math.PI / 2;
-                    enemy.position.y = 0.2;
-
-                    // Отправка в Чат Убийств
-                    addKillFeed("Игрок", enemy.userData.name);
-
-                    setTimeout(() => {
-                        enemy.userData.isDead = false;
-                        enemy.userData.hp = 100;
-                        enemy.rotation.x = 0;
-                        enemy.position.copy(enemy.userData.spawnPos);
-                    }, 3000);
-                }
-            }
-        }
-
-        // --- 6. ИСПРАВЛЕННЫЙ РАДАР (ПЛАВНЫЙ И ЦЕНТРИРОВАННЫЙ) ---
+        // --- 5. РАДАР ---
         const canvas = document.getElementById('minimap');
         const ctx = canvas.getContext('2d');
 
         function updateMinimap(now) {
             ctx.clearRect(0, 0, 110, 110);
-
             const mapCenterX = 55, mapCenterY = 55;
             const scale = 3.5;
             const playerRot = yawObject.rotation.y;
 
-            // 1. Игрок смотрит всегда НАВЕРХ на радаре
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -520,7 +517,6 @@
             ctx.arc(mapCenterX, mapCenterY, 3, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. Враги с поворотом карты относительно взгляда
             const eyePos = yawObject.position.clone();
             eyePos.y += 0.8;
 
@@ -545,7 +541,6 @@
                     enemy.userData.isVisible = false;
                 }
 
-                // Расчет относительной позиции на повернутой карте
                 const relX = enemy.position.x - yawObject.position.x;
                 const relZ = enemy.position.z - yawObject.position.z;
 
@@ -560,27 +555,11 @@
                     ctx.beginPath();
                     ctx.arc(mapX, mapY, 3.5, 0, Math.PI * 2);
                     ctx.fill();
-                } else if (enemy.userData.lastSeenPos) {
-                    const timeSince = now - enemy.userData.lastSeenTime;
-                    if (timeSince < 3000) {
-                        const alpha = 1.0 - (timeSince / 3000);
-                        const lastRelX = enemy.userData.lastSeenPos.x - yawObject.position.x;
-                        const lastRelZ = enemy.userData.lastSeenPos.z - yawObject.position.z;
-
-                        const lastRotX = lastRelX * Math.cos(-playerRot) - lastRelZ * Math.sin(-playerRot);
-                        const lastRotZ = lastRelX * Math.sin(-playerRot) + lastRelZ * Math.cos(-playerRot);
-
-                        ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.arc(mapCenterX + lastRotX * scale, mapCenterY + lastRotZ * scale, 4, 0, Math.PI * 2);
-                        ctx.stroke();
-                    }
                 }
             });
         }
 
-        // --- 7. ДВИЖЕНИЕ С КОЛЛИЗИЯМИ И МЕНЬШИМ ПРЫЖКОМ ---
+        // --- 6. ДВИЖЕНИЕ И КОЛЛИЗИИ ---
         let velocityY = 0, isGrounded = true, isCrouching = false;
         const targetHeight = { current: 1.6 };
 
@@ -591,17 +570,14 @@
             btnCrouch.classList.toggle('active', isCrouching);
         });
 
-        // Уменьшенный прыжок (было 8.0 -> стало 5.2)
         document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
             e.preventDefault();
             if (isGrounded) { velocityY = 5.2; isGrounded = false; }
         });
 
-        // Проверка твердых коллизий (Стены и Враги)
         const playerRadius = 0.4;
 
         function canMoveTo(nextPos) {
-            // Проверка стен
             for (let obj of worldObstacles) {
                 const box = new THREE.Box3().setFromObject(obj);
                 box.min.x -= playerRadius; box.max.x += playerRadius;
@@ -613,7 +589,6 @@
                 }
             }
 
-            // Проверка живых NPC
             for (let enemy of enemies) {
                 if (enemy.userData.isDead) continue;
                 const dist = Math.hypot(nextPos.x - enemy.position.x, nextPos.z - enemy.position.z);
@@ -623,7 +598,6 @@
             return true;
         }
 
-        // --- 8. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ ---
         let lastTime = performance.now();
 
         function animate() {
@@ -638,7 +612,7 @@
                 lastFireTime = time;
             }
 
-            weaponGroup.position.z += (0.05 - weaponGroup.position.z) * 0.2;
+            weaponGroup.position.z += (0.0 - weaponGroup.position.z) * 0.2;
             spreadAcc = Math.max(0, spreadAcc - delta * 0.1);
 
             const desiredY = isCrouching ? 0.9 : 1.6;
@@ -650,7 +624,6 @@
             forward.y = 0; forward.normalize();
             side.y = 0; side.normalize();
 
-            // Покомпонентное перемещение с проверкой коллизий (Слайдинг вдоль стен)
             const moveX = (forward.x * -joystickVector.y + side.x * joystickVector.x) * speed * delta;
             const moveZ = (forward.z * -joystickVector.y + side.z * joystickVector.x) * speed * delta;
 
@@ -660,7 +633,6 @@
             const nextPosZ = yawObject.position.clone(); nextPosZ.z += moveZ;
             if (canMoveTo(nextPosZ)) yawObject.position.z = nextPosZ.z;
 
-            // Гравитация
             velocityY -= 20.0 * delta;
             yawObject.position.y += velocityY * delta;
 
