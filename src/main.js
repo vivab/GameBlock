@@ -32,18 +32,34 @@ const gun=new THREE.Group();camera.add(gun);scene.add(camera);
 cube(.22,.18,.72,0x272e35,.31,-.3,-.63,gun);cube(.09,.09,.43,0x13171a,.31,-.27,-1.16,gun);cube(.14,.26,.17,0x534333,.31,-.47,-.46,gun);
 cube(.18,.17,.34,0xb38e72,.1,-.44,-.56,gun);cube(.18,.17,.34,0xb38e72,.48,-.44,-.56,gun);
 const stats=document.getElementById('stats'),cross=document.getElementById('cross'),radar=document.getElementById('radar'),ctx=radar.getContext('2d');
-let ammo=30,reserve=90,reloading=false,firing=false,lastShot=0,recoil=0,shots=0;
+let ammo=30,reserve=90,reloading=false,firing=false,lastShot=0,recoil=0,shots=0,jumpHeld=false,lastLanding=-10,airPenalty=0;
 const move={x:0,y:0},keys=new Set(),ray=new THREE.Raycaster(),dir=new THREE.Vector3();
 const damage={head:100,chest:35,stomach:40,arm:25,leg:20};
 function reload(){if(reloading||ammo===30||reserve===0)return;reloading=true;setTimeout(()=>{const n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;reloading=false},1700)}
-function shoot(now){if(reloading||ammo<=0||now-lastShot<120)return;lastShot=now;ammo--;shots++;recoil=Math.min(.12,recoil+.023);
-dir.set((Math.random()-.5)*(.008+shots*.002),(Math.random()-.5)*(.008+shots*.002),-1).normalize().applyQuaternion(camera.quaternion);
+function shoot(now){
+if(reloading||ammo<=0||now-lastShot<105)return;
+const gap=now-lastShot;if(gap>360)shots=0;
+lastShot=now;ammo--;shots++;
+// Predictable upward kick with horizontal spray; touch look remains independent.
+const phase=Math.min(shots,26);
+const horizontal=Math.sin(phase*.63)*.0026+Math.sin(phase*.27)*.0017;
+const kick=.010+Math.min(phase,12)*.00075;
+player.pitch=Math.min(1.2,player.pitch+kick);
+player.yaw+=horizontal;
+recoil=Math.min(.09,recoil+.022);
+const moving=Math.min(1,Math.hypot(move.x,move.y));
+const spread=.0028+Math.min(phase,20)*.00055+moving*.009+(!player.ground?.012:0);
+dir.set((Math.random()-.5)*spread*2,(Math.random()-.5)*spread*2,-1).normalize().applyQuaternion(camera.quaternion);
 ray.set(camera.position,dir);ray.far=80;
 const hit=ray.intersectObjects([...walls,...enemies.filter(e=>e.visible).flatMap(e=>e.userData.parts)],false)[0];
 if(hit?.object.userData.enemy){const e=hit.object.userData.enemy;e.userData.hp-=damage[hit.object.userData.zone]||20;cross.style.color='#ff6464';setTimeout(()=>cross.style.color='white',90);if(e.userData.hp<=0){e.visible=false;setTimeout(()=>{e.userData.hp=100;e.visible=true},2500)}}}
-function jump(){if(!player.ground)return;const t=performance.now()/1000;player.jumps=t-player.lastJump<1.2?player.jumps+1:0;player.lastJump=t;player.vy=5.8;player.ground=false}
+function jump(now=performance.now()/1000){
+if(!player.ground||now-player.lastJump<.24)return;
+player.jumps=now-player.lastJump<1.15?Math.min(player.jumps+1,6):0;
+player.lastJump=now;player.vy=5.8;player.ground=false;
+}
 function bind(id,down,up){const el=document.getElementById(id);el.addEventListener('pointerdown',e=>{e.preventDefault();el.setPointerCapture(e.pointerId);down()});el.addEventListener('pointerup',()=>up?.());el.addEventListener('pointercancel',()=>up?.())}
-bind('fire',()=>firing=true,()=>firing=false);bind('jump',jump);bind('crouch',()=>player.crouch=true,()=>player.crouch=false);bind('reload',reload);
+bind('fire',()=>firing=true,()=>firing=false);bind('jump',()=>{jumpHeld=true;jump()},()=>jumpHeld=false);bind('crouch',()=>{player.crouch=!player.crouch;document.getElementById('crouch').style.background=player.crouch?'#4b7796':'#253b52db'});bind('reload',reload);
 const joy=document.getElementById('joy'),knob=document.getElementById('knob');let joyId=null;
 function updateJoy(e){const r=joy.getBoundingClientRect(),dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,len=Math.max(1,Math.hypot(dx,dy)),scale=Math.min(1,len/48);move.x=dx/len*scale;move.y=dy/len*scale;knob.style.transform='translate('+move.x*38+'px,'+move.y*38+'px)'}
 joy.addEventListener('pointerdown',e=>{e.preventDefault();joyId=e.pointerId;joy.setPointerCapture(joyId);updateJoy(e)});
@@ -61,14 +77,14 @@ function collides(x,z){if(Math.abs(x)>23.2||Math.abs(z)>23.2)return true;return 
 function drawRadar(){ctx.clearRect(0,0,150,150);ctx.save();ctx.translate(75,75);ctx.beginPath();ctx.arc(0,0,73,0,Math.PI*2);ctx.clip();ctx.fillStyle='#182b32';ctx.fillRect(-75,-75,150,150);ctx.rotate(-player.yaw);const k=2.3;ctx.fillStyle='#80918e';for(const w of walls)ctx.fillRect((w.position.x-player.x)*k-w.geometry.parameters.width*k/2,(w.position.z-player.z)*k-w.geometry.parameters.depth*k/2,w.geometry.parameters.width*k,w.geometry.parameters.depth*k);ctx.fillStyle='#ff675e';for(const e of enemies)if(e.visible&&Math.hypot(e.position.x-player.x,e.position.z-player.z)<22){ctx.beginPath();ctx.arc((e.position.x-player.x)*k,(e.position.z-player.z)*k,3.4,0,Math.PI*2);ctx.fill()}ctx.restore();ctx.fillStyle='#7ce6ff';ctx.beginPath();ctx.moveTo(75,65);ctx.lineTo(69,82);ctx.lineTo(81,82);ctx.fill()}
 let prev=performance.now();
 function frame(now){requestAnimationFrame(frame);const dt=Math.min((now-prev)/1000,.04);prev=now;
-const mx=move.x+(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),mz=move.y+(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0),len=Math.max(1,Math.hypot(mx,mz)),crouched=player.crouch||keys.has('ControlLeft'),speed=(crouched?2:4.2)*(player.jumps>2?.82:1);
+const mx=move.x+(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0),mz=move.y+(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0),len=Math.max(1,Math.hypot(mx,mz)),crouched=player.crouch||keys.has('ControlLeft'),speed=(crouched?2:4.2)*(player.jumps>1?Math.max(.72,1-player.jumps*.055):1);
 const dx=(mx*Math.cos(player.yaw)+mz*Math.sin(player.yaw))/len*speed*dt,dz=(-mx*Math.sin(player.yaw)+mz*Math.cos(player.yaw))/len*speed*dt;
 if(!collides(player.x+dx,player.z))player.x+=dx;if(!collides(player.x,player.z+dz))player.z+=dz;
-player.vy-=14*dt;player.y+=player.vy*dt;if(player.y<=0){player.y=0;player.vy=0;player.ground=true}
+player.vy-=14*dt;player.y+=player.vy*dt;if(player.y<=0){player.y=0;player.vy=0;player.ground=true}if(player.ground&&(jumpHeld||keys.has('Space')))jump(now/1000);
 camera.position.set(player.x,player.y+(crouched?1.05:1.65),player.z);
-camera.rotation.set(player.pitch+recoil,player.yaw,0,'YXZ');
-recoil=Math.max(0,recoil-dt*.17);
-gun.position.set(Math.sin(now*.008)*.006,-Math.abs(Math.sin(now*.008))*.006,0);
+camera.rotation.set(player.pitch,player.yaw,0,'YXZ');
+recoil=Math.max(0,recoil-dt*.25);
+gun.position.set(Math.sin(now*.008)*.006,-Math.abs(Math.sin(now*.008))*.006-recoil*.18,recoil*.35);
 if(firing)shoot(now);if(now-lastShot>320)shots=0;
 stats.textContent='♥ '+player.health+'   ▣ '+ammo+' / '+reserve+(reloading?'  ↻':'');
 drawRadar();renderer.render(scene,camera)}
