@@ -49,11 +49,15 @@
     #crouch { right: 22px; bottom: 20px; }
     #controls #reload { right: 118px; bottom: 118px; width: 48px; height: 48px; font-size: 24px; }
     #controls #weaponToggle { right: 190px; bottom: 28px; width: 54px; height: 54px; background: #233747eb; font-size: 25px; }
-    #weaponWheel { position: absolute; right: 154px; bottom: 88px; width: 164px; height: 164px; border-radius: 50%; background: #15242ff2; border: 2px solid #ffffff77; display: none; pointer-events: auto; box-shadow: 0 4px 24px #0009; }
+    #weaponWheel { position: absolute; right: 110px; bottom: 82px; width: 210px; height: 210px; border-radius: 50%; background: #15242ff2; border: 2px solid #ffffff77; display: none; pointer-events: auto; box-shadow: 0 4px 24px #0009; }
     #weaponWheel.open { display: block; }
-    #controls #weaponWheel button { width: 62px; height: 62px; font-size: 29px; }
-    #choosePistol { left: 51px; top: 12px; }
-    #chooseKnife { left: 51px; bottom: 12px; }
+    #controls #weaponWheel button { width: 62px; height: 62px; font-size: 28px; }
+    #choosePistol { left: 10px; top: 73px; }
+    #chooseKnife { right: 10px; top: 73px; }
+    #chooseRifle { left: 73px; bottom: 8px; }
+    #bombSlot { position: absolute; left: 73px; top: 9px; width: 62px; height: 62px; display: grid; place-items: center; border: 1px dashed #ffffff55; border-radius: 50%; color: #ffffff75; font-size: 20px; }
+    #inspectWeapon { left: 83px; top: 86px; width: 40px !important; height: 40px !important; font-size: 20px !important; background: #365469 !important; }
+    #weaponWheel button.hovered { background: #6596b2 !important; }
     #weaponLabel { position: absolute; right: 190px; bottom: 88px; font-size: 12px; text-shadow: 0 2px 4px #000; }
     #deathNotice { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; padding: 18px 24px; width: min(320px, 90%); border: 1px solid #ff9b8933; border-radius: 16px; background: #101b27e8; box-shadow: 0 5px 30px #0005; }
     #deathNotice strong { display: block; color: #ffae99; font-size: 23px; margin-bottom: 8px; }
@@ -142,7 +146,7 @@
       <button id="crouch" aria-label="Присесть"><svg viewBox="0 0 32 32"><circle cx="18" cy="7" r="3"/><path d="M17 12l-5 7 8 2 4 7M13 19l-8 5M20 21l-8 7"/></svg></button>
       <div id="weaponLabel">Пистолет</div>
       <button id="weaponToggle" aria-label="Выбрать оружие">◉</button>
-      <div id="weaponWheel"><button id="choosePistol" aria-label="Пистолет">🔫</button><button id="chooseKnife" aria-label="Нож">🔪</button></div>
+      <div id="weaponWheel"><div id="bombSlot" aria-label="Место для бомбы, пока пусто">◇</div><button id="choosePistol" aria-label="Пистолет Glock 18">🔫</button><button id="chooseKnife" aria-label="Нож">🔪</button><button id="chooseRifle" aria-label="Автомат AK-47">▰</button><button id="inspectWeapon" aria-label="Осмотреть оружие">↻</button></div>
       <button id="reload" aria-label="Перезарядить"><svg viewBox="0 0 32 32"><path d="M26 13A11 11 0 1 0 27 20M26 5v8h-8"/></svg></button>
     </div>
     <div id="deathNotice" role="status" hidden><strong>Ты погиб</strong>Возрождение на базе через <b id="respawnTimer">3</b> с<small>После возрождения — короткая защита</small></div>
@@ -157,7 +161,7 @@
         <button id="chooseCT" class="team-choice" data-team="ct"><div class="team-mark">COUNTER-TERRORISTS</div><b>Спецназ</b><span>Синяя команда</span></button>
         <button id="chooseT" class="team-choice terrorists" data-team="t"><div class="team-mark">TERRORISTS</div><b>Террористы</b><span>Песочная команда</span></button>
       </div>
-      <p class="help">Телефон: джойстик слева, обзор свайпом справа. ПК: WASD, мышь с зажатой кнопкой, Space, Ctrl, R. Оружие: 1 / 2.</p>
+      <p class="help">Телефон: джойстик слева, обзор свайпом справа. Зажми ◉ и проведи: влево Glock, вправо нож, вниз AK. Центр ↻ — осмотр. ПК: WASD, мышь, Space, Ctrl, R; оружие 1 / 2 / 3, осмотр F.</p>
     </div>
   </section>
   <section id="resultMenu" class="menu" aria-labelledby="resultTitle" hidden>

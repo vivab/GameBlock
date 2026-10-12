@@ -20,6 +20,7 @@ export const TEAMS = {
   t: { name: 'Террористы', color: 0xd99a55, spawnZ: -20, yaw: Math.PI },
 };
 const DAMAGE = { head: 100, chest: 35, stomach: 40, leg: 20 };
+export const WEAPONS = { pistol: { magazine: 17, reserve: 68, interval: 0.23, reload: 1.45 }, rifle: { magazine: 30, reserve: 90, interval: 0.105, reload: 2.1 } };
 const RADIUS = 0.38;
 const VIEW_DISTANCE = 28;
 const VIEW_COS = Math.cos(Math.PI * 0.36);
@@ -162,7 +163,7 @@ export class Match {
       for (let slot = 0; slot < TEAM_SIZE; slot++) {
         const isPlayer = side === team && slot === 2;
         const actor = { id: side + slot, name: isPlayer ? 'Ты' : (side === 'ct' ? 'CT-' : 'T-') + (slot + 1),
-          team: side, slot, isPlayer, kills: 0, deaths: 0, magazine: isPlayer ? 30 : 12 };
+          team: side, slot, isPlayer, kills: 0, deaths: 0, magazine: isPlayer ? WEAPONS.pistol.magazine : 12 };
         this.actors.push(actor); this.spawn(actor);
         if (isPlayer) this.player = actor;
       }
@@ -181,11 +182,29 @@ export class Match {
     }
     Object.assign(actor, { x, z, y: 0, yaw: base.yaw, pitch: 0, vy: 0, ground: true, crouch: false, keyboardCrouch: false,
       health: 100, alive: true, respawnAt: 0, protectedUntil: this.time + 1.25,
-      ammo: actor.magazine, reserve: actor.isPlayer ? 90 : Infinity, reloadingUntil: 0,
+      ammo: actor.magazine, reserve: actor.isPlayer ? WEAPONS.pistol.reserve : Infinity, reloadingUntil: 0,
       nextFire: this.time + 0.4, lastShotAt: -10, nextKnife: 0, lastJump: -10, jumps: 0,
       targetId: null, lastSeen: null, noticedAt: 0, nextScan: this.time + this.random() * 0.2,
       path: [], nextPath: 0, patrolStage: 0, strafe: this.random() < 0.5 ? -1 : 1 });
+    if (actor.isPlayer) {
+      actor.weapon = 'pistol';
+      actor.loadout = {
+        pistol: { ammo: WEAPONS.pistol.magazine, reserve: WEAPONS.pistol.reserve },
+        rifle: { ammo: WEAPONS.rifle.magazine, reserve: WEAPONS.rifle.reserve },
+      };
+    }
     if (actor.isPlayer) this.events.push({ type: 'spawn', actor });
+  }
+  equip(actor, weapon) {
+    if (!actor?.isPlayer || !['pistol', 'rifle', 'knife'].includes(weapon)) return;
+    if (actor.weapon === weapon) return;
+    if (actor.weapon !== 'knife') actor.loadout[actor.weapon] = { ammo: actor.ammo, reserve: actor.reserve };
+    actor.weapon = weapon;
+    actor.reloadingUntil = 0;
+    if (weapon !== 'knife') {
+      actor.magazine = WEAPONS[weapon].magazine;
+      Object.assign(actor, actor.loadout[weapon]);
+    }
   }
   damage(victim, attacker, amount) {
     if (this.phase !== 'playing' || !victim.alive || !attacker.alive || victim.team === attacker.team || this.time < victim.protectedUntil) return false;
@@ -229,17 +248,17 @@ export class Match {
       shooter.nextKnife = this.time + 0.55;
     } else {
       if (this.time < shooter.nextFire || shooter.reloadingUntil || shooter.ammo <= 0) return null;
-      shooter.nextFire = this.time + (shooter.isPlayer ? 0.105 : 0.62 + this.random() * 0.25);
+      shooter.nextFire = this.time + (shooter.isPlayer ? WEAPONS[shooter.weapon].interval : 0.62 + this.random() * 0.25);
       shooter.ammo--; shooter.lastShotAt = this.time;
     }
     const hit = this.trace(shooter, dir, knife ? 2.4 : 80);
-    hit.damaged = hit.actor ? this.damage(hit.actor, shooter, knife ? 65 : DAMAGE[hit.zone]) : false;
+    hit.damaged = hit.actor ? this.damage(hit.actor, shooter, knife ? 65 : Math.round(DAMAGE[hit.zone] * (shooter.isPlayer && shooter.weapon === 'rifle' ? 0.78 : 1))) : false;
     this.events.push({ type: 'shot', shooter, knife, hit });
     return hit;
   }
   reload(actor) {
     if (this.phase !== 'playing' || !actor.alive || actor.reloadingUntil || actor.ammo === actor.magazine || actor.reserve <= 0) return;
-    actor.reloadingUntil = this.time + 1.7;
+    actor.reloadingUntil = this.time + (actor.isPlayer ? WEAPONS[actor.weapon].reload : 1.7);
   }
   move(actor, dx, dz) {
     const valid = (x, z) => !collides(x, z) && !this.actors.some(a => a !== actor && a.alive && Math.hypot(a.x - x, a.z - z) < RADIUS * 2);

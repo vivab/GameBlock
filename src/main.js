@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, canSee } from './combat.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
 const scene = new THREE.Scene();
@@ -41,9 +42,9 @@ viewScene.add(viewCamera);
 viewScene.add(new THREE.HemisphereLight(0xffffff, 0x354655, 2.6));
 const viewLight = new THREE.DirectionalLight(0xffffff, 1.7);
 viewLight.position.set(-2, 3, 2); viewScene.add(viewLight);
-const gun = new THREE.Group(), knife = new THREE.Group();
-viewCamera.add(gun, knife);
-gun.scale.setScalar(0.75); knife.scale.setScalar(0.75);
+const gun = new THREE.Group(), knife = new THREE.Group(), rifle = new THREE.Group();
+viewCamera.add(gun, knife, rifle);
+gun.scale.setScalar(0.75); knife.scale.setScalar(0.75); rifle.scale.setScalar(0.75);
 function arm(parent, from, to, width, color) {
   const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
   const mesh = box(width, a.distanceTo(b), width, color, 0, 0, 0, parent);
@@ -70,6 +71,69 @@ box(0.13, 0.13, 0.16, 0xbfa17f, 0.025, -0.085, 0.09, knife);
 arm(knife, [0.06, -0.15, 0.14], [0.18, -0.32, 0.52], 0.12, 0x344b58);
 const muzzle = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 5), new THREE.MeshBasicMaterial({ color: 0xffdc7a }));
 muzzle.rotation.x = -Math.PI / 2; muzzle.position.set(0, 0.005, -0.49); gun.add(muzzle);
+const rifleFallback = box(0.13, 0.11, 0.8, 0x3a4140, 0, 0.02, -0.27, rifle);
+box(0.11, 0.18, 0.18, 0x8e6038, 0, -0.13, 0.03, rifle);
+const rifleMuzzle = muzzle.clone(); rifleMuzzle.position.z = -0.82; rifle.add(rifleMuzzle);
+for (const [group, length] of [[rifle, 0.47]]) {
+  arm(group, [0.09, -0.19, 0.12], [0.25, -0.38, 0.47], 0.13, 0x344b58);
+  arm(group, [-0.09, -0.12, -0.22], [-0.3, -0.36, 0.42], 0.13, 0x344b58);
+  box(0.13, 0.12, 0.16, 0xbfa17f, 0.07, -0.15, length - 0.35, group);
+}
+const loader = new GLTFLoader();
+const assets = {};
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct', t: 't' };
+// Models have different native axes and scales. Mount them once in world units;
+// cloned meshes share geometry/texture buffers between the ten fighters.
+function fittedModel(source, kind, size) {
+  const holder = new THREE.Group();
+  const model = source.clone(true); holder.add(model);
+  if (kind === 'weapon') model.rotation.y = Math.PI / 2;
+  if (kind === 't') model.rotation.x = Math.PI / 2;
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const dims = bounds.getSize(new THREE.Vector3());
+  const scale = size / (kind === 'character' || kind === 't' ? dims.y : Math.max(dims.x, dims.y, dims.z));
+  model.scale.multiplyScalar(scale); model.updateMatrixWorld(true);
+  const fitted = new THREE.Box3().setFromObject(model);
+  const center = fitted.getCenter(new THREE.Vector3());
+  model.position.sub(center);
+  if (kind === 'character' || kind === 't') model.position.y -= fitted.min.y - center.y;
+  return holder;
+}
+function attachWeapon(group, asset, length, mount = {}) {
+  const loaded = fittedModel(asset, 'weapon', length);
+  loaded.position.set(mount.x || 0, mount.y || 0, mount.z || -0.18);
+  group.add(loaded);
+  return loaded;
+}
+function installAsset(key) {
+  if (key === 'pistol') {
+    // Keep the hands and muzzle; replace the temporary block gun.
+    for (const child of [...gun.children]) if (child.isMesh && child !== muzzle && child.position.z < 0.08 && child.position.y > -0.1) child.visible = false;
+    attachWeapon(gun, assets.pistol, 0.56, { z: -0.16 });
+  } else if (key === 'rifle') {
+    rifleFallback.visible = false;
+    attachWeapon(rifle, assets.rifle, 0.95, { z: -0.27 });
+  } else if (key.startsWith('knife_')) {
+    if (match.player?.team === key.slice(6)) mountKnife(key);
+  } else {
+    for (const actor of match.actors) if (actor.team === key && !actor.isPlayer) mountFighter(actor);
+  }
+}
+let mountedKnife;
+function mountKnife(key) {
+  if (!assets[key]) return;
+  if (mountedKnife) knife.remove(mountedKnife);
+  // The fallback blade/handle stays hidden when a supplied model is ready.
+  for (const child of knife.children) if (child.isMesh && child.position.z < 0.08) child.visible = false;
+  mountedKnife = attachWeapon(knife, assets[key], 0.62, { z: -0.23, y: 0.03 });
+  mountedKnife.rotation.z = -0.2;
+}
+for (const [key, filename] of Object.entries(assetFiles)) {
+  loader.load(`${import.meta.env.BASE_URL}models/${filename}.glb`, result => {
+    assets[key] = result.scene; installAsset(key);
+  }, undefined, error => console.warn(`Не удалось загрузить ${filename}.glb`, error));
+}
 
 const fighters = new Map();
 function createFighter(actor) {
@@ -90,14 +154,24 @@ function createFighter(actor) {
   const shield = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.025, 4, 20), new THREE.MeshBasicMaterial({ color }));
   shield.rotation.x = Math.PI / 2; shield.position.y = 0.03; root.add(shield);
   const health = box(0.65, 0.055, 0.04, color, 0, 2.02, 0, root);
-  fighters.set(actor.id, { root, legs, flash, shield, health, previousX: actor.x, previousZ: actor.z, stride: 0 });
+  fighters.set(actor.id, { root, legs, flash, shield, health, previousX: actor.x, previousZ: actor.z, stride: 0, body: null });
+  mountFighter(actor);
+}
+function mountFighter(actor) {
+  const entry = fighters.get(actor.id), asset = assets[actor.team];
+  if (!entry || !asset || entry.body) return;
+  entry.body = fittedModel(asset, actor.team === 't' ? 't' : 'character', 1.85);
+  entry.root.add(entry.body);
+  // Health bar, spawn ring and muzzle flash remain visible.
+  for (const child of entry.root.children) if (child !== entry.body && child !== entry.flash && child !== entry.shield && child !== entry.health) child.visible = false;
 }
 
 const $ = id => document.getElementById(id);
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
-let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false;
+let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false, inspectAt = -10, swingAt = -10;
+let wheelPointer = null, wheelChoice = null, wheelWasOpen = false;
 const direction = new THREE.Vector3();
 const marks = [], tracers = [];
 const markGeometry = new THREE.CircleGeometry(0.055, 10);
@@ -105,21 +179,25 @@ const markMaterial = new THREE.MeshBasicMaterial({ color: 0x242424, side: THREE.
 function resetInputs() {
   move.x = move.y = 0; keys.clear(); lookPointers.clear(); firing = jumpHeld = false; joyId = null;
   if (match.player) match.player.keyboardCrouch = false;
-  $('knob').style.transform = ''; $('weaponWheel').classList.remove('open');
+  $('knob').style.transform = ''; $('weaponWheel').classList.remove('open'); wheelPointer = null; wheelChoice = null;
 }
 function selectWeapon(name) {
-  weapon = name; recoil = 0;
-  $('weaponLabel').textContent = name === 'pistol' ? 'Пистолет' : 'Нож';
+  if (!['pistol', 'rifle', 'knife'].includes(name)) return;
+  if (match.player) match.equip(match.player, name);
+  weapon = name; recoil = 0; firing = false; inspectAt = -10;
+  $('weaponLabel').textContent = { pistol: 'Glock 18', rifle: 'AK-47', knife: 'Нож' }[name];
   $('weaponWheel').classList.remove('open');
 }
+function inspect() { if (canControl()) { firing = false; inspectAt = match.time; $('weaponWheel').classList.remove('open'); } }
 function start(team) {
-  resetInputs(); selectWeapon('pistol');
+  resetInputs();
   recoil = 0; shots = 0; lastPlayerShot = -10; finishShown = false;
   for (const tracer of tracers) { scene.remove(tracer.mesh); tracer.mesh.geometry.dispose(); tracer.mesh.material.dispose(); }
   tracers.length = 0;
   for (const mark of marks) scene.remove(mark.mesh);
   marks.length = 0;
   match.start(team);
+  selectWeapon('pistol'); mountKnife(`knife_${team}`);
   // Models are reused across rounds; the player model is simply hidden.
   for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
@@ -143,7 +221,7 @@ function jump() {
   player.jumps = match.time - player.lastJump < 1.15 ? Math.min(player.jumps + 1, 6) : 0;
   player.lastJump = match.time; player.vy = 5.8; player.ground = false;
 }
-function reload() { if (canControl() && weapon === 'pistol') match.reload(match.player); }
+function reload() { if (canControl() && weapon !== 'knife') match.reload(match.player); }
 function bind(id, down, up) {
   const button = $(id);
   button.addEventListener('pointerdown', event => {
@@ -153,13 +231,42 @@ function bind(id, down, up) {
   button.addEventListener('pointerup', () => up?.());
   button.addEventListener('pointercancel', () => up?.());
 }
-bind('fire', () => firing = true, () => firing = false);
+bind('fire', () => { firing = true; if (weapon !== 'rifle') shoot(); }, () => firing = false);
 bind('jump', () => { jumpHeld = true; jump(); }, () => jumpHeld = false);
 bind('crouch', () => match.player.crouch = !match.player.crouch);
 bind('reload', reload);
-bind('weaponToggle', () => $('weaponWheel').classList.toggle('open'));
-bind('choosePistol', () => selectWeapon('pistol'));
-bind('chooseKnife', () => selectWeapon('knife'));
+const toggle = $('weaponToggle'), wheel = $('weaponWheel');
+function wheelTarget(event) {
+  const bounds = toggle.getBoundingClientRect();
+  const x = event.clientX - bounds.left - bounds.width / 2;
+  const y = event.clientY - bounds.top - bounds.height / 2;
+  if (Math.hypot(x, y) < 32) return null;
+  if (Math.abs(x) > Math.abs(y)) return x < 0 ? 'pistol' : 'knife';
+  return y > 0 ? 'rifle' : null; // Top is deliberately reserved for a future bomb.
+}
+toggle.addEventListener('pointerdown', event => {
+  event.preventDefault(); if (!canControl()) return;
+  wheelPointer = event.pointerId; wheelChoice = null; wheelWasOpen = wheel.classList.contains('open'); toggle.setPointerCapture(wheelPointer);
+  wheel.classList.add('open');
+});
+toggle.addEventListener('pointermove', event => {
+  if (event.pointerId !== wheelPointer) return;
+  wheelChoice = wheelTarget(event);
+  for (const [id, name] of [['choosePistol', 'pistol'], ['chooseKnife', 'knife'], ['chooseRifle', 'rifle']])
+    $(id).classList.toggle('hovered', wheelChoice === name);
+});
+toggle.addEventListener('pointerup', event => {
+  if (event.pointerId !== wheelPointer) return;
+  wheelPointer = null;
+  if (wheelChoice) selectWeapon(wheelChoice);
+  else if (wheelTarget(event)) selectWeapon(wheelTarget(event));
+  else wheel.classList.toggle('open', !wheelWasOpen); // A short tap opens or closes the wheel.
+  wheelChoice = null;
+});
+toggle.addEventListener('pointercancel', () => { wheelPointer = null; wheelChoice = null; wheel.classList.remove('open'); });
+for (const [id, name] of [['choosePistol', 'pistol'], ['chooseKnife', 'knife'], ['chooseRifle', 'rifle']])
+  $(id).addEventListener('pointerdown', event => { event.stopPropagation(); event.preventDefault(); selectWeapon(name); });
+$('inspectWeapon').addEventListener('pointerdown', event => { event.stopPropagation(); event.preventDefault(); inspect(); });
 function updateJoy(event) {
   const r = $('joy').getBoundingClientRect();
   const dx = event.clientX - r.left - r.width / 2, dy = event.clientY - r.top - r.height / 2;
@@ -181,7 +288,7 @@ $('joy').addEventListener('pointerup', endJoy); $('joy').addEventListener('point
 document.addEventListener('pointerdown', event => {
   if (!canControl() || event.target.closest('#joy, .menu, #weaponWheel, #weaponToggle')) return;
   lookPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (event.pointerType === 'mouse' && event.target === renderer.domElement && event.button === 0) firing = true;
+  if (event.pointerType === 'mouse' && event.target === renderer.domElement && event.button === 0) { firing = true; if (weapon !== 'rifle') shoot(); }
 }, { capture: true });
 document.addEventListener('pointermove', event => {
   const point = lookPointers.get(event.pointerId);
@@ -206,6 +313,8 @@ addEventListener('keydown', event => {
   if (event.code === 'KeyR') reload();
   if (event.code === 'Digit1') selectWeapon('pistol');
   if (event.code === 'Digit2') selectWeapon('knife');
+  if (event.code === 'Digit3') selectWeapon('rifle');
+  if (event.code === 'KeyF' && !event.repeat) inspect();
 });
 addEventListener('keyup', event => {
   keys.delete(event.code);
@@ -228,20 +337,21 @@ function shoot() {
   const player = match.player;
   const moving = Math.hypot(move.x, move.y) > 0.15 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key));
   const crouched = player.crouch || keys.has('ControlLeft');
-  const spread = !player.ground ? 0.042 : moving ? 0.024 : crouched ? 0.0035 : 0.009;
+  const spread = (!player.ground ? 0.042 : moving ? 0.024 : crouched ? 0.0035 : 0.009) * (weapon === 'rifle' ? 1.2 : 0.72);
   direction.set((Math.random() - 0.5) * spread * 2, (Math.random() - 0.5) * spread * 2, -1);
   if (weapon === 'knife') direction.set(0, 0, -1);
   direction.normalize().applyQuaternion(camera.quaternion);
   const hit = match.fire(player, direction, weapon === 'knife');
   if (!hit) return;
-  if (weapon === 'knife') recoil = 0.14;
+  inspectAt = -10;
+  if (weapon === 'knife') { recoil = 0.14; swingAt = match.time; }
   else {
     if (match.time - lastPlayerShot > 0.36) shots = 0;
     shots++; lastPlayerShot = match.time;
     const phase = Math.min(shots, 26);
-    player.pitch = Math.min(1.2, player.pitch + 0.009 + Math.min(phase, 12) * 0.0011);
-    player.yaw += Math.sin(phase * 0.63) * 0.0035 + Math.sin(phase * 0.27) * 0.0025;
-    recoil = Math.min(0.09, recoil + 0.022);
+    player.pitch = Math.min(1.2, player.pitch + (weapon === 'rifle' ? 0.012 + Math.min(phase, 12) * 0.0014 : 0.019));
+    player.yaw += weapon === 'rifle' ? Math.sin(phase * 0.63) * 0.0035 + Math.sin(phase * 0.27) * 0.0025 : (Math.random() - 0.5) * 0.003;
+    recoil = Math.min(0.15, recoil + (weapon === 'rifle' ? 0.035 : 0.09));
   }
   if (hit.damaged) showHitmarker(!hit.actor.alive);
 }
@@ -309,7 +419,7 @@ function updateHUD() {
   const seconds = Math.max(0, Math.ceil(MATCH_SECONDS - match.time));
   $('timer').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   $('timer').classList.toggle('urgent', seconds <= 15);
-  stats.textContent = `♥ ${player.health}  ${weapon === 'pistol' ? `▣ ${player.ammo} / ${player.reserve}${player.reloadingUntil ? '  ↻' : ''}` : '🔪 Нож'}`;
+  stats.textContent = `♥ ${player.health}  ${weapon !== 'knife' ? `▣ ${player.ammo} / ${player.reserve}${player.reloadingUntil ? '  ↻' : ''}` : '🔪 Нож'}`;
   $('personalScore').textContent = `${player.kills} убийств · ${player.deaths} смертей`;
   $('crouch').classList.toggle('active', player.crouch || keys.has('ControlLeft'));
   $('deathNotice').hidden = player.alive || match.phase !== 'playing';
@@ -354,24 +464,32 @@ function frame(now) {
   const elapsed = Math.max(0, (now - previous) / 1000), dt = Math.min(elapsed, 0.04); previous = now;
   if (match.phase === 'playing') {
     match.step(elapsed);
-    if (canControl()) { movePlayer(dt); if (firing) shoot(); }
+    if (canControl()) { movePlayer(dt); if (firing && weapon === 'rifle') shoot(); }
   }
   if (match.phase === 'selection') {
     camera.position.set(0, 23, 28); camera.lookAt(0, 0, 0);
     for (const model of fighters.values()) model.root.visible = false;
   }
   effects(now); updateModels(dt); updateHUD(); drawRadar();
-  recoil = Math.max(0, recoil - dt * 0.25);
-  const visible = canControl(); gun.visible = visible && weapon === 'pistol'; knife.visible = visible && weapon === 'knife';
+  recoil = Math.max(0, recoil - dt * (weapon === 'rifle' ? 0.45 : 0.8));
+  const visible = canControl(); gun.visible = visible && weapon === 'pistol'; knife.visible = visible && weapon === 'knife'; rifle.visible = visible && weapon === 'rifle';
   const player = match.player;
   const bob = visible && (Math.hypot(move.x, move.y) > 0.1 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key))) ? Math.sin(now * 0.008) * 0.006 : 0;
-  const reloadPose = player?.reloadingUntil ? Math.sin(Math.PI * Math.min(1, (player.reloadingUntil - match.time) / 1.7)) : 0;
+  const reloadPose = player?.reloadingUntil ? Math.sin(Math.PI * Math.min(1, 1 - (player.reloadingUntil - match.time) / (WEAPONS[weapon]?.reload || 1.7))) : 0;
+  const inspectT = visible ? match.time - inspectAt : 10;
+  const inspectPose = inspectT >= 0 && inspectT < 1.9 ? Math.sin(Math.PI * inspectT / 1.9) : 0;
   const right = camera.aspect < 1 ? 0.11 : 0.27;
-  gun.position.set(right + bob, -0.17 - Math.abs(bob) - reloadPose * 0.18, -0.72 + recoil * 0.45);
-  gun.rotation.set(recoil * 0.6 - reloadPose * 0.5, 0.09, -reloadPose * 0.35);
+  gun.position.set(right + bob - inspectPose * 0.13, -0.17 - Math.abs(bob) - reloadPose * 0.18 + inspectPose * 0.11, -0.72 + recoil * 0.65);
+  gun.rotation.set(recoil * 1.1 - reloadPose * 0.5 + inspectPose * 0.24, 0.09 + inspectPose * 1.1, -reloadPose * 0.35 + inspectPose * 0.3);
+  rifle.position.set(right + bob - inspectPose * 0.16, -0.2 - Math.abs(bob) - reloadPose * 0.22 + inspectPose * 0.08, -0.78 + recoil * 0.75);
+  rifle.rotation.set(recoil * 1.1 - reloadPose * 0.55 + inspectPose * 0.25, 0.08 + inspectPose * 1.25, -reloadPose * 0.3 + inspectPose * 0.33);
   knife.position.set(right + bob, -0.2 - Math.abs(bob), -0.7 - recoil * 0.9);
-  knife.rotation.set(0, recoil * 1.5, -recoil * 2);
-  muzzle.visible = !!player && match.time - player.lastShotAt < 0.045;
+  const slashT = match.time - swingAt;
+  knife.rotation.set(inspectPose * 0.6, (slashT >= 0 && slashT < 0.35 ? Math.sin(slashT / 0.35 * Math.PI) * 1.25 : 0) + inspectPose * 1.8,
+    -recoil * 2 + inspectPose * 0.6);
+  knife.position.y += inspectPose * 0.12;
+  muzzle.visible = !!player && weapon === 'pistol' && match.time - player.lastShotAt < 0.045;
+  rifleMuzzle.visible = !!player && weapon === 'rifle' && match.time - player.lastShotAt < 0.045;
   renderer.clear(); renderer.render(scene, camera); renderer.clearDepth(); renderer.render(viewScene, viewCamera);
 }
 requestAnimationFrame(frame);
