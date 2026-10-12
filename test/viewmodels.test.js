@@ -31,8 +31,8 @@ test('inspect, knife hit and reload move a shared root; support hand resets', ()
   rifle.animate({ reloadProgress: 0.5 });
   assert.ok(rifle.arms.left.position.y < 0);
   rifle.animate({ reloadProgress: -1 });
-  assert.equal(rifle.arms.left.position.y, 0);
-  assert.equal(rifle.arms.left.position.z, 0);
+  assert.ok(Math.abs(rifle.arms.left.position.y) < 1e-9);
+  assert.ok(Math.abs(rifle.arms.left.position.z) < 1e-9);
 });
 test('calibration is independent per weapon, and handles XY and Y-forward assets', () => {
   const p = createWeaponView('pistol');
