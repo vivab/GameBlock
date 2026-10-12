@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
+import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildClassicOperator, animateClassicOperator, buildThirdPersonRifle } from './classicOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
@@ -196,7 +197,19 @@ function jump() {
   player.jumps = match.time - player.lastJump < 1.15 ? Math.min(player.jumps + 1, 6) : 0;
   player.lastJump = match.time; player.vy = JUMP_IMPULSE; player.ground = false;
 }
-function reload() { if (canControl() && weapon !== 'knife') match.reload(match.player); }
+function reloadOrInspect() {
+  if (!canControl()) return;
+  switch (decideWeaponButtonAction(weapon, match.player)) {
+    case 'inspect':
+      // Full magazine, or either knife: start/restart inspect from frame zero.
+      inspect();
+      break;
+    case 'reload':
+      inspection.cancel();
+      match.reload(match.player);
+      break;
+  }
+}
 function bind(id, down, up) {
   const button = $(id);
   button.addEventListener('pointerdown', event => {
@@ -222,7 +235,7 @@ $('fire').addEventListener('pointermove', event => {
 });
 bind('jump', () => { jumpHeld = true; jump(); }, () => jumpHeld = false);
 bind('crouch', () => match.player.crouch = !match.player.crouch);
-bind('reload', reload);
+bind('reload', reloadOrInspect);
 const toggle = $('weaponToggle'), wheel = $('weaponWheel');
 function wheelTarget(event) {
   const bounds = toggle.getBoundingClientRect();
@@ -254,7 +267,6 @@ toggle.addEventListener('pointerup', event => {
 toggle.addEventListener('pointercancel', () => { wheelPointer = null; wheelChoice = null; wheel.classList.remove('open'); });
 for (const [id, name] of [['choosePistol', 'pistol'], ['chooseKnife', 'knife'], ['chooseRifle', 'rifle']])
   $(id).addEventListener('pointerdown', event => { event.stopPropagation(); event.preventDefault(); selectWeapon(name); });
-$('inspectWeapon').addEventListener('pointerdown', event => { event.stopPropagation(); event.preventDefault(); inspect(); });
 function updateJoy(event) {
   const r = $('joy').getBoundingClientRect();
   const dx = event.clientX - r.left - r.width / 2, dy = event.clientY - r.top - r.height / 2;
@@ -305,11 +317,10 @@ addEventListener('keydown', event => {
   if (event.code === 'ControlLeft') match.player.keyboardCrouch = true;
   if (['Space', 'ControlLeft', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) event.preventDefault();
   if (event.code === 'Space' && !event.repeat) jump();
-  if (event.code === 'KeyR') reload();
+  if (event.code === 'KeyR' && !event.repeat) reloadOrInspect();
   if (event.code === 'Digit1') selectWeapon('pistol');
   if (event.code === 'Digit2') selectWeapon('knife');
   if (event.code === 'Digit3') selectWeapon('rifle');
-  if (event.code === 'KeyF' && !event.repeat) inspect();
 });
 addEventListener('keyup', event => {
   keys.delete(event.code);
@@ -423,6 +434,8 @@ function updateHUD() {
   $('personalScore').textContent = `${player.kills} убийств · ${player.deaths} смертей`;
   $('crouch').classList.toggle('active', player.crouch || keys.has('ControlLeft'));
   $('reload').classList.toggle('reloading', !!player.reloadingUntil && weapon !== 'knife');
+  const canInspect = weapon === 'knife' || player.ammo >= player.magazine;
+  $('reload').setAttribute('aria-label', canInspect ? 'Осмотреть оружие' : 'Перезарядить');
   $('deathNotice').hidden = player.alive || match.phase !== 'playing';
   if (!player.alive) $('respawnTimer').textContent = Math.max(1, Math.ceil(player.respawnAt - match.time));
   const feed = match.killfeed.map(item => `${item.killer} → ${item.victim}`).join('|');
