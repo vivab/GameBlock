@@ -328,9 +328,13 @@ export function animateClassicOperator(model, actor, time, dt, movement) {
       const sign = i === 0 ? 1 : -1;
       // Aim both elbows forward and bring wrists together around the gun,
       // rather than leaving classic GLB arms spread in an A/T pose.
-      rig.upperArms[i].rotation.set(0, sign * (0.95 + (fire ? -0.03 : 0)),
-        -sign * 0.51);
-      rig.forearms[i].rotation.set(0, sign * 0.95, -sign * (0.06 + (fire ? 0.13 : 0)));
+      // Solve a two-bone forward hold: shoulders ±0.29m, elbows ±0.46m,
+      // wrists ±0.09m at chest height, around the third-person rifle.
+      // The y/z rotations are mirrored so neither side forms a T-pose.
+      rig.upperArms[i].rotation.set(0, sign * 0.92,
+        -sign * (0.88 + (fire ? 0.055 : 0)));
+      rig.forearms[i].rotation.set(0, sign * 1.70,
+        sign * (0.017 + (fire ? 0.035 : 0)));
       rig.thighs[i].rotation.set(stride * (i === 0 ? 0.45 : -0.45) * walk, 0, 0);
       rig.calves[i].rotation.set(Math.max(0, -stride * (i === 0 ? 1 : -1)) * 0.24 * walk, 0, 0);
     }
