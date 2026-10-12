@@ -4,6 +4,7 @@ import { createWeaponView } from './viewmodels.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
+import { rotateAim } from './aim.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
@@ -234,8 +235,9 @@ document.addEventListener('pointerdown', event => {
 }, { capture: true });
 function applyLookDelta(dx, dy) {
   if (!canControl()) return;
-  match.player.yaw -= dx * 0.004;
-  match.player.pitch = Math.max(-1.2, Math.min(1.2, match.player.pitch - dy * 0.004));
+  const next = rotateAim(match.player.yaw, match.player.pitch, dx, dy);
+  match.player.yaw = next.yaw;
+  match.player.pitch = next.pitch;
   // Keep the raycast camera in sync when a finger moves between render frames.
   camera.rotation.set(match.player.pitch, match.player.yaw, 0, 'YXZ');
 }
