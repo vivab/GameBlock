@@ -2,6 +2,7 @@ name: Operator rig final checks
 on:
   push:
     branches: [feat/cs-classic-operators]
+    paths: ['src/classicOperators.js', 'test/classicOperators.test.js']
 
 permissions:
   contents: write
