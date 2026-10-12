@@ -31,10 +31,16 @@ const player={x:0,z:9,y:0,yaw:0,pitch:-.12,vy:0,ground:true,crouch:false,health:
 const gun=new THREE.Group();camera.add(gun);scene.add(camera);
 cube(.22,.18,.72,0x272e35,.31,-.3,-.63,gun);cube(.09,.09,.43,0x13171a,.31,-.27,-1.16,gun);cube(.14,.26,.17,0x534333,.31,-.47,-.46,gun);
 cube(.18,.17,.34,0xb38e72,.1,-.44,-.56,gun);cube(.18,.17,.34,0xb38e72,.48,-.44,-.56,gun);
-const stats=document.getElementById('stats'),cross=document.getElementById('cross'),radar=document.getElementById('radar'),ctx=radar.getContext('2d');
+const stats=document.getElementById('stats'),cross=document.getElementById('cross'),hitmarker=document.getElementById('hitmarker'),radar=document.getElementById('radar'),ctx=radar.getContext('2d');
 let ammo=30,reserve=90,reloading=false,firing=false,lastShot=0,recoil=0,shots=0,jumpHeld=false,lastLanding=-10,airPenalty=0;
 const move={x:0,y:0},keys=new Set(),ray=new THREE.Raycaster(),dir=new THREE.Vector3();
 const damage={head:100,chest:35,stomach:40,arm:25,leg:20};
+let hitTimer=0;
+function showHitmarker(killed){
+ hitmarker.style.color=killed?'#ff3c45':'#ffffff';
+ hitmarker.classList.remove('show');void hitmarker.offsetWidth;hitmarker.classList.add('show');
+ clearTimeout(hitTimer);hitTimer=setTimeout(()=>hitmarker.classList.remove('show'),killed?240:130);
+}
 function reload(){if(reloading||ammo===30||reserve===0)return;reloading=true;setTimeout(()=>{const n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;reloading=false},1700)}
 function shoot(now){
 if(reloading||ammo<=0||now-lastShot<105)return;
@@ -52,7 +58,7 @@ const spread=.0028+Math.min(phase,20)*.00055+moving*.009+(!player.ground?.012:0)
 dir.set((Math.random()-.5)*spread*2,(Math.random()-.5)*spread*2,-1).normalize().applyQuaternion(camera.quaternion);
 ray.set(camera.position,dir);ray.far=80;
 const hit=ray.intersectObjects([...walls,...enemies.filter(e=>e.visible).flatMap(e=>e.userData.parts)],false)[0];
-if(hit?.object.userData.enemy){const e=hit.object.userData.enemy;e.userData.hp-=damage[hit.object.userData.zone]||20;cross.style.color='#ff6464';setTimeout(()=>cross.style.color='white',90);if(e.userData.hp<=0){e.visible=false;setTimeout(()=>{e.userData.hp=100;e.visible=true},2500)}}}
+if(hit?.object.userData.enemy){const e=hit.object.userData.enemy;e.userData.hp-=damage[hit.object.userData.zone]||20;showHitmarker(e.userData.hp<=0);if(e.userData.hp<=0){e.visible=false;setTimeout(()=>{e.userData.hp=100;e.visible=true},2500)}}}
 function jump(now=performance.now()/1000){
 if(!player.ground||now-player.lastJump<.24)return;
 player.jumps=now-player.lastJump<1.15?Math.min(player.jumps+1,6):0;
@@ -66,10 +72,24 @@ joy.addEventListener('pointerdown',e=>{e.preventDefault();joyId=e.pointerId;joy.
 joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)updateJoy(e)});
 function joyEnd(e){if(e.pointerId!==joyId)return;joyId=null;move.x=move.y=0;knob.style.transform=''}
 joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);
-let lookId=null,lx=0,ly=0;
-renderer.domElement.addEventListener('pointerdown',e=>{if(lookId!==null)return;lookId=e.pointerId;lx=e.clientX;ly=e.clientY;renderer.domElement.setPointerCapture(lookId)});
-renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;player.yaw-=(e.clientX-lx)*.004;player.pitch=Math.max(-1.2,Math.min(1.2,player.pitch-(e.clientY-ly)*.004));lx=e.clientX;ly=e.clientY});
-function lookEnd(e){if(e.pointerId===lookId)lookId=null}renderer.domElement.addEventListener('pointerup',lookEnd);renderer.domElement.addEventListener('pointercancel',lookEnd);
+// Any free touch, including one moving off the fire/jump/crouch buttons,
+// can steer the camera. Joystick is reserved for movement.
+const lookPointers=new Map();
+function isJoystickTouch(e){return e.target===joy||joy.contains(e.target)}
+document.addEventListener('pointerdown',e=>{
+ if(isJoystickTouch(e))return;
+ lookPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+},{capture:true});
+document.addEventListener('pointermove',e=>{
+ const p=lookPointers.get(e.pointerId);if(!p)return;
+ const dx=e.clientX-p.x,dy=e.clientY-p.y;
+ p.x=e.clientX;p.y=e.clientY;
+ player.yaw-=dx*.004;
+ player.pitch=Math.max(-1.2,Math.min(1.2,player.pitch-dy*.004));
+},{capture:true});
+function endLook(e){lookPointers.delete(e.pointerId)}
+document.addEventListener('pointerup',endLook,{capture:true});
+document.addEventListener('pointercancel',endLook,{capture:true});
 addEventListener('keydown',e=>{keys.add(e.code);if(e.code==='Space'&&!e.repeat)jump();if(e.code==='KeyR')reload()});
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
