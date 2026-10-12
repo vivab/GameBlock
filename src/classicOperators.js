@@ -147,6 +147,40 @@ export function skinCtMesh(source) {
   return { root, mode: 'generated', rig };
 }
 
+// Bake the owner's original Leet skin once in its bind pose, then re-rig
+// with the SAME proven lightweight GPU skeleton as GIGN. Blender/sketchfab
+// rigs often contain nonuniform transform conventions which can otherwise
+// explode when animated in-browser. The detailed model and textures remain.
+export function flattenOriginalSkinnedModel(scene) {
+  scene.updateMatrixWorld(true);
+  const baked = new THREE.Group();
+  let count = 0;
+  scene.traverse(node => {
+    if (!node.isMesh || !node.geometry?.getAttribute('position')) return;
+    const geometry = node.geometry.clone();
+    const position = geometry.getAttribute('position');
+    if (node.isSkinnedMesh) {
+      node.skeleton.update();
+      const vertex = new THREE.Vector3();
+      for (let i = 0; i < position.count; i++) {
+        node.getVertexPosition(i, vertex);
+        position.setXYZ(i, vertex.x, vertex.y, vertex.z);
+      }
+      position.needsUpdate = true;
+      // Remove inherited skin indices: a new, safe GPU rig is built later.
+      geometry.deleteAttribute('skinIndex');
+      geometry.deleteAttribute('skinWeight');
+    }
+    geometry.applyMatrix4(node.matrixWorld);
+    geometry.computeBoundingBox();
+    const result = new THREE.Mesh(geometry, node.material);
+    result.name = 'Original Leet bind geometry ' + count++;
+    baked.add(result);
+  });
+  if (!count) throw new Error('Leet GLB has no bakeable geometry');
+  return baked;
+}
+
 function nativeBone(root, pattern) {
   let match = null;
   root.traverse(o => { if (o.isBone && pattern.test(o.name.replace(/_/g, ' '))) match = o; });
@@ -210,6 +244,9 @@ function poseNative(root) {
 export function buildClassicOperator(gltf, team) {
   if (!gltf?.scene) throw new Error('GLB model must be loaded first');
   if (team === 'ct') return skinCtMesh(gltf.scene);
+  // Real Leet appearance, but animated with the stable 10-bone rig instead
+  // of the glTF's fragile legacy armature.
+  if (team === 't') return skinCtMesh(flattenOriginalSkinnedModel(gltf.scene));
   const root = new THREE.Group();
   const loaded = cloneSkinned(gltf.scene);
   root.add(loaded);
