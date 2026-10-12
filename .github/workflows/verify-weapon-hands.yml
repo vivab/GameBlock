@@ -57,6 +57,7 @@ jobs:
           const visible = await page.$eval('#calibrationPanel', el => !el.hidden);
           assert.equal(visible, true);
           await page.select('#calWeapon', 'rifle');
+          assert.equal(await page.$eval('#weaponLabel', el => el.textContent), 'AK-47');
           await page.$eval('input[data-key="scale"]', input => {
             input.value = '1.5'; input.dispatchEvent(new Event('input', {bubbles:true}));
           });
