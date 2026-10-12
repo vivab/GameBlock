@@ -31,6 +31,23 @@ const player={x:0,z:9,y:0,yaw:0,pitch:-.12,vy:0,ground:true,crouch:false,health:
 const gun=new THREE.Group();camera.add(gun);scene.add(camera);
 cube(.22,.18,.72,0x272e35,.31,-.3,-.63,gun);cube(.09,.09,.43,0x13171a,.31,-.27,-1.16,gun);cube(.14,.26,.17,0x534333,.31,-.47,-.46,gun);
 cube(.18,.17,.34,0xb38e72,.1,-.44,-.56,gun);cube(.18,.17,.34,0xb38e72,.48,-.44,-.56,gun);
+const knife=new THREE.Group();camera.add(knife);knife.visible=false;
+cube(.095,.14,.35,0x514333,.35,-.42,-.58,knife);
+cube(.065,.045,.62,0xbcc5c9,.35,-.32,-.98,knife);
+const weaponWheel=document.getElementById('weaponWheel'),weaponLabel=document.getElementById('weaponLabel');
+let weapon='pistol',lastKnife=0;
+function selectWeapon(name){weapon=name;gun.visible=name==='pistol';knife.visible=name==='knife';weaponLabel.textContent=name==='pistol'?'Пистолет':'Нож';weaponWheel.classList.remove('open');if(name==='knife')reloading=false;}
+document.getElementById('weaponToggle').addEventListener('pointerdown',e=>{e.preventDefault();weaponWheel.classList.toggle('open')});
+document.getElementById('choosePistol').addEventListener('pointerdown',e=>{e.preventDefault();selectWeapon('pistol')});
+document.getElementById('chooseKnife').addEventListener('pointerdown',e=>{e.preventDefault();selectWeapon('knife')});
+const bulletMarks=[];
+const markGeometry=new THREE.CircleGeometry(.055,10),markMaterial=new THREE.MeshBasicMaterial({color:0x242424,side:THREE.DoubleSide,depthWrite:false});
+function addBulletMark(hit,now){
+ const mark=new THREE.Mesh(markGeometry,markMaterial);
+ mark.position.copy(hit.point).addScaledVector(hit.face.normal.clone().transformDirection(hit.object.matrixWorld),.018);
+ mark.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),hit.face.normal.clone().transformDirection(hit.object.matrixWorld));
+ scene.add(mark);bulletMarks.push({mesh:mark,expires:now+3000});
+}
 const stats=document.getElementById('stats'),cross=document.getElementById('cross'),hitmarker=document.getElementById('hitmarker'),radar=document.getElementById('radar'),ctx=radar.getContext('2d');
 let ammo=30,reserve=90,reloading=false,firing=false,lastShot=0,recoil=0,shots=0,jumpHeld=false,lastLanding=-10,airPenalty=0;
 const move={x:0,y:0},keys=new Set(),ray=new THREE.Raycaster(),dir=new THREE.Vector3();
@@ -41,23 +58,33 @@ function showHitmarker(killed){
  hitmarker.classList.remove('show');void hitmarker.offsetWidth;hitmarker.classList.add('show');
  clearTimeout(hitTimer);hitTimer=setTimeout(()=>hitmarker.classList.remove('show'),killed?240:130);
 }
-function reload(){if(reloading||ammo===30||reserve===0)return;reloading=true;setTimeout(()=>{const n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;reloading=false},1700)}
+function reload(){if(weapon!=='pistol'||reloading||ammo===30||reserve===0)return;reloading=true;setTimeout(()=>{const n=Math.min(30-ammo,reserve);ammo+=n;reserve-=n;reloading=false},1700)}
 function shoot(now){
+if(weapon==='knife'){
+ if(now-lastKnife<550)return;lastKnife=now;recoil=.08;
+ dir.set(0,0,-1).applyQuaternion(camera.quaternion);ray.set(camera.position,dir);ray.far=2.4;
+ const hit=ray.intersectObjects(enemies.filter(e=>e.visible).flatMap(e=>e.userData.parts),false)[0];
+ if(hit){const e=hit.object.userData.enemy;e.userData.hp-=65;showHitmarker(e.userData.hp<=0);if(e.userData.hp<=0){e.visible=false;setTimeout(()=>{e.userData.hp=100;e.visible=true},2500)}}
+ return;
+}
 if(reloading||ammo<=0||now-lastShot<105)return;
 const gap=now-lastShot;if(gap>360)shots=0;
 lastShot=now;ammo--;shots++;
 // Predictable upward kick with horizontal spray; touch look remains independent.
 const phase=Math.min(shots,26);
-const horizontal=Math.sin(phase*.63)*.0026+Math.sin(phase*.27)*.0017;
-const kick=.010+Math.min(phase,12)*.00075;
+const horizontal=Math.sin(phase*.63)*.0035+Math.sin(phase*.27)*.0025;
+const kick=.009+Math.min(phase,12)*.0011;
 player.pitch=Math.min(1.2,player.pitch+kick);
 player.yaw+=horizontal;
 recoil=Math.min(.09,recoil+.022);
-const moving=Math.min(1,Math.hypot(move.x,move.y));
-const spread=.0028+Math.min(phase,20)*.00055+moving*.009+(!player.ground?.012:0);
+const moving=Math.min(1,Math.hypot(move.x,move.y)+(keys.has('KeyW')||keys.has('KeyA')||keys.has('KeyS')||keys.has('KeyD')?1:0));
+const crouched=player.crouch||keys.has('ControlLeft');
+const baseSpread=!player.ground?.042:moving>.15?.024:crouched?.0035:.009;
+const spread=baseSpread+Math.min(phase,18)*.0008;
 dir.set((Math.random()-.5)*spread*2,(Math.random()-.5)*spread*2,-1).normalize().applyQuaternion(camera.quaternion);
 ray.set(camera.position,dir);ray.far=80;
-const hit=ray.intersectObjects([...walls,...enemies.filter(e=>e.visible).flatMap(e=>e.userData.parts)],false)[0];
+const hit=ray.intersectObjects([floor,...walls,...enemies.filter(e=>e.visible).flatMap(e=>e.userData.parts)],false)[0];
+if(hit&&!hit.object.userData.enemy)addBulletMark(hit,now);
 if(hit?.object.userData.enemy){const e=hit.object.userData.enemy;e.userData.hp-=damage[hit.object.userData.zone]||20;showHitmarker(e.userData.hp<=0);if(e.userData.hp<=0){e.visible=false;setTimeout(()=>{e.userData.hp=100;e.visible=true},2500)}}}
 function jump(now=performance.now()/1000){
 if(!player.ground||now-player.lastJump<.24)return;
@@ -104,8 +131,10 @@ player.vy-=14*dt;player.y+=player.vy*dt;if(player.y<=0){player.y=0;player.vy=0;p
 camera.position.set(player.x,player.y+(crouched?1.05:1.65),player.z);
 camera.rotation.set(player.pitch,player.yaw,0,'YXZ');
 recoil=Math.max(0,recoil-dt*.25);
+for(let i=bulletMarks.length-1;i>=0;i--)if(now>=bulletMarks[i].expires){scene.remove(bulletMarks[i].mesh);bulletMarks.splice(i,1)}
 gun.position.set(Math.sin(now*.008)*.006,-Math.abs(Math.sin(now*.008))*.006-recoil*.18,recoil*.35);
-if(firing)shoot(now);if(now-lastShot>320)shots=0;
-stats.textContent='♥ '+player.health+'   ▣ '+ammo+' / '+reserve+(reloading?'  ↻':'');
+if(firing)shoot(now);if(now-lastShot>420)shots=0;
+knife.rotation.z=-recoil*2;
+stats.textContent='♥ '+player.health+(weapon==='pistol'?'   ▣ '+ammo+' / '+reserve+(reloading?'  ↻':''):'   🔪 Нож');
 drawRadar();renderer.render(scene,camera)}
 requestAnimationFrame(frame);
