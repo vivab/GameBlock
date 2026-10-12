@@ -7,9 +7,9 @@ import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 // Game1 geometry, scaled for GameBlock's narrower (58°) first-person FOV.
 const DEG = Math.PI / 180, U = 0.105;
 export const WEAPON_DEFAULTS = Object.freeze({
-  pistol: { x: 0.01, y: -0.018, z: 0.03, rx: -5, ry: -42, rz: 0, scale: 0.94 },
-  rifle:  { x: 0.005, y: 0.015, z: -0.055, rx: 0, ry: 0, rz: 0, scale: 0.80 },
-  knife:  { x: -0.34, y: -0.02, z: 0.045, rx: -12, ry: -75, rz: -6, scale: 0.92 },
+  pistol: { x: 0.01, y: -0.14, z: 0.03, rx: -5, ry: 180, rz: 0, scale: 0.94 },
+  rifle:  { x: 0.09, y: -0.29, z: 0.12, rx: 1, ry: 0, rz: 0, scale: 1.87 },
+  knife:  { x: -0.25, y: -0.02, z: 0.07, rx: -13, ry: -83, rz: 77, scale: 0.84 },
 });
 const PROFILE = {
   pistol: { ndcX: 0.27, sy: -0.085, sz: -0.73, length: 0.48 },
@@ -20,16 +20,16 @@ const PROFILE = {
 // trigger, front grip and knife handle of GameBlock's existing weapon GLBs.
 export const HAND_DEFAULTS = Object.freeze({
   pistol: {
-    R: { pose: 'pistol', x: 0.3, y: -0.2, z: 0.55, pitch: 29, yaw: -28, roll: -66, k: 1.3 },
-    L: { pose: 'fist', x: -0.45, y: -0.3, z: 0.2, pitch: 20, yaw: -10, roll: 85, k: 0.8 },
+    R: { pose: 'pistol', x: -0.05, y: -0.85, z: 0.55, pitch: 29, yaw: -28, roll: -66, k: 1.3 },
+    L: { pose: 'fist', x: -0.05, y: -0.25, z: -0.5, pitch: 20, yaw: -10, roll: 85, k: 0.55 },
   },
   rifle: {
-    R: { pose: 'pistol', x: 0.5, y: -1.2, z: 0, pitch: 15, yaw: 10, roll: -85, k: 1 },
-    L: { pose: 'cup', x: 0.55, y: -1.0, z: 0.5, pitch: 4, yaw: -18, roll: 150, k: 1 },
+    R: { pose: 'pistol', x: 1.7, y: -2.9, z: 0, pitch: 15, yaw: 10, roll: -85, k: 1 },
+    L: { pose: 'cup', x: 1.05, y: -2.05, z: -0.5, pitch: 4, yaw: -18, roll: 150, k: 1 },
   },
   knife: {
-    R: { pose: 'fist', x: 0.2, y: 0, z: 0, pitch: 19, yaw: -17, roll: -17, k: 1 },
-    L: { pose: 'open', x: -4.2, y: -0.5, z: -0.5, pitch: 25, yaw: -20, roll: 0, k: 1 },
+    R: { pose: 'fist', x: 1.35, y: -0.4, z: -0.95, pitch: 26, yaw: 17, roll: -22, k: 0.75 },
+    L: { pose: 'open', x: -4.8, y: 1.5, z: -0.5, pitch: 25, yaw: -20, roll: 0, k: 1 },
   },
 });
 const ANCHORS = {
@@ -194,8 +194,12 @@ export function createWeaponView(kind) {
         if(kind==='knife')kw=sample(KF.knife,inspectTime);
         else add(sample(KF[kind==='rifle'?'heavy':'pistol'],inspectTime));
       }
-      if(reloadProgress>=0&&reloadProgress<1&&kind!=='knife')
-        add(sample(KF.rel[kind],reloadProgress));
+      // Reload deliberately has no magazine manipulation: lower the complete
+      // hand+weapon rig, hold it briefly, then bring it back up together.
+      // No independent left-hand motion that could break the calibrated grip.
+      const reloadDip = kind !== 'knife' && reloadProgress >= 0 && reloadProgress < 1
+        ? Math.max(0, Math.min(1, reloadProgress / 0.2, (1 - reloadProgress) / 0.2))
+        : 0;
       if(kind!=='knife') {
         const k=KICK[kind];
         move[2]+=k[0]*kick+recoil*0.45;
@@ -223,19 +227,15 @@ export function createWeaponView(kind) {
         }
       }
       animated.position.set(move[0],move[1],move[2]);
+      root.position.y -= reloadDip * 0.42;
+      root.position.z += reloadDip * 0.06;
       animated.rotation.set(move[3],move[4],move[5],'YXZ');
       if(kind==='knife')animated.rotation.z+=move[6];
       const leftBase=arms.left.userData.base;
       if(leftBase){
         arms.left.position.copy(leftBase);
         arms.left.rotation.set(poses.L.pitch*DEG,poses.L.yaw*DEG,poses.L.roll*DEG,'YXZ');
-        if(reloadProgress>=0&&reloadProgress<1&&kind!=='knife'){
-          // Move supporting fingers to the magazine and back with Game1 curves.
-          const u=Math.sin(Math.PI*reloadProgress);
-          arms.left.position.y-=0.11*u;
-          arms.left.position.z+=kind==='rifle'?0.16*u:0.08*u;
-          arms.left.rotation.x-=0.33*u;
-        }
+        // The supporting hand stays locked to the weapon during reload.
       }
       muzzle.visible=visible&&kind!=='knife'&&firing;
     }
