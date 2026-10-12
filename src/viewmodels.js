@@ -87,7 +87,16 @@ export function createWeaponView(kind) {
   if (!WEAPON_DEFAULTS[kind]) throw new Error('Unsupported viewmodel: '+kind);
   const root = new THREE.Group(), animated = new THREE.Group();
   root.add(animated);
-  const modelMount = new THREE.Group(); animated.add(modelMount);
+  const modelMount = new THREE.Group();
+  // Unlike the old inspect animation, wrist inspection never moves/rotates
+  // the long Game1 sleeve. A wrist-only pivot owns the palm AND blade.
+  const knifeWrist = kind === 'knife' ? new THREE.Group() : null;
+  const knifeRest = kind === 'knife' ? new THREE.Group() : null;
+  if (knifeWrist) {
+    knifeRest.matrixAutoUpdate = false;
+    knifeWrist.add(knifeRest);
+    knifeRest.add(modelMount);
+  } else animated.add(modelMount);
   const staticHolder = new THREE.Group(); root.add(staticHolder);
   const handGroup = new THREE.Group(); animated.add(handGroup);
   const arms = { group: handGroup, left: new THREE.Group(), right: new THREE.Group() };
@@ -117,17 +126,31 @@ export function createWeaponView(kind) {
       if (holder.userData.mesh) holder.remove(holder.userData.mesh);
       const mesh=makeHand(side,cfg.pose,U,cfg.k,team);
       holder.add(mesh);holder.userData.mesh=mesh;
+      if (knifeWrist && side === 'R') {
+        // Rebuild only the glove; the fixed shoulder remains with the mesh.
+        // The exact same wrist pivot owns the knife and the palm.
+        const palm = mesh.userData.hand;
+        knifeWrist.add(palm);
+        mesh.add(knifeWrist);
+      }
     }
     holder.position.set(anchor[0]+cfg.x*U,anchor[1]+cfg.y*U,anchor[2]+cfg.z*U);
     holder.rotation.set(cfg.pitch*DEG,cfg.yaw*DEG,cfg.roll*DEG,'YXZ');
     holder.userData.base = holder.position.clone();
+    if (knifeRest && side === 'R') {
+      // Neutral pose must match the approved calibration exactly. The inverse
+      // of the hand's mount transform cancels any parent offset/rotation.
+      holder.updateMatrix();
+      knifeRest.matrix.copy(holder.matrix).invert();
+      knifeRest.matrixWorldNeedsUpdate = true;
+    }
   }
   updateMount();
   updateHand('R',true); updateHand('L',true);
 
   let kick=0,lastNow=null;
   const view = {
-    kind, root, animated, arms, modelMount, muzzle,
+    kind, root, animated, arms, modelMount, muzzle, knifeWrist,
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
     setModel(gltfScene) {
@@ -211,19 +234,30 @@ export function createWeaponView(kind) {
         move[0]-=0.16*s;move[1]-=0.025*s;move[3]+=0.15*s;
         move[4]+=0.85*s;move[5]+=0.42*s;
       }
-      if(kw){
-        move[1]+=kw[1];move[3]+=kw[0];move[4]+=kw[4]*0.5;move[5]+=kw[3];
-        // Knife & right glove share the animated parent; left palm stays calm.
-        const hand=arms.right.userData.mesh;
-        if(hand?.userData.hand){
-          hand.userData.arm.matrix.makeRotationX(kw[0]*0.45);
-          hand.userData.hand.matrix.makeRotationZ(kw[3]*0.5).multiply(
-            new THREE.Matrix4().makeRotationX(kw[2]));
+      if (knifeWrist) {
+        if (kw) {
+          // CS-style knife check: roll/turn the blade WITH the fingers at the
+          // wrist joint. No animated shoulder, elbow or full viewmodel spin.
+          // Clamps prevent the blade/hand from cutting across the camera.
+          knifeWrist.rotation.set(
+            clamp(-kw[2] * 0.40, -0.14, 0.14),
+            clamp(kw[4] * 0.42, -0.52, 0.52),
+            clamp(kw[3] * 0.43, -0.82, 0.82),
+            'YXZ'
+          );
+          knifeWrist.position.set(0, clamp(kw[1] * 0.12, -0.015, 0.015), 0);
+        } else {
+          knifeWrist.rotation.set(0, 0, 0);
+          knifeWrist.position.set(0, 0, 0);
         }
-      } else if(kind==='knife'){
-        const hand=arms.right.userData.mesh;
-        if(hand?.userData.hand){
-          hand.userData.arm.matrix.identity();hand.userData.hand.matrix.identity();
+        // Game1's forearm mesh uses a manual matrix. Keep it IDENTICAL for
+        // every inspect frame, including repeats and interruptions.
+        const forearm = arms.right.userData.mesh?.userData.arm;
+        if (forearm && !forearm.matrix.equals(new THREE.Matrix4())) {
+          // Inspect never modifies its matrix; this guard also resets an old
+          // pose retained by a previous animation or browser session.
+          forearm.matrix.identity();
+          forearm.matrixWorldNeedsUpdate = true;
         }
       }
       animated.position.set(move[0],move[1],move[2]);
