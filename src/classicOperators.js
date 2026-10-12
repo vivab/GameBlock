@@ -1,0 +1,238 @@
+import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+
+/**
+ * Counter-Strike-like operators built from the ORIGINAL GIGN and Leet GLBs
+ * already uploaded by this project's owner.
+ *
+ * The CT file is a static Z-up mesh. Give its vertices a proper skinned
+ * skeleton with *continuous* shoulder/elbow/knee weights, rather than
+ * modifying the mesh's vertex positions every frame (the old "wings" bug).
+ * The T file is already skinned: animate its native 86-bone hierarchy.
+ *
+ * No imported game map, cartoon characters or mesh replacement.
+ */
+const UP = new THREE.Vector3(0, 1, 0);
+const AXIS_X = new THREE.Vector3(1, 0, 0);
+const AXIS_Y = new THREE.Vector3(0, 1, 0);
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+const tempQuat = new THREE.Quaternion();
+const tempParentQuat = new THREE.Quaternion();
+const tempWorldQuat = new THREE.Quaternion();
+const tempV = new THREE.Vector3();
+const TARGET_HEIGHT = 1.83;
+
+const smooth = (start, end, value) => {
+  const t = THREE.MathUtils.clamp((value - start) / Math.max(1e-5, end - start), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+const bone = (name, position, parent) => {
+  const b = new THREE.Bone();
+  b.name = name;
+  b.position.set(...position);
+  parent.add(b);
+  return b;
+};
+
+export function makeCtSkeleton() {
+  const armature = new THREE.Group();
+  const hips = bone('Hips', [0, 0.88, 0], armature);
+  const spine = bone('Spine', [0, 0.18, 0], hips);
+  // Index 0=root, 1=torso, 2/3=right arm, 4/5=left arm,
+  // 6/7=right leg, 8/9=left leg.
+  const rightArm = bone('RightUpperArm', [0.29, 0.43, 0], spine);
+  const rightFore = bone('RightForearm', [0.44, 0, 0], rightArm);
+  const leftArm = bone('LeftUpperArm', [-0.29, 0.43, 0], spine);
+  const leftFore = bone('LeftForearm', [-0.44, 0, 0], leftArm);
+  const rightLeg = bone('RightUpperLeg', [0.14, -0.10, 0], hips);
+  const rightCalf = bone('RightLowerLeg', [0, -0.43, 0], rightLeg);
+  const leftLeg = bone('LeftUpperLeg', [-0.14, -0.10, 0], hips);
+  const leftCalf = bone('LeftLowerLeg', [0, -0.43, 0], leftLeg);
+  armature.updateMatrixWorld(true);
+  const bones = [hips, spine, rightArm, rightFore, leftArm, leftFore,
+    rightLeg, rightCalf, leftLeg, leftCalf];
+  return { armature, bones, upperArms: [rightArm, leftArm], forearms: [rightFore, leftFore],
+    thighs: [rightLeg, leftLeg], calves: [rightCalf, leftCalf] };
+}
+
+export function ctSkinWeights(point) {
+  const x = point.x, y = point.y, ax = Math.abs(x);
+  const indices = [0, 0, 0, 0];
+  const weights = [1, 0, 0, 0];
+  // A small upper-arm/shoulder falloff prevents seams, T-pose fans and stretching.
+  const arm = smooth(0.20, 0.36, ax) * smooth(0.94, 1.22, y);
+  if (arm > 0.00001) {
+    const upper = x >= 0 ? 2 : 4;
+    const forearm = upper + 1;
+    const elbow = smooth(0.57, 0.79, ax);
+    indices[0] = 1; weights[0] = 1 - arm;
+    indices[1] = upper; weights[1] = arm * (1 - elbow);
+    indices[2] = forearm; weights[2] = arm * elbow;
+    return { indices, weights };
+  }
+  const leg = 1 - smooth(0.75, 1.00, y);
+  if (leg > 0.00001) {
+    const thigh = x >= 0 ? 6 : 8;
+    const calf = thigh + 1;
+    const knee = 1 - smooth(0.37, 0.59, y);
+    indices[0] = 0; weights[0] = 1 - leg;
+    indices[1] = thigh; weights[1] = leg * (1 - knee);
+    indices[2] = calf; weights[2] = leg * knee;
+    return { indices, weights };
+  }
+  indices[0] = 1;
+  return { indices, weights };
+}
+
+// All vertices are converted to Y-up, standing at ground=0 and centered.
+// The rest bind transforms are saved BEFORE we pose the arms.
+export function skinCtMesh(source) {
+  const render = source.clone(true);
+  render.rotation.x = -Math.PI / 2;
+  render.updateMatrixWorld(true);
+  const rawBounds = new THREE.Box3().setFromObject(render);
+  if (rawBounds.isEmpty()) throw new Error('GIGN GLB contains no geometry');
+  const size = rawBounds.getSize(new THREE.Vector3());
+  if (!(size.y > 0.5)) throw new Error('GIGN GLB has invalid upright height');
+  const scale = TARGET_HEIGHT / size.y;
+  const center = rawBounds.getCenter(new THREE.Vector3());
+  const normalization = new THREE.Matrix4()
+    .makeTranslation(-center.x * scale, -rawBounds.min.y * scale, -center.z * scale)
+    .multiply(new THREE.Matrix4().makeScale(scale));
+  const rig = makeCtSkeleton();
+  const root = new THREE.Group();
+  root.add(rig.armature);
+  rig.armature.updateMatrixWorld(true);
+  const skeleton = new THREE.Skeleton(rig.bones);
+  let count = 0;
+  render.traverse(node => {
+    if (!node.isMesh || node.isSkinnedMesh) return;
+    const geometry = node.geometry.clone();
+    geometry.applyMatrix4(normalization.clone().multiply(node.matrixWorld));
+    const vertices = geometry.getAttribute('position');
+    const idx = new Uint16Array(vertices.count * 4);
+    const weights = new Float32Array(vertices.count * 4);
+    for (let i = 0; i < vertices.count; i++) {
+      tempV.fromBufferAttribute(vertices, i);
+      const skin = ctSkinWeights(tempV);
+      for (let j = 0; j < 4; j++) {
+        idx[i * 4 + j] = skin.indices[j];
+        weights[i * 4 + j] = skin.weights[j];
+      }
+    }
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(idx, 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+    const mesh = new THREE.SkinnedMesh(geometry, node.material);
+    mesh.name = 'Animated GIGN ' + count++;
+    mesh.frustumCulled = false;
+    root.add(mesh);
+    mesh.bind(skeleton);
+  });
+  if (!count) throw new Error('GIGN has no skinnable geometry');
+  return { root, mode: 'generated', rig };
+}
+
+function nativeBone(root, pattern) {
+  let match = null;
+  root.traverse(o => { if (o.isBone && pattern.test(o.name)) match = o; });
+  return match;
+}
+
+function poseNative(root) {
+  const get = p => nativeBone(root, p);
+  const upper = [get(/Bip01 L UpperArm/i), get(/Bip01 R UpperArm/i)];
+  const lower = [get(/Bip01 L Forearm/i), get(/Bip01 R Forearm/i)];
+  const thighs = [get(/Bip01 L Thigh/i), get(/Bip01 R Thigh/i)];
+  const calves = [get(/Bip01 L Calf/i), get(/Bip01 R Calf/i)];
+  const tracks = [...upper, ...lower, ...thighs, ...calves]
+    .filter(Boolean).map(b => ({ bone: b, bind: b.quaternion.clone() }));
+  if (upper.some(x => !x) || lower.some(x => !x) ||
+      thighs.some(x => !x)) throw new Error('Original Leet skeleton is incomplete');
+  return { upper, lower, thighs, calves, tracks };
+}
+
+export function buildClassicOperator(gltf, team) {
+  if (!gltf?.scene) throw new Error('GLB model must be loaded first');
+  if (team === 'ct') return skinCtMesh(gltf.scene);
+  const root = new THREE.Group();
+  const loaded = cloneSkinned(gltf.scene);
+  loaded.rotation.x = -Math.PI / 2;
+  root.add(loaded);
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root);
+  if (box.isEmpty()) throw new Error('Leet GLB contains no geometry');
+  const factor = TARGET_HEIGHT / Math.max(0.001, box.getSize(new THREE.Vector3()).y);
+  loaded.scale.setScalar(factor);
+  root.updateMatrixWorld(true);
+  const scaled = new THREE.Box3().setFromObject(root);
+  const center = scaled.getCenter(new THREE.Vector3());
+  loaded.position.set(-center.x, -scaled.min.y, -center.z);
+  root.updateMatrixWorld(true);
+  return { root, mode: 'native', rig: poseNative(loaded) };
+}
+
+// Native bones use their original local bind quaternions. Apply a rotation
+// expressed in soldier-local 3D axes, transformed through the parent;
+// no vertex-level T-pose edits, and no shared skeletons between bots.
+function nativeRotation(bone, rest, actorRoot, axis, degrees) {
+  if (!bone || !rest) return;
+  const worldAxis = axis.clone();
+  actorRoot.getWorldQuaternion(tempWorldQuat);
+  worldAxis.applyQuaternion(tempWorldQuat);
+  bone.parent.getWorldQuaternion(tempParentQuat);
+  worldAxis.applyQuaternion(tempParentQuat.invert()).normalize();
+  bone.quaternion.copy(rest).premultiply(tempQuat.setFromAxisAngle(worldAxis,
+    THREE.MathUtils.degToRad(degrees)));
+}
+function worldSide(bone, actorRoot) {
+  bone.getWorldPosition(tempV);
+  actorRoot.worldToLocal(tempV);
+  return tempV.x >= 0 ? 1 : -1;
+}
+
+export function animateClassicOperator(model, actor, time, dt, movement) {
+  if (!model) return;
+  const rig = model.rig;
+  const walk = Math.min(1, Math.max(0, movement / 3.2));
+  const stride = Math.sin(time * 8.5);
+  const fire = actor.lastShotAt != null && time - actor.lastShotAt < 0.25;
+  if (model.mode === 'generated') {
+    // Native bone skinning computed by Three.js GPU, no per-frame vertices.
+    for (let i = 0; i < 2; i++) {
+      const sign = i === 0 ? 1 : -1;
+      rig.upperArms[i].rotation.set(0, sign * 0.43,
+        -sign * (1.00 + (fire ? 0.08 : 0)));
+      rig.forearms[i].rotation.set(0, 0, sign * 0.70);
+      rig.thighs[i].rotation.set(stride * (i === 0 ? 0.45 : -0.45) * walk, 0, 0);
+      rig.calves[i].rotation.set(Math.max(0, -stride * (i === 0 ? 1 : -1)) * 0.24 * walk, 0, 0);
+    }
+    rig.armature.updateMatrixWorld(true);
+  } else {
+    const actorRoot = model.root;
+    model.root.updateMatrixWorld(true);
+    const restMap = new Map(rig.tracks.map(t => [t.bone, t.bind]));
+    for (const [i, bone] of rig.upper.entries()) {
+      const sign = worldSide(bone, actorRoot);
+      nativeRotation(bone, restMap.get(bone), actorRoot, AXIS_Z,
+        -sign * (61 + (fire ? 5 : 0)));
+      nativeRotation(bone, bone.quaternion.clone(), actorRoot, AXIS_Y, sign * 27);
+      bone.updateMatrixWorld(true);
+    }
+    for (const [i, bone] of rig.lower.entries()) {
+      const sign = worldSide(bone, actorRoot);
+      nativeRotation(bone, restMap.get(bone), actorRoot, AXIS_Z, sign * 66);
+      bone.updateMatrixWorld(true);
+    }
+    for (const [i, b] of rig.thighs.entries()) {
+      nativeRotation(b, restMap.get(b), actorRoot, AXIS_X,
+        stride * (i === 0 ? 25 : -25) * walk);
+      b.updateMatrixWorld(true);
+    }
+    for (const [i, b] of rig.calves.entries()) {
+      if (!b) continue;
+      nativeRotation(b, restMap.get(b), actorRoot, AXIS_X,
+        Math.max(0, -stride * (i === 0 ? 1 : -1)) * 18 * walk);
+    }
+    model.root.updateMatrixWorld(true);
+  }
+}
