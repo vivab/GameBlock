@@ -1,4 +1,4 @@
-name: Verify interruptible inspect (temporary)
+name: Verify cancel and restart knife inspect
 on:
   push:
     branches: [fix/interruptible-knife-inspect]
