@@ -339,6 +339,7 @@ function updateHUD() {
   stats.textContent = `♥ ${player.health}  ${weapon !== 'knife' ? `▣ ${player.ammo} / ${player.reserve}${player.reloadingUntil ? '  ↻' : ''}` : '🔪 Нож'}`;
   $('personalScore').textContent = `${player.kills} убийств · ${player.deaths} смертей`;
   $('crouch').classList.toggle('active', player.crouch || keys.has('ControlLeft'));
+  $('reload').classList.toggle('reloading', !!player.reloadingUntil && weapon !== 'knife');
   $('deathNotice').hidden = player.alive || match.phase !== 'playing';
   if (!player.alive) $('respawnTimer').textContent = Math.max(1, Math.ceil(player.respawnAt - match.time));
   const feed = match.killfeed.map(item => `${item.killer} → ${item.victim}`).join('|');
