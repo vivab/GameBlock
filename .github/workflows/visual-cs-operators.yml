@@ -1,4 +1,4 @@
-name: Visual CS model with real rifles QA
+name: Check forward hand positions and equipped AK visually
 on:
   push:
     branches: [feat/cs-classic-operators]
@@ -14,6 +14,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
+      - run: npm test
       - run: npm run build
       - run: npm install --no-save puppeteer-core
       - name: Run real headless 3D scene for each team
