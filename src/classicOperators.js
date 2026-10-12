@@ -168,6 +168,27 @@ export function geometryWorldBounds(node) {
   });
   return bounds;
 }
+export function uprightRotationFromBones(head, feet) {
+  const direction = head.clone().sub(feet);
+  if (direction.lengthSq() < 0.0001) throw new Error('Invalid humanoid skeleton head and feet');
+  return new THREE.Quaternion().setFromUnitVectors(direction.normalize(), UP);
+}
+function alignSkinnedHumanoid(scene) {
+  scene.updateMatrixWorld(true);
+  const head = nativeBone(scene, /Bip01 Head/i);
+  const leftFoot = nativeBone(scene, /Bip01 L Foot/i);
+  const rightFoot = nativeBone(scene, /Bip01 R Foot/i);
+  if (!head || !leftFoot || !rightFoot) throw new Error('Leet head/feet joints are missing');
+  const h = new THREE.Vector3(), feet = new THREE.Vector3();
+  head.getWorldPosition(h);
+  const a = new THREE.Vector3(), b = new THREE.Vector3();
+  leftFoot.getWorldPosition(a);
+  rightFoot.getWorldPosition(b);
+  feet.copy(a).add(b).multiplyScalar(0.5);
+  const up = uprightRotationFromBones(h, feet);
+  scene.quaternion.premultiply(up);
+  scene.updateMatrixWorld(true);
+}
 function poseNative(root) {
   const get = p => nativeBone(root, p);
   const upper = [get(/Bip01 L UpperArm/i), get(/Bip01 R UpperArm/i)];
@@ -191,8 +212,8 @@ export function buildClassicOperator(gltf, team) {
   if (team === 'ct') return skinCtMesh(gltf.scene);
   const root = new THREE.Group();
   const loaded = cloneSkinned(gltf.scene);
-  loaded.rotation.x = -Math.PI / 2;
   root.add(loaded);
+  alignSkinnedHumanoid(loaded);
   root.updateMatrixWorld(true);
   const box = geometryWorldBounds(root);
   if (box.isEmpty()) throw new Error('Leet GLB contains no geometry');
