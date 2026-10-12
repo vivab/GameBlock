@@ -1,4 +1,4 @@
-name: Test single reload inspect button and wrist only knife (temporary)
+name: Test stationary sleeve knife inspection and smart reload
 on:
   push:
     branches: [fix/wrist-only-knife-inspect-smart-reload]
