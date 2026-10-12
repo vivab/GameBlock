@@ -1,0 +1,86 @@
+name: Test single reload inspect button and wrist only knife (temporary)
+on:
+  push:
+    branches: [fix/wrist-only-knife-inspect-smart-reload]
+    paths: ['.github/workflows/validate-wrist-inspect.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm install --no-save puppeteer-core
+      - name: Chromium inspection and reload smoke test with screenshots
+        run: |
+          npm run preview -- --host 127.0.0.1 >/tmp/gameblock-preview.log 2>&1 &
+          sleep 4
+          node --input-type=module <<'JS'
+          import puppeteer from 'puppeteer-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await puppeteer.launch({
+            executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl',
+              '--ignore-gpu-blocklist','--use-gl=angle','--use-angle=swiftshader']
+          });
+          try{
+            const page=await browser.newPage();
+            await page.setViewport({width:1250,height:510,deviceScaleFactor:1});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            await page.goto('http://127.0.0.1:4173/GameBlock/',{waitUntil:'networkidle2',timeout:60000});
+            assert.equal(await page.$('#inspectWeapon'),null,'Separate wheel inspect must be removed');
+            await page.click('#chooseCT');
+            assert.equal(await page.$eval('#weaponLabel',e=>e.textContent),'Glock 18');
+            assert.equal(await page.$eval('#reload',e=>e.getAttribute('aria-label')),'Осмотреть оружие');
+            // Full Glock -> inspect, never start reloading.
+            await page.click('#reload');
+            await new Promise(done=>setTimeout(done,130));
+            assert.equal(await page.$eval('#reload',e=>e.classList.contains('reloading')),false);
+            // Knife -> same reload button starts inspection.
+            await page.keyboard.press('Digit2');
+            await new Promise(done=>setTimeout(done,800));
+            assert.equal(await page.$eval('#weaponLabel',e=>e.textContent),'Нож');
+            await page.click('#reload');
+            await new Promise(done=>setTimeout(done,1200));
+            fs.mkdirSync('qa',{recursive:true});
+            await page.screenshot({path:'qa/knife-wrist-inspect-ct.png'});
+            // Tap again while inspect is active -> restart; switching breaks it.
+            await page.click('#reload');
+            await new Promise(done=>setTimeout(done,1200));
+            await page.screenshot({path:'qa/knife-wrist-restart-ct.png'});
+            await page.keyboard.press('Digit3');
+            await new Promise(done=>setTimeout(done,400));
+            assert.equal(await page.$eval('#weaponLabel',e=>e.textContent),'AK-47');
+            await page.click('#fire');
+            await new Promise(done=>setTimeout(done,100));
+            assert.equal(await page.$eval('#reload',e=>e.getAttribute('aria-label')),'Перезарядить');
+            await page.click('#reload');
+            await new Promise(done=>setTimeout(done,130));
+            assert.equal(await page.$eval('#reload',e=>e.classList.contains('reloading')),true,
+              'Partial AK magazine should reload, not inspect');
+            await page.keyboard.press('Digit2');
+            await page.click('#reload');
+            await new Promise(done=>setTimeout(done,250));
+            assert.deepEqual(errors,[]);
+            console.log('BROWSER PASS: no inspect wheel, smart reload/inspect, partial magazine, wrist inspect repeat/switch');
+          }finally{await browser.close()}
+          JS
+      - name: Upload visual verification screenshots into feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/knife-wrist-*.png
+          git diff --cached --quiet || (git commit -m "Temporary screenshots for knife wrist-only inspection QA" && git push origin HEAD:fix/wrist-only-knife-inspect-smart-reload)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: inspect-review
+          path: qa/knife-wrist-*.png
