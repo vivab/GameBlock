@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator } from '../src/classicOperators.js';
+import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator, uprightRotationFromBones } from '../src/classicOperators.js';
 
 test('rig has articulated shoulders, elbows, thighs and knees for original GIGN', () => {
   const rig = makeCtSkeleton();
@@ -56,4 +56,16 @@ test('static GIGN becomes real GPU skinned meshes, with intact geometry and mate
   animateClassicOperator(model, actor, 0.4, 0.016, 2.5);
   assert.ok(Math.abs(model.rig.upperArms[0].rotation.z) > 0.3);
   assert.ok(model.rig.thighs[0].rotation.x !== 0);
+});
+
+test('humanoid is turned upright from head/feet joints, regardless of export axis', () => {
+  const feet = new THREE.Vector3(0, 0, 0);
+  for (const head of [
+    new THREE.Vector3(0, 0, 2), new THREE.Vector3(-2, 0, 0),
+    new THREE.Vector3(0, -2, 0), new THREE.Vector3(0, 2, 0)
+  ]) {
+    const q = uprightRotationFromBones(head, feet);
+    const direction = head.clone().sub(feet).normalize().applyQuaternion(q);
+    assert.ok(direction.distanceTo(new THREE.Vector3(0, 1, 0)) < 1e-6);
+  }
 });
