@@ -88,12 +88,27 @@ export function ctSkinWeights(point) {
 // The rest bind transforms are saved BEFORE we pose the arms.
 export function skinCtMesh(source) {
   const render = source.clone(true);
-  render.rotation.x = -Math.PI / 2;
+  // glTF exporters sometimes bake Z-up into the root node already. Try the
+  // source orientation and both quarter-turns, keeping the one with greatest
+  // vertical extent rather than forcing a second rotation.
+  let rawBounds = null;
+  let bestHeight = -1;
+  for (const angle of [0, -Math.PI / 2, Math.PI / 2]) {
+    render.rotation.x = angle;
+    render.updateMatrixWorld(true);
+    const candidate = new THREE.Box3().setFromObject(render);
+    const height = candidate.getSize(new THREE.Vector3()).y;
+    if (Number.isFinite(height) && height > bestHeight) {
+      bestHeight = height;
+      rawBounds = candidate.clone();
+      render.userData.uprightAngle = angle;
+    }
+  }
+  render.rotation.x = render.userData.uprightAngle ?? 0;
   render.updateMatrixWorld(true);
-  const rawBounds = new THREE.Box3().setFromObject(render);
-  if (rawBounds.isEmpty()) throw new Error('GIGN GLB contains no geometry');
+  if (!rawBounds || rawBounds.isEmpty()) throw new Error('GIGN GLB contains no geometry');
   const size = rawBounds.getSize(new THREE.Vector3());
-  if (!(size.y > 0.5)) throw new Error('GIGN GLB has invalid upright height');
+  if (!(size.y > 0.15)) throw new Error('GIGN GLB has invalid upright height: ' + size.y);
   const scale = TARGET_HEIGHT / size.y;
   const center = rawBounds.getCenter(new THREE.Vector3());
   const normalization = new THREE.Matrix4()
@@ -134,7 +149,7 @@ export function skinCtMesh(source) {
 
 function nativeBone(root, pattern) {
   let match = null;
-  root.traverse(o => { if (o.isBone && pattern.test(o.name)) match = o; });
+  root.traverse(o => { if (o.isBone && pattern.test(o.name.replace(/_/g, ' '))) match = o; });
   return match;
 }
 
@@ -147,7 +162,12 @@ function poseNative(root) {
   const tracks = [...upper, ...lower, ...thighs, ...calves]
     .filter(Boolean).map(b => ({ bone: b, bind: b.quaternion.clone() }));
   if (upper.some(x => !x) || lower.some(x => !x) ||
-      thighs.some(x => !x)) throw new Error('Original Leet skeleton is incomplete');
+      thighs.some(x => !x)) {
+    const found = [];
+    root.traverse(o => { if (o.isBone) found.push(o.name); });
+    throw new Error('Original Leet skeleton is incomplete: found ' +
+      found.filter(n => /UpperArm|Forearm|Thigh/i.test(n)).join(', '));
+  }
   return { upper, lower, thighs, calves, tracks };
 }
 
