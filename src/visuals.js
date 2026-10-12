@@ -74,10 +74,10 @@ function fingers(group, color) {
 
 export function createViewArms(group, kind) {
   const sleeve = 0x314b60, gloves = 0x252c2b, seams = 0x182329;
-  const hands = new THREE.Group(); group.add(hands);
+  const hands = new THREE.Group(), sleeves = []; group.add(hands);
   const right = new THREE.Group(); hands.add(right);
-  limb(right, [0.42, -0.50, 0.60], [0.22, -0.31, 0.33], 0.15, 0.11, sleeve);
-  limb(right, [0.22, -0.31, 0.33], [0.045, -0.15, 0.09], 0.11, 0.078, sleeve);
+  sleeves.push(limb(right, [0.42, -0.50, 0.60], [0.22, -0.31, 0.33], 0.15, 0.11, sleeve));
+  sleeves.push(limb(right, [0.22, -0.31, 0.33], [0.045, -0.15, 0.09], 0.11, 0.078, sleeve));
   sphere(right, [0.098, 0.09, 0.13], [0.043, -0.16, 0.06], gloves);
   const rFingers = new THREE.Group(); rFingers.position.set(0.033, -0.16, 0.03);
   right.add(rFingers); fingers(rFingers, gloves);
@@ -85,11 +85,11 @@ export function createViewArms(group, kind) {
   if (kind !== 'knife') {
     support = new THREE.Group(); hands.add(support);
     const wrist = kind === 'rifle' ? [-0.15, -0.11, -0.36] : [-0.04, -0.19, -0.05];
-    limb(support, [-0.39, -0.48, 0.56], [-0.25, -0.31, 0.24], 0.15, 0.11, sleeve);
-    limb(support, [-0.25, -0.31, 0.24], wrist, 0.11, 0.076, sleeve);
+    sleeves.push(limb(support, [-0.39, -0.48, 0.56], [-0.25, -0.31, 0.24], 0.15, 0.11, sleeve));
+    sleeves.push(limb(support, [-0.25, -0.31, 0.24], wrist, 0.11, 0.076, sleeve));
     sphere(support, [0.105, 0.081, 0.12], wrist, gloves);
     const f = new THREE.Group(); f.position.set(wrist[0], wrist[1], wrist[2] - 0.03);
     support.add(f); fingers(f, seams);
   }
-  return { hands, support };
+  return { hands, support, sleeves };
 }
