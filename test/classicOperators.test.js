@@ -56,6 +56,16 @@ test('static GIGN becomes real GPU skinned meshes, with intact geometry and mate
   animateClassicOperator(model, actor, 0.4, 0.016, 2.5);
   assert.ok(Math.abs(model.rig.upperArms[0].rotation.z) > 0.3);
   assert.ok(model.rig.thighs[0].rotation.x !== 0);
+  // Both animated wrists should land at the gun, instead of extending
+  // sideways in the screenshots like broken "airplane wings".
+  model.rig.armature.updateMatrixWorld(true);
+  for (const forearm of model.rig.forearms) {
+    const wrist = forearm.localToWorld(new THREE.Vector3(
+      forearm === model.rig.forearms[0] ? 0.44 : -0.44, 0, 0));
+    assert.ok(Math.abs(wrist.x) < 0.24, 'Wrist too far from gun: ' + wrist.x);
+    assert.ok(wrist.y > 0.95 && wrist.y < 1.44, 'Wrist at wrong height: ' + wrist.y);
+    assert.ok(wrist.z < -0.26, 'Wrist not facing the gun: ' + wrist.z);
+  }
 });
 
 test('humanoid is turned upright from head/feet joints, regardless of export axis', () => {
