@@ -61,19 +61,7 @@ jobs:
           await new Promise(resolve=>setTimeout(resolve,1000));
           await page.screenshot({path:'qa/game1-knife.png'});
           await page.click('#calibrationOpen');
-          // Compare knife muzzle directions before locking in its default yaw.
-          for (const angle of [-150,-110,-75,-45,0,45,90,135]) {
-            await page.$eval('input[data-key="ry"]',(el,value)=>{
-              el.value=String(value);
-              el.dispatchEvent(new Event('input',{bubbles:true}));
-            },angle);
-            await page.$eval('#calibrationPanel',el=>{el.style.visibility='hidden'});
-            await page.screenshot({path:'qa/knife-angle-'+String(angle).replace('-','m')+'.png'});
-            await page.$eval('#calibrationPanel',el=>{el.style.visibility='visible'});
-          }
-          await page.$eval('input[data-key="ry"]',el=>{
-            el.value='-75';el.dispatchEvent(new Event('input',{bubbles:true}));
-          });
+          // Final default Game1 grip calibration for Glock, AK and knife.
           assert.equal(await page.$eval('#calibrationPanel',el=>!el.hidden),true);
           await page.select('#calPart','R');
           await page.$eval('input[data-key="k"]', el=>{
