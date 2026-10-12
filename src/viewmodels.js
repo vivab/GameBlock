@@ -4,14 +4,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 // First-person-only rig. Palms/fingers and the weapon are children of the
 // same transform: inspect/recoil/knife slashes cannot detach the weapon.
 export const WEAPON_DEFAULTS = Object.freeze({
-  pistol: { x: 0.035, y: -0.005, z: -0.05, rx: -4, ry: -22, rz: 0, scale: 0.87 },
-  rifle:  { x: 0, y: 0.025, z: -0.10, rx: 0, ry: 0, rz: 0, scale: 0.92 },
-  knife:  { x: 0.105, y: 0.0, z: -0.08, rx: 0, ry: 90, rz: -10, scale: 0.87 },
+  pistol: { x: 0.12, y: -0.005, z: -0.05, rx: -4, ry: -55, rz: 0, scale: 0.88 },
+  rifle:  { x: 0, y: 0.025, z: -0.10, rx: 0, ry: 0, rz: 0, scale: 0.86 },
+  knife:  { x: 0.28, y: -0.075, z: -0.08, rx: 0, ry: 90, rz: -10, scale: 0.87 },
 });
 const WEAPON_LENGTH = { pistol: 0.66, rifle: 1.26, knife: 0.79 };
 const LOOK = {
   pistol: { x: 0.32, y: -0.18, z: -1.16, scale: 0.93 },
-  rifle: { x: 0.31, y: -0.22, z: -1.13, scale: 0.92 },
+  rifle: { x: 0.31, y: -0.22, z: -1.24, scale: 0.92 },
   knife: { x: 0.31, y: -0.19, z: -1.15, scale: 0.95 },
 };
 const mat = (color, roughness = 0.94) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02, flatShading: false });
@@ -80,19 +80,19 @@ function makeArms(root, kind) {
   const right = new THREE.Group(); group.add(right);
   let grip = kind === 'rifle' ? [0.085, -0.17, 0.155] :
     kind === 'knife' ? [0.066, -0.125, 0.105] : [0.080, -0.163, 0.107];
-  sleeveParts.push(bone(right, [0.48, -0.56, 0.71], [0.26, -0.33, 0.39],
-    0.147, 0.105, sleeveCT));
-  sleeveParts.push(bone(right, [0.26, -0.33, 0.39], [0.125, -0.205, 0.21],
-    0.109, 0.081, sleeveCT));
+  sleeveParts.push(bone(right, [0.43, -0.53, 0.30], [0.25, -0.33, 0.30],
+    0.106, 0.096, sleeveCT));
+  sleeveParts.push(bone(right, [0.25, -0.33, 0.30], [0.125, -0.205, 0.21],
+    0.096, 0.076, sleeveCT));
   roundBox(right, 0.125, 0.077, 0.085, 0.016, cuff, [0.125, -0.206, 0.213]);
   makePalm(right, [0.125, -0.205, 0.21], grip, 'grip', 1);
   const left = new THREE.Group(); group.add(left);
   const support = kind === 'rifle' ? [-0.107, -0.115, -0.370]
     : kind === 'knife' ? [-0.235, -0.225, -0.14] : [-0.058, -0.173, 0.007];
-  sleeveParts.push(bone(left, [-0.46, -0.55, 0.70], [-0.29, -0.34, 0.35],
-    0.145, 0.109, sleeveCT));
-  sleeveParts.push(bone(left, [-0.29, -0.34, 0.35], [support[0] - 0.032, support[1] - 0.04, support[2] + 0.12],
-    0.109, 0.081, sleeveCT));
+  sleeveParts.push(bone(left, [-0.43, -0.54, 0.31], [-0.29, -0.34, 0.23],
+    0.106, 0.096, sleeveCT));
+  sleeveParts.push(bone(left, [-0.29, -0.34, 0.23], [support[0] - 0.032, support[1] - 0.04, support[2] + 0.12],
+    0.096, 0.076, sleeveCT));
   makePalm(left, [support[0] - 0.032, support[1] - 0.04, support[2] + 0.12],
     support, kind === 'knife' ? 'open' : 'grip', -1);
   return { group, left, right, sleeveParts };
