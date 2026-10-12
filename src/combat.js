@@ -247,9 +247,13 @@ export class Match {
       if (this.time < shooter.nextKnife) return null;
       shooter.nextKnife = this.time + 0.55;
     } else {
-      if (this.time < shooter.nextFire || shooter.reloadingUntil || shooter.ammo <= 0) return null;
+      if (this.time < shooter.nextFire || shooter.reloadingUntil) return null;
+      if (shooter.ammo <= 0) { this.reload(shooter); return null; }
       shooter.nextFire = this.time + (shooter.isPlayer ? WEAPONS[shooter.weapon].interval : 0.62 + this.random() * 0.25);
       shooter.ammo--; shooter.lastShotAt = this.time;
+      // Start reloading immediately after the last cartridge, including when
+      // the fire button stays pressed. No additional tap is necessary.
+      if (shooter.ammo === 0) this.reload(shooter);
     }
     const hit = this.trace(shooter, dir, knife ? 2.4 : 80);
     hit.damaged = hit.actor ? this.damage(hit.actor, shooter, knife ? 65 : Math.round(DAMAGE[hit.zone] * (shooter.isPlayer && shooter.weapon === 'rifle' ? 0.78 : 1))) : false;
@@ -257,8 +261,10 @@ export class Match {
     return hit;
   }
   reload(actor) {
-    if (this.phase !== 'playing' || !actor.alive || actor.reloadingUntil || actor.ammo === actor.magazine || actor.reserve <= 0) return;
+    if (this.phase !== 'playing' || !actor?.alive || actor.reloadingUntil || actor.ammo >= actor.magazine || actor.reserve <= 0 || (actor.isPlayer && actor.weapon === 'knife')) return false;
     actor.reloadingUntil = this.time + (actor.isPlayer ? WEAPONS[actor.weapon].reload : 1.7);
+    this.events.push({ type: 'reload', actor });
+    return true;
   }
   move(actor, dx, dz) {
     const valid = (x, z) => !collides(x, z) && !this.actors.some(a => a !== actor && a.alive && Math.hypot(a.x - x, a.z - z) < RADIUS * 2);
@@ -353,6 +359,7 @@ export class Match {
     this.changePlans();
     for (const actor of this.actors) {
       if (!actor.alive) { if (this.time >= actor.respawnAt) this.spawn(actor); continue; }
+      if (!actor.reloadingUntil && actor.ammo === 0 && actor.reserve > 0 && (!actor.isPlayer || actor.weapon !== 'knife')) this.reload(actor);
       if (actor.reloadingUntil && this.time >= actor.reloadingUntil) {
         const count = Math.min(actor.magazine - actor.ammo, actor.reserve);
         actor.ammo += count; actor.reserve -= count; actor.reloadingUntil = 0;
