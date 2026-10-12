@@ -23,7 +23,7 @@ test('actual Game1 hands include four three-joint fingers and an articulated thu
       assert.equal(joints.get(4),2);
     }
     assert.ok(rig.root.children.includes(rig.animated));
-    assert.ok(rig.animated.children.includes(rig.modelMount));
+    assert.ok(rig.animated.getObjectById(rig.modelMount.id));
     const bounds=new THREE.Box3().setFromObject(rig.root);
     const sz=bounds.getSize(new THREE.Vector3());
     assert.ok([...sz.toArray()].every(Number.isFinite));
@@ -66,7 +66,8 @@ test('weapons, right glove and left glove stay under a shared animated transform
   const knife=createWeaponView('knife');
   assert.ok(knife.root.children.includes(knife.arms.left.parent),'left knife hand should remain static');
   knife.animate({time:30000,inspectTime:1.2});
-  assert.ok(Math.abs(knife.animated.rotation.z)>0.4,'Game1 knife wrist roll animation missing');
+  assert.ok(Math.abs(knife.knifeWrist.rotation.z)>0.4,'Game1 knife wrist roll animation missing');
+  assert.equal(knife.animated.rotation.z,0,'whole forearm must not rotate on inspect');
 });
 
 test('each hand can be calibrated independently including finger bend and pose',()=>{
@@ -140,5 +141,38 @@ test('reload pose is down through the middle, easing at both ends, with no hand 
     }
     rig.animate({time:3100,reloadProgress:1});
     assert.ok(rig.root.position.distanceTo(baseline)<1e-8);
+  }
+});
+
+test('knife inspect pivots only wrist, with blade and fingers together and forearm unchanged', () => {
+  for (const team of ['ct','t']) {
+    const knife = createWeaponView('knife');
+    knife.setTeam(team);
+    const hand = knife.arms.right.userData.mesh.userData.hand;
+    const forearm = knife.arms.right.userData.mesh.userData.arm;
+    assert.equal(hand.parent,knife.knifeWrist);
+    assert.equal(knife.modelMount.parent.parent,knife.knifeWrist);
+    assert.equal(forearm.parent,knife.arms.right.userData.mesh);
+    knife.animate({time:2000,inspectTime:-1});
+    const armRest=forearm.matrixWorld.clone();
+    const baselineHand=hand.matrixWorld.clone();
+    const pivotBase=knife.knifeWrist.rotation.clone();
+    for(const t of [0.3,0.7,1.2,1.9,2.7]) {
+      knife.animate({time:2000+t*1000,inspectTime:t});
+      knife.root.updateMatrixWorld(true);
+      assert.ok(forearm.matrix.equals(new THREE.Matrix4()),
+        'Forearm sleeve transform must never be animated');
+      assert.ok(forearm.matrixWorld.equals(armRest),
+        'Inspection may not displace the upper arm or shoulder');
+      assert.ok(Math.abs(knife.animated.rotation.x)<1e-9);
+      assert.ok(Math.abs(knife.animated.rotation.y)<1e-9);
+      assert.ok(Math.abs(knife.animated.rotation.z)<1e-9);
+      assert.ok(Math.abs(knife.knifeWrist.rotation.z)<0.84);
+      // Knife shares wrist pivot with palm so it cannot levitate away.
+      assert.equal(knife.modelMount.parent.parent,hand.parent);
+    }
+    knife.animate({time:5100,inspectTime:-1});
+    assert.ok(Math.abs(knife.knifeWrist.rotation.z-pivotBase.z)<1e-9);
+    assert.ok(hand.matrixWorld.equals(baselineHand));
   }
 });
