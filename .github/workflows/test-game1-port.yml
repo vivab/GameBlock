@@ -15,7 +15,7 @@ jobs:
           node-version: '22'
       - run: npm ci
       - run: npm test # Game1 knife inspect uses roll, not pitch
-      - run: npm run build
+      - run: npm run build # final hand-fit preview
       - name: Confirm GameBlock arena and original 4 GLBs
         run: |
           test -f public/models/g18.glb
