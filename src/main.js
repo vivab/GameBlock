@@ -114,12 +114,21 @@ function posedFighter(source, team) {
       // Bake the original pose, then lower the outstretched arms toward the
       // weapon. This also handles the CT mesh, which has no skeleton at all.
       child.getVertexPosition(i, point).applyMatrix4(child.matrixWorld);
-      const reach = point.y > 1.04 && point.y < 1.7
-        ? Math.min(1, Math.max(0, (Math.abs(point.x) - 0.38) / 0.55)) : 0;
-      if (reach) {
-        point.x = Math.sign(point.x) * (Math.abs(point.x) - reach * 0.68);
-        point.y -= reach * 0.42;
-        point.z -= reach * 0.55;
+      // Rotate outstretched arms about each shoulder instead of squeezing
+      // their vertices together (the latter produced the notorious "wings").
+      const side = Math.sign(point.x);
+      const shoulderX = side * 0.32, shoulderY = 1.47;
+      const armX = Math.abs(point.x) - 0.32;
+      const armZone = Math.max(0, Math.min(1, (armX - 0.05) / 0.20));
+      const verticalMask = Math.max(0, Math.min(1, (point.y - 0.92) / 0.18, (1.84 - point.y) / 0.18));
+      const blend = armZone * verticalMask;
+      if (blend > 0) {
+        const angle = 1.10; // upper arm goes down rather than straight sideways
+        const newX = shoulderX + side * (armX * Math.cos(angle) - (point.y - shoulderY) * Math.sin(angle));
+        const newY = shoulderY - armX * Math.sin(angle) + (point.y - shoulderY) * Math.cos(angle);
+        point.x += (newX - point.x) * blend;
+        point.y += (newY - point.y) * blend;
+        point.z -= Math.max(0, armX) * 0.42 * blend;
       }
       positions.setXYZ(i, point.x, point.y, point.z);
     }
@@ -267,7 +276,7 @@ function bind(id, down, up) {
   button.addEventListener('pointerup', () => up?.());
   button.addEventListener('pointercancel', () => up?.());
 }
-bind('fire', () => { firing = true; if (weapon !== 'rifle') shoot(); }, () => firing = false);
+bind('fire', () => { firing = true; shoot(); }, () => firing = false);
 bind('jump', () => { jumpHeld = true; jump(); }, () => jumpHeld = false);
 bind('crouch', () => match.player.crouch = !match.player.crouch);
 bind('reload', reload);
@@ -424,6 +433,11 @@ function updateModels(dt) {
     model.stride += Math.min(travelled, dt * 4) * 9;
     model.previousX = actor.x; model.previousZ = actor.z;
     model.root.position.set(actor.x, actor.y, actor.z); model.root.rotation.y = actor.yaw;
+    if (model.body) {
+      const stride = Math.min(1, travelled / Math.max(0.001, dt * 2.7));
+      model.body.position.y = Math.abs(Math.sin(model.stride)) * 0.025 * stride;
+      model.body.rotation.z = Math.sin(model.stride * 0.5) * 0.018 * stride;
+    }
     model.root.scale.y = actor.crouch ? 0.67 : 1;
     model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.4 : 0);
     model.flash.visible = match.time - actor.lastShotAt < 0.065;
@@ -500,7 +514,7 @@ function frame(now) {
   const elapsed = Math.max(0, (now - previous) / 1000), dt = Math.min(elapsed, 0.04); previous = now;
   if (match.phase === 'playing') {
     match.step(elapsed);
-    if (canControl()) { movePlayer(dt); if (firing && weapon === 'rifle') shoot(); }
+    if (canControl()) { movePlayer(dt); if (firing && weapon !== 'knife') shoot(); }
   }
   if (match.phase === 'selection') {
     camera.position.set(0, 23, 28); camera.lookAt(0, 0, 0);
@@ -511,14 +525,16 @@ function frame(now) {
   const visible = canControl(); gun.visible = visible && weapon === 'pistol'; knife.visible = visible && weapon === 'knife'; rifle.visible = visible && weapon === 'rifle';
   const player = match.player;
   const bob = visible && (Math.hypot(move.x, move.y) > 0.1 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key))) ? Math.sin(now * 0.008) * 0.006 : 0;
-  const reloadPose = player?.reloadingUntil ? Math.sin(Math.PI * Math.min(1, 1 - (player.reloadingUntil - match.time) / (WEAPONS[weapon]?.reload || 1.7))) : 0;
+  const reloadProgress = player?.reloadingUntil && weapon !== 'knife' ? Math.max(0, Math.min(1, 1 - (player.reloadingUntil - match.time) / WEAPONS[weapon].reload)) : -1;
+  const reloadPose = reloadProgress >= 0 ? Math.sin(Math.PI * reloadProgress) : 0;
+  const reloadTilt = reloadProgress >= 0 ? Math.sin(Math.PI * Math.min(1, reloadProgress * 1.8)) : 0;
   const inspectT = visible ? match.time - inspectAt : 10;
   const inspectPose = inspectT >= 0 && inspectT < 1.9 ? Math.sin(Math.PI * inspectT / 1.9) : 0;
   const right = camera.aspect < 1 ? 0.11 : 0.27;
   gun.position.set(right + bob - inspectPose * 0.13, -0.17 - Math.abs(bob) - reloadPose * 0.18 + inspectPose * 0.11, -0.72 + recoil * 0.65);
-  gun.rotation.set(recoil * 1.1 - reloadPose * 0.5 + inspectPose * 0.24, 0.09 + inspectPose * 1.1, -reloadPose * 0.35 + inspectPose * 0.3);
+  gun.rotation.set(recoil * 1.1 - reloadPose * 0.5 + inspectPose * 0.24, 0.09 + inspectPose * 1.1, -reloadPose * 0.35 - reloadTilt * 0.32 + inspectPose * 0.3);
   rifle.position.set(right + bob - inspectPose * 0.16, -0.2 - Math.abs(bob) - reloadPose * 0.22 + inspectPose * 0.08, -0.78 + recoil * 0.75);
-  rifle.rotation.set(recoil * 1.1 - reloadPose * 0.55 + inspectPose * 0.25, 0.08 + inspectPose * 1.25, -reloadPose * 0.3 + inspectPose * 0.33);
+  rifle.rotation.set(recoil * 1.1 - reloadPose * 0.55 + inspectPose * 0.25, 0.08 + inspectPose * 1.25, -reloadPose * 0.3 - reloadTilt * 0.24 + inspectPose * 0.33);
   knife.position.set(right + bob, -0.2 - Math.abs(bob), -0.7 - recoil * 0.9);
   const slashT = match.time - swingAt;
   knife.rotation.set(inspectPose * 0.6, (slashT >= 0 && slashT < 0.35 ? Math.sin(slashT / 0.35 * Math.PI) * 1.25 : 0) + inspectPose * 1.8,
