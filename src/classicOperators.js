@@ -153,6 +153,21 @@ function nativeBone(root, pattern) {
   return match;
 }
 
+// SkinnedMesh.computeBoundingBox() often returns a bogus zero-height box
+// before GPU skin matrices are ready. Native bind-pose geometry is reliable.
+export function geometryWorldBounds(node) {
+  node.updateMatrixWorld(true);
+  const bounds = new THREE.Box3();
+  const corner = new THREE.Box3();
+  node.traverse(mesh => {
+    if (!mesh.isMesh) return;
+    const position = mesh.geometry?.getAttribute('position');
+    if (!position) return;
+    corner.setFromBufferAttribute(position).applyMatrix4(mesh.matrixWorld);
+    if (!corner.isEmpty()) bounds.union(corner);
+  });
+  return bounds;
+}
 function poseNative(root) {
   const get = p => nativeBone(root, p);
   const upper = [get(/Bip01 L UpperArm/i), get(/Bip01 R UpperArm/i)];
@@ -179,12 +194,17 @@ export function buildClassicOperator(gltf, team) {
   loaded.rotation.x = -Math.PI / 2;
   root.add(loaded);
   root.updateMatrixWorld(true);
-  const box = new THREE.Box3().setFromObject(root);
+  const box = geometryWorldBounds(root);
   if (box.isEmpty()) throw new Error('Leet GLB contains no geometry');
-  const factor = TARGET_HEIGHT / Math.max(0.001, box.getSize(new THREE.Vector3()).y);
-  loaded.scale.setScalar(factor);
+  const sourceHeight = box.getSize(new THREE.Vector3()).y;
+  if (!(sourceHeight > 0.1)) throw new Error('Leet has invalid bind geometry height ' + sourceHeight);
+  const factor = TARGET_HEIGHT / sourceHeight;
+  // Never let a malformed glTF bounding box turn a fighter into a
+  // multi-meter-wide creature covering the camera.
+  if (factor < 0.3 || factor > 5) throw new Error('Leet scale is out of range: ' + factor);
+  loaded.scale.multiplyScalar(factor);
   root.updateMatrixWorld(true);
-  const scaled = new THREE.Box3().setFromObject(root);
+  const scaled = geometryWorldBounds(root);
   const center = scaled.getCenter(new THREE.Vector3());
   loaded.position.set(-center.x, -scaled.min.y, -center.z);
   root.updateMatrixWorld(true);
@@ -220,9 +240,9 @@ export function animateClassicOperator(model, actor, time, dt, movement) {
     // Native bone skinning computed by Three.js GPU, no per-frame vertices.
     for (let i = 0; i < 2; i++) {
       const sign = i === 0 ? 1 : -1;
-      rig.upperArms[i].rotation.set(0, sign * 0.43,
-        -sign * (1.00 + (fire ? 0.08 : 0)));
-      rig.forearms[i].rotation.set(0, 0, sign * 0.70);
+      rig.upperArms[i].rotation.set(0, sign * 0.64,
+        -sign * (1.37 + (fire ? 0.08 : 0)));
+      rig.forearms[i].rotation.set(0, 0, sign * 1.05);
       rig.thighs[i].rotation.set(stride * (i === 0 ? 0.45 : -0.45) * walk, 0, 0);
       rig.calves[i].rotation.set(Math.max(0, -stride * (i === 0 ? 1 : -1)) * 0.24 * walk, 0, 0);
     }
