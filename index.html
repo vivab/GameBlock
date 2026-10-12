@@ -1,3 +1,173 @@
-<!doctype html><html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/><meta name="theme-color" content="#101820"/><title>GameBlock Alpha</title><style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101820;color:white;font:600 14px system-ui,Arial;touch-action:none;user-select:none;-webkit-user-select:none}canvas{display:block}body>canvas{position:fixed;inset:0;width:100%;height:100%}#hud{position:fixed;inset:0;pointer-events:none;overflow:hidden}#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:28px;color:#fff;text-shadow:0 1px 4px #000}#hitmarker{position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%) scale(1.25);opacity:0;transition:opacity .07s,transform .09s;pointer-events:none;color:white}#hitmarker.show{opacity:1;transform:translate(-50%,-50%) scale(1)}#hitmarker i{position:absolute;width:11px;height:3px;border-radius:2px;background:currentColor;box-shadow:0 0 3px #0008}#hitmarker i:nth-child(1){left:4px;top:10px;transform:rotate(45deg)}#hitmarker i:nth-child(2){right:4px;top:10px;transform:rotate(-45deg)}#hitmarker i:nth-child(3){left:4px;bottom:10px;transform:rotate(-45deg)}#hitmarker i:nth-child(4){right:4px;bottom:10px;transform:rotate(45deg)}#stats{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#10202ab8;border:1px solid #ffffff33;border-radius:12px;padding:7px 12px;text-shadow:0 1px 3px #000;font-size:14px}#info{position:absolute;top:12px;left:14px;font-size:14px;text-shadow:0 1px 3px #000}#radar{position:absolute;top:10px;right:14px;width:100px;height:100px;border:2px solid #ffffff66;border-radius:50%;background:#0a1a21bb}#joy{position:absolute;bottom:30px;left:24px;width:122px;height:122px;border:2px solid #ffffff55;border-radius:50%;background:#ffffff16;pointer-events:auto;touch-action:none}#knob{position:absolute;left:39px;top:39px;width:40px;height:40px;border-radius:50%;background:#ffffffaa}button{display:flex;align-items:center;justify-content:center;position:absolute;pointer-events:auto;border:1px solid #ffffff77;background:#253b52db;color:white;border-radius:50%;width:58px;height:58px;font-size:27px;font-weight:800;touch-action:none;user-select:none}button:active{background:#4b7796}button svg{width:29px;height:29px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}#fire{right:22px;bottom:108px;width:76px;height:76px;background:#b94b49dc}#fire svg{width:36px;height:36px}#jump{right:115px;bottom:22px}#crouch{right:22px;bottom:20px}#reload{right:118px;bottom:118px;width:48px;height:48px;font-size:24px}#weaponToggle{right:190px;bottom:28px;width:54px;height:54px;background:#233747eb;font-size:25px}#weaponWheel{position:absolute;right:154px;bottom:78px;width:164px;height:164px;border-radius:50%;background:#15242fe8;border:2px solid #ffffff77;display:none;pointer-events:auto;box-shadow:0 4px 24px #0009}#weaponWheel.open{display:block}#weaponWheel button{width:62px;height:62px;font-size:29px}#choosePistol{left:51px;top:12px}#chooseKnife{left:51px;bottom:12px}#weaponLabel{position:absolute;right:190px;bottom:88px;font-size:12px;text-shadow:0 2px 4px #000}#hint{display:none}@media(max-height:420px){#radar{width:80px;height:80px}#joy{width:106px;height:106px;bottom:15px}#knob{left:31px;top:31px}#fire{bottom:84px}#reload{bottom:93px}#jump,#crouch{bottom:10px}#stats{bottom:6px}}
-</style></head><body><div id="hud"><div id="info">GameBlock <span style="opacity:.65">α 0.1</span></div><canvas id="radar" width="150" height="150"></canvas><div id="cross">+</div><div id="hitmarker"><i></i><i></i><i></i><i></i></div><div id="stats">♥ 100 &nbsp; ▣ 30 / 90</div><div id="joy"><div id="knob"></div></div><button id="fire" aria-label="Стрелять"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9"/><path d="M16 2v7M16 23v7M2 16h7M23 16h7"/></svg></button><button id="jump" aria-label="Прыжок"><svg viewBox="0 0 32 32"><path d="M16 27V5M7 14l9-9 9 9"/></svg></button><button id="crouch" aria-label="Присесть"><svg viewBox="0 0 32 32"><circle cx="18" cy="7" r="3"/><path d="M17 12l-5 7 8 2 4 7M13 19l-8 5M20 21l-8 7"/></svg></button><div id="weaponLabel">Пистолет</div><button id="weaponToggle" aria-label="Выбрать оружие">◉</button><div id="weaponWheel"><button id="choosePistol" aria-label="Пистолет">🔫</button><button id="chooseKnife" aria-label="Нож">🔪</button></div><button id="reload" aria-label="Перезарядить"><svg viewBox="0 0 32 32"><path d="M26 13A11 11 0 1 0 27 20M26 5v8h-8"/></svg></button></div><script type="module" src="./src/main.js"></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#101820" />
+  <title>GameBlock — Командный бой</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #101820; color: #edf4f6; font: 600 14px system-ui, Arial; touch-action: none; user-select: none; -webkit-user-select: none; }
+    [hidden] { display: none !important; }
+    canvas { display: block; }
+    body > canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+    button { color: inherit; font: inherit; cursor: pointer; touch-action: none; }
+    button:focus-visible { outline: 3px solid #bce9ff; outline-offset: 4px; }
+    #hud { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+    #info { position: absolute; top: max(12px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); font-size: 13px; text-shadow: 0 1px 3px #000; }
+    #info strong { display: block; letter-spacing: .08em; }
+    #teamBadge { display: block; margin-top: 4px; }
+    [data-team="ct"] { color: #83cefa; }
+    [data-team="t"] { color: #ffc083; }
+    #personalScore { margin-top: 5px; font-size: 11px; opacity: .85; }
+    #matchBar { position: absolute; top: max(12px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 14px; background: #101b27d9; border: 1px solid #ffffff26; border-radius: 12px; box-shadow: 0 3px 14px #0003; }
+    #matchBar .team-score { text-align: center; min-width: 36px; }
+    #matchBar small { display: block; font-size: 9px; letter-spacing: .1em; opacity: .8; }
+    #matchBar strong { font-size: 23px; }
+    #timer { font-size: 21px; font-variant-numeric: tabular-nums; min-width: 48px; text-align: center; }
+    #timer.urgent { color: #ff9b89; }
+    #radar { position: absolute; top: max(10px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); width: 100px; height: 100px; border: 2px solid #ffffff66; border-radius: 50%; background: #0a1a21bb; }
+    #killfeed { position: absolute; top: 120px; right: max(14px, env(safe-area-inset-right)); text-align: right; font-size: 11px; }
+    #killfeed div { margin-bottom: 5px; padding: 5px 8px; background: #101b27d9; border-radius: 5px; }
+    #cross { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 28px; color: white; text-shadow: 0 1px 4px #000; }
+    #hitmarker { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%) scale(1.25); opacity: 0; transition: opacity .07s, transform .09s; color: white; }
+    #hitmarker.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    #hitmarker i { position: absolute; width: 11px; height: 3px; border-radius: 2px; background: currentColor; box-shadow: 0 0 3px #0008; }
+    #hitmarker i:nth-child(1) { left: 4px; top: 10px; transform: rotate(45deg); }
+    #hitmarker i:nth-child(2) { right: 4px; top: 10px; transform: rotate(-45deg); }
+    #hitmarker i:nth-child(3) { left: 4px; bottom: 10px; transform: rotate(-45deg); }
+    #hitmarker i:nth-child(4) { right: 4px; bottom: 10px; transform: rotate(45deg); }
+    #stats { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #10202ad9; border: 1px solid #ffffff33; border-radius: 12px; padding: 7px 12px; text-shadow: 0 1px 3px #000; font-size: 14px; }
+    #joy { position: absolute; bottom: max(30px, env(safe-area-inset-bottom)); left: max(24px, env(safe-area-inset-left)); width: 122px; height: 122px; border: 2px solid #ffffff55; border-radius: 50%; background: #ffffff16; pointer-events: auto; touch-action: none; }
+    #knob { position: absolute; left: 39px; top: 39px; width: 40px; height: 40px; border-radius: 50%; background: #ffffffaa; }
+    #controls button { display: flex; align-items: center; justify-content: center; position: absolute; pointer-events: auto; border: 1px solid #ffffff77; background: #253b52db; border-radius: 50%; width: 58px; height: 58px; font-size: 27px; font-weight: 800; }
+    #controls button:active, #controls button.active { background: #4b7796; }
+    button svg { width: 29px; height: 29px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    #controls #fire { right: max(22px, env(safe-area-inset-right)); bottom: 108px; width: 76px; height: 76px; background: #b94b49dc; }
+    #fire svg { width: 36px; height: 36px; }
+    #jump { right: 115px; bottom: 22px; }
+    #crouch { right: 22px; bottom: 20px; }
+    #controls #reload { right: 118px; bottom: 118px; width: 48px; height: 48px; font-size: 24px; }
+    #controls #weaponToggle { right: 190px; bottom: 28px; width: 54px; height: 54px; background: #233747eb; font-size: 25px; }
+    #weaponWheel { position: absolute; right: 154px; bottom: 88px; width: 164px; height: 164px; border-radius: 50%; background: #15242ff2; border: 2px solid #ffffff77; display: none; pointer-events: auto; box-shadow: 0 4px 24px #0009; }
+    #weaponWheel.open { display: block; }
+    #controls #weaponWheel button { width: 62px; height: 62px; font-size: 29px; }
+    #choosePistol { left: 51px; top: 12px; }
+    #chooseKnife { left: 51px; bottom: 12px; }
+    #weaponLabel { position: absolute; right: 190px; bottom: 88px; font-size: 12px; text-shadow: 0 2px 4px #000; }
+    #deathNotice { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); text-align: center; padding: 18px 24px; width: min(320px, 90%); border: 1px solid #ff9b8933; border-radius: 16px; background: #101b27e8; box-shadow: 0 5px 30px #0005; }
+    #deathNotice strong { display: block; color: #ffae99; font-size: 23px; margin-bottom: 8px; }
+    #deathNotice small { display: block; color: #a3b5c0; margin-top: 8px; }
+    .dead #controls, .dead #cross { visibility: hidden; }
+    body:not([data-phase="playing"]) #hud { visibility: hidden; }
+    .menu { position: fixed; inset: 0; display: grid; place-items: center; padding: 20px; background: linear-gradient(135deg, #07111de8, #0c1925ad); overflow: auto; touch-action: pan-y; }
+    .menu-card { width: min(620px, 100%); padding: 30px; border: 1px solid #ffffff24; border-radius: 22px; background: #101c28ed; box-shadow: 0 24px 80px #0007; }
+    .eyebrow { color: #89a8ba; font-size: 11px; letter-spacing: .22em; margin-bottom: 10px; }
+    h1, h2 { margin: 0 0 10px; font-size: clamp(27px, 5vw, 39px); line-height: 1.1; letter-spacing: -.025em; }
+    .menu p { margin: 10px 0 20px; color: #b4c4ce; line-height: 1.5; font-weight: 400; }
+    .rules { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+    .rules span { padding: 6px 10px; border-radius: 8px; background: #ffffff08; color: #cfdae0; font-size: 12px; }
+    .teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .team-choice { text-align: left; border: 1px solid #ffffff22; border-radius: 14px; padding: 20px; min-height: 120px; background: #142b3e; transition: background .15s, transform .15s; }
+    .team-choice:hover { background: #1d3d56; transform: translateY(-2px); }
+    .team-choice.terrorists { background: #352b24; }
+    .team-choice.terrorists:hover { background: #49382b; }
+    .team-choice b { display: block; font-size: 23px; margin-bottom: 8px; }
+    .team-choice span { display: block; color: #b5c6d0; font-size: 12px; font-weight: 400; }
+    .team-mark { margin-bottom: 8px; font-size: 11px; letter-spacing: .16em; opacity: .7; }
+    .menu .help { margin: 18px 0 0; font-size: 12px; color: #8ea4b3; }
+    .result { text-align: center; }
+    #resultScore { font-size: 20px; color: #eef5f7; }
+    .result-actions { display: flex; gap: 10px; justify-content: center; }
+    .result-actions button { padding: 13px 18px; border: 1px solid #ffffff33; border-radius: 10px; background: #294c64; }
+    .result-actions button:last-child { background: #ffffff08; }
+    @media (max-width: 540px) and (min-height: 500px) {
+      #info { top: 95px; }
+      #matchBar { left: 14px; transform: none; gap: 10px; padding: 7px 10px; }
+      #killfeed { top: 160px; font-size: 10px; }
+      #joy { left: 14px; bottom: 120px; width: 106px; height: 106px; }
+      #knob { left: 31px; top: 31px; }
+      #controls #weaponToggle { right: 190px; bottom: 65px; }
+      #controls #fire { bottom: 162px; }
+      #controls #reload { bottom: 172px; }
+      #jump { bottom: 65px; }
+      #crouch { bottom: 65px; }
+      #weaponLabel { bottom: 125px; }
+      #stats { bottom: max(10px, env(safe-area-inset-bottom)); }
+      .menu-card { padding: 24px 20px; }
+      .teams { gap: 10px; }
+      .team-choice { padding: 16px 12px; }
+      .team-choice b { font-size: 20px; }
+    }
+    @media (max-height: 440px) {
+      #radar { width: 74px; height: 74px; }
+      #matchBar { padding: 5px 12px; }
+      #matchBar strong { font-size: 20px; }
+      #info { font-size: 11px; }
+      #killfeed { top: 91px; }
+      #joy { width: 106px; height: 106px; bottom: 15px; }
+      #knob { left: 31px; top: 31px; }
+      #controls #fire { bottom: 84px; }
+      #reload { bottom: 93px; }
+      #jump, #crouch { bottom: 10px; }
+      #stats { bottom: 6px; }
+      .menu { padding: 12px; }
+      .menu-card { padding: 20px 26px; }
+      .menu p { margin: 8px 0 12px; }
+      .rules { margin-bottom: 12px; }
+      .team-choice { min-height: 80px; padding: 12px 18px; }
+      .team-choice b { font-size: 21px; }
+      .team-mark { display: none; }
+      .menu .help { margin-top: 12px; }
+    }
+  </style>
+</head>
+<body data-phase="selection">
+  <div id="hud">
+    <div id="info"><strong>GAMEBLOCK</strong><span id="teamBadge"></span><div id="personalScore">0 убийств · 0 смертей</div></div>
+    <div id="matchBar" aria-label="Счёт и время матча">
+      <div class="team-score" data-team="ct"><small>СПЕЦНАЗ</small><strong id="ctScore">0</strong></div>
+      <div id="timer">2:00</div>
+      <div class="team-score" data-team="t"><small>ТЕРРОРИСТЫ</small><strong id="tScore">0</strong></div>
+    </div>
+    <canvas id="radar" width="150" height="150" aria-label="Радар"></canvas>
+    <div id="killfeed"></div>
+    <div id="cross">+</div>
+    <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+    <div id="stats">♥ 100 &nbsp; ▣ 30 / 90</div>
+    <div id="controls">
+      <div id="joy" aria-label="Джойстик движения"><div id="knob"></div></div>
+      <button id="fire" aria-label="Стрелять"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9"/><path d="M16 2v7M16 23v7M2 16h7M23 16h7"/></svg></button>
+      <button id="jump" aria-label="Прыжок"><svg viewBox="0 0 32 32"><path d="M16 27V5M7 14l9-9 9 9"/></svg></button>
+      <button id="crouch" aria-label="Присесть"><svg viewBox="0 0 32 32"><circle cx="18" cy="7" r="3"/><path d="M17 12l-5 7 8 2 4 7M13 19l-8 5M20 21l-8 7"/></svg></button>
+      <div id="weaponLabel">Пистолет</div>
+      <button id="weaponToggle" aria-label="Выбрать оружие">◉</button>
+      <div id="weaponWheel"><button id="choosePistol" aria-label="Пистолет">🔫</button><button id="chooseKnife" aria-label="Нож">🔪</button></div>
+      <button id="reload" aria-label="Перезарядить"><svg viewBox="0 0 32 32"><path d="M26 13A11 11 0 1 0 27 20M26 5v8h-8"/></svg></button>
+    </div>
+    <div id="deathNotice" role="status" hidden><strong>Ты погиб</strong>Возрождение на базе через <b id="respawnTimer">3</b> с<small>После возрождения — короткая защита</small></div>
+  </div>
+  <section id="teamMenu" class="menu" aria-labelledby="menuTitle">
+    <div class="menu-card">
+      <div class="eyebrow">GAMEBLOCK / КОМАНДНЫЙ БОЙ</div>
+      <h1 id="menuTitle">Выбери свою сторону</h1>
+      <p>Ты и четыре бота против пяти бойцов другой команды. Побеждает сторона, набравшая больше очков.</p>
+      <div class="rules"><span>5 на 5</span><span>2 минуты</span><span>Убийство = 1 очко</span><span>Возрождение: 3 с</span></div>
+      <div class="teams">
+        <button id="chooseCT" class="team-choice" data-team="ct"><div class="team-mark">COUNTER-TERRORISTS</div><b>Спецназ</b><span>Синяя команда</span></button>
+        <button id="chooseT" class="team-choice terrorists" data-team="t"><div class="team-mark">TERRORISTS</div><b>Террористы</b><span>Песочная команда</span></button>
+      </div>
+      <p class="help">Телефон: джойстик слева, обзор свайпом справа. ПК: WASD, мышь с зажатой кнопкой, Space, Ctrl, R. Оружие: 1 / 2.</p>
+    </div>
+  </section>
+  <section id="resultMenu" class="menu" aria-labelledby="resultTitle" hidden>
+    <div class="menu-card result">
+      <div class="eyebrow">МАТЧ ЗАВЕРШЁН</div>
+      <h2 id="resultTitle">Победа!</h2>
+      <p id="resultScore"></p><p id="resultDetails"></p>
+      <div class="result-actions"><button id="playAgain">Ещё один матч</button><button id="changeTeam">Выбрать сторону</button></div>
+    </div>
+  </section>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

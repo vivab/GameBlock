@@ -1,15 +1,26 @@
-# GameBlock Alpha 0.1
+# GameBlock Alpha 0.2 — Team Deathmatch
 
-Mobile browser FPS prototype. Includes: 3D training arena, 5 stationary targets with 100 HP and respawn, automatic rifle (30/90 ammo, 600 RPM, 2.4s reload), different body-part damage, recoil and spread, radar with walls and nearby enemies, multi-touch joystick/look/fire/jump/crouch/reload, collision, capped jump speed and jump streak penalty.
+## Match
 
-## Run
+- Choose Counter-Terrorists (blue) or Terrorists (sand).
+- Five fighters per side: the human plus four friendly bots versus five enemy bots.
+- A match lasts 120 seconds. Each enemy kill scores exactly one team point.
+- Respawn on the same team's base after three seconds, with 1.25 seconds of spawn protection.
+- Friendly fire is disabled. A teammate still blocks a bullet or knife strike.
+- The score freezes when time expires. Show win/loss/draw and personal kills/deaths; replay or choose the other side.
 
-`npm install && npm run dev`
+## Bots
 
-## Deployment
+This is a local bot match, not network multiplayer. Bots have limited field of view and range, and every arena wall blocks vision and shots. They remember the last visible location briefly and share recent sightings with teammates; they do not track hidden opponents. Enemies appear on the player's radar only when visible.
 
-Merge the feature branch into main and enable GitHub Pages with Source = GitHub Actions in repository settings. The workflow deploys on main.
+Bots use a small navigation grid, avoid cover and other fighters, react with a delay, fire with modest accuracy, strafe and reload. Team plans rotate between center pressure, left/right squad flanks, split routes and holding positions. A trailing team prefers attacking plans. This is a simple rule-based tactical system, not a trained learning model.
 
-## Models
+## Controls and view model
 
-Procedural placeholders are used until GLB assets are provided. Next milestone: glTF loader, rigged hands, animations, audio and polished movement.
+Phone: left joystick moves; other touches drag the view, including while holding fire/jump/crouch. Crouch toggles, jump can be held, and the circular weapon menu selects pistol or knife. Desktop: WASD, mouse drag/left click, Space, Ctrl, R and 1/2. Death, restart and loss of focus clear held controls.
+
+The pistol sits in the lower-right foreground with a two-handed grip, sleeves, sights, recoil and a reload motion. The knife has a separate grip and strike motion. A separate view-model camera keeps hands clear of wall clipping. Character meshes remain procedural block placeholders.
+
+## Development and deployment
+
+`npm ci`, `npm test`, `npm run build`. Vite serves the game under `/GameBlock/`. GitHub Pages deploys on a push to `main` only after tests and the build pass.
