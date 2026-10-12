@@ -48,6 +48,8 @@
     #jump { right: 115px; bottom: 22px; }
     #crouch { right: 22px; bottom: 20px; }
     #controls #reload { right: 118px; bottom: 118px; width: 48px; height: 48px; font-size: 24px; }
+    #controls #reload.reloading { background: #315b79; border-color: #a7dafa; animation: reloadPulse .6s ease-in-out infinite alternate; }
+    @keyframes reloadPulse { from { opacity: .65; } to { opacity: 1; } }
     #controls #weaponToggle { right: 190px; bottom: 28px; width: 54px; height: 54px; background: #233747eb; font-size: 25px; }
     #weaponWheel { position: absolute; right: 110px; bottom: 82px; width: 210px; height: 210px; border-radius: 50%; background: #15242ff2; border: 2px solid #ffffff77; display: none; pointer-events: auto; box-shadow: 0 4px 24px #0009; }
     #weaponWheel.open { display: block; }
@@ -161,7 +163,7 @@
         <button id="chooseCT" class="team-choice" data-team="ct"><div class="team-mark">COUNTER-TERRORISTS</div><b>Спецназ</b><span>Синяя команда</span></button>
         <button id="chooseT" class="team-choice terrorists" data-team="t"><div class="team-mark">TERRORISTS</div><b>Террористы</b><span>Песочная команда</span></button>
       </div>
-      <p class="help">Телефон: джойстик слева, обзор свайпом справа. Зажми ◉ и проведи: влево Glock, вправо нож, вниз AK. Центр ↻ — осмотр. ПК: WASD, мышь, Space, Ctrl, R; оружие 1 / 2 / 3, осмотр F.</p>
+      <p class="help">Телефон: джойстик слева, обзор справа. Зажми ◉ и проведи: влево Glock, вправо нож, вниз AK. В колесе ↻ — осмотр; отдельная ↻ — перезарядка. Значок ⚙ слева — ручная подгонка положения, поворота и размера оружия с копированием координат. Пока бойцы обозначены прозрачными мишенями. ПК: WASD, мышь, Space, Ctrl, R; оружие 1 / 2 / 3, осмотр F.</p>
     </div>
   </section>
   <section id="resultMenu" class="menu" aria-labelledby="resultTitle" hidden>

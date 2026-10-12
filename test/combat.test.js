@@ -114,3 +114,41 @@ test('a full bot match produces opposing kills, changes tactics and keeps positi
   assert.ok(tactics.size >= 3);
   assert.equal(game.score.ct + game.score.t, game.actors.reduce((sum, actor) => sum + actor.deaths, 0));
 });
+
+
+test('manual reload responds to a button press and finishes after the correct weapon time', () => {
+  const game = setup(); game.time = 2;
+  game.player.ammo = 4; game.player.reserve = 20;
+  assert.equal(game.reload(game.player), true);
+  assert.equal(game.reload(game.player), false);
+  assert.equal(game.player.reloadingUntil, 2 + 1.45);
+  game.step(1.44);
+  assert.equal(game.player.ammo, 4);
+  game.step(0.02);
+  assert.equal(game.player.ammo, 17);
+  assert.equal(game.player.reserve, 7);
+  assert.equal(game.player.reloadingUntil, 0);
+});
+
+test('both Glock and AK automatically reload on their last bullet', () => {
+  for (const weapon of ['pistol', 'rifle']) {
+    const game = setup(); game.time = 2;
+    game.equip(game.player, weapon);
+    const actor = game.player, duration = weapon === 'pistol' ? 1.45 : 2.1;
+    actor.ammo = 1;
+    actor.nextFire = 0;
+    assert.ok(game.fire(actor, { x: 0, y: 0, z: -1 }));
+    assert.equal(actor.ammo, 0);
+    assert.ok(Math.abs(actor.reloadingUntil - game.time - duration) < 1e-6);
+    game.step(duration + 0.02);
+    assert.equal(actor.ammo, actor.magazine);
+    assert.equal(actor.reloadingUntil, 0);
+  }
+});
+
+test('empty gun triggers reload even when the player attempts to fire again', () => {
+  const game = setup(); game.time = 2;
+  game.player.ammo = 0; game.player.nextFire = 0;
+  assert.equal(game.fire(game.player, { x: 0, y: 0, z: -1 }), null);
+  assert.ok(game.player.reloadingUntil > game.time);
+});

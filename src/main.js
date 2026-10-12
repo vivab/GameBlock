@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { createSoldier, createViewArms } from './visuals.js';
-import { buildAnimatedOperator } from './riggedActors.js';
+import { createWeaponView } from './viewmodels.js';
+import { setupWeaponCalibration } from './calibration.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
@@ -36,182 +36,58 @@ for (const team of Object.values(TEAMS)) {
   box(1.6, 0.8, 0.06, team.color, 0.8, 0.75, 0, pole);
 }
 
-// Render the hands with their own field of view and depth buffer. They stay in
-// the lower-right foreground instead of clipping into arena walls.
+// Independent near-camera viewmodel: meshes never collide with the arena or
+// drift apart during animation. Enemy characters are temporarily represented
+// only by simple hitbox indicators, NOT by imported CT/T character models.
 const viewScene = new THREE.Scene();
 const viewCamera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.01, 4);
 viewScene.add(viewCamera);
-viewScene.add(new THREE.HemisphereLight(0xffffff, 0x354655, 2.6));
-const viewLight = new THREE.DirectionalLight(0xffffff, 1.7);
+viewScene.add(new THREE.HemisphereLight(0xffffff, 0x4a5762, 2.4));
+const viewLight = new THREE.DirectionalLight(0xffffff, 2.0);
 viewLight.position.set(-2, 3, 2); viewScene.add(viewLight);
-const gun = new THREE.Group(), knife = new THREE.Group(), rifle = new THREE.Group();
-viewCamera.add(gun, knife, rifle);
-gun.scale.setScalar(0.75); knife.scale.setScalar(0.75); rifle.scale.setScalar(0.75);
-function arm(parent, from, to, width, color) {
-  const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to);
-  const mesh = box(width, a.distanceTo(b), width, color, 0, 0, 0, parent);
-  mesh.position.copy(a).add(b).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
-  return mesh;
-}
-const pistolFallback = new THREE.Group(); gun.add(pistolFallback);
-box(0.145, 0.13, 0.48, 0x30373e, 0, 0.02, -0.13, pistolFallback); // slide
-box(0.135, 0.065, 0.37, 0x171c22, 0, -0.067, -0.1, pistolFallback); // frame
-const grip = box(0.105, 0.21, 0.13, 0x232a32, 0, -0.16, 0.075, pistolFallback);
-grip.rotation.x = -0.22;
-box(0.045, 0.047, 0.1, 0x11161a, 0, 0.002, -0.4, pistolFallback); // barrel
-box(0.027, 0.025, 0.026, 0x9ea7ac, 0, 0.095, -0.34, pistolFallback); // front sight
-for (const x of [-0.042, 0.042]) box(0.018, 0.03, 0.023, 0x15191d, x, 0.1, 0.04, pistolFallback);
-box(0.12, 0.125, 0.15, 0xbfa17f, 0.025, -0.14, 0.105, pistolFallback);
-box(0.09, 0.115, 0.14, 0xb29373, -0.065, -0.13, 0.08, pistolFallback);
-arm(pistolFallback, [0.07, -0.2, 0.13], [0.19, -0.35, 0.5], 0.115, 0x344b58);
-arm(pistolFallback, [-0.09, -0.18, 0.11], [-0.36, -0.34, 0.48], 0.115, 0x344b58);
-const knifeFallback = new THREE.Group(); knife.add(knifeFallback);
-box(0.085, 0.11, 0.24, 0x393b38, 0, -0.05, 0.04, knifeFallback);
-const blade = box(0.032, 0.07, 0.5, 0xc3cdd0, 0, 0.01, -0.29, knifeFallback);
-blade.rotation.z = -0.15;
-box(0.15, 0.025, 0.055, 0x889293, 0, -0.01, -0.04, knifeFallback);
-box(0.13, 0.13, 0.16, 0xbfa17f, 0.025, -0.085, 0.09, knifeFallback);
-arm(knifeFallback, [0.06, -0.15, 0.14], [0.18, -0.32, 0.52], 0.12, 0x344b58);
-const muzzle = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 5), new THREE.MeshBasicMaterial({ color: 0xffdc7a }));
-muzzle.rotation.x = -Math.PI / 2; muzzle.position.set(0, 0.005, -0.49); gun.add(muzzle);
-const rifleFallbackGroup = new THREE.Group(); rifle.add(rifleFallbackGroup);
-const rifleFallback = box(0.13, 0.11, 0.8, 0x3a4140, 0, 0.02, -0.27, rifleFallbackGroup);
-box(0.11, 0.18, 0.18, 0x8e6038, 0, -0.13, 0.03, rifleFallbackGroup);
-const rifleMuzzle = muzzle.clone(); rifleMuzzle.position.z = -0.82; rifle.add(rifleMuzzle);
-for (const [group, length] of [[rifleFallbackGroup, 0.47]]) {
-  arm(group, [0.09, -0.19, 0.12], [0.25, -0.38, 0.47], 0.13, 0x344b58);
-  arm(group, [-0.09, -0.12, -0.22], [-0.3, -0.36, 0.42], 0.13, 0x344b58);
-  box(0.13, 0.12, 0.16, 0xbfa17f, 0.07, -0.15, length - 0.35, group);
-}
-const pistolArms = createViewArms(gun, 'pistol');
-const rifleArms = createViewArms(rifle, 'rifle');
-const knifeArms = createViewArms(knife, 'knife');
+const views = {
+  pistol: createWeaponView('pistol'),
+  rifle: createWeaponView('rifle'),
+  knife: createWeaponView('knife'),
+};
+for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// Unrigged character GLBs make enormous T-pose wings: use articulated operators instead.
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct_swat', t: 't_hoodie' };
-// Models have different native axes and scales. Mount them once in world units;
-// cloned meshes share geometry/texture buffers between the ten fighters.
-// Detect which end of a pistol contains its muzzle by looking for the end
-// without the hanging grip. Align that end to camera forward (-Z).
-function orientPistol(model) {
-  model.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(model);
-  const dims = bounds.getSize(new THREE.Vector3());
-  const axis = dims.x > dims.z ? 'x' : 'z';
-  const min = bounds.min[axis], max = bounds.max[axis];
-  const lower = min + (max - min) * 0.34, upper = max - (max - min) * 0.34;
-  let lowY = 0, highY = 0, lowCount = 0, highCount = 0;
-  const point = new THREE.Vector3();
-  model.traverse(child => {
-    if (!child.isMesh) return;
-    const position = child.geometry?.attributes?.position;
-    if (!position) return;
-    const stride = Math.max(1, Math.ceil(position.count / 1400));
-    for (let i = 0; i < position.count; i += stride) {
-      point.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
-      if (point[axis] < lower) { lowY += point.y; lowCount++; }
-      if (point[axis] > upper) { highY += point.y; highCount++; }
-    }
-  });
-  const positiveMuzzle = highCount && lowCount ? highY / highCount >= lowY / lowCount : true;
-  model.rotation.y = axis === 'x'
-    ? (positiveMuzzle ? Math.PI / 2 : -Math.PI / 2)
-    : (positiveMuzzle ? Math.PI : 0);
-}
-function fittedModel(source, kind, size) {
-  const holder = new THREE.Group();
-  const model = source.clone(true); holder.add(model);
-  if (kind === 'weapon') model.rotation.y = Math.PI / 2;
-  if (kind === 'pistol') orientPistol(model);
-  if (kind === 'knife') model.rotation.y = 0;
-  if (kind === 't') model.rotation.x = Math.PI / 2;
-  if (kind === 'character' || kind === 't') model.rotation.y = Math.PI;
-  model.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(model);
-  const dims = bounds.getSize(new THREE.Vector3());
-  const scale = size / (kind === 'character' || kind === 't' ? dims.y : Math.max(dims.x, dims.y, dims.z));
-  model.scale.multiplyScalar(scale); model.updateMatrixWorld(true);
-  const fitted = new THREE.Box3().setFromObject(model);
-  const center = fitted.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  if (kind === 'character' || kind === 't') model.position.y -= fitted.min.y - center.y;
-  return holder;
-}
-function attachWeapon(group, asset, length, mount = {}, kind = 'weapon') {
-  const loaded = fittedModel(asset, kind, length);
-  loaded.position.set(mount.x || 0, mount.y || 0, mount.z || -0.18);
-  group.add(loaded);
-  return loaded;
-}
-function installAsset(key) {
-  if (key === 'pistol') {
-    pistolFallback.visible = false;
-    attachWeapon(gun, assets.pistol, 0.57, { z: -0.20, y: 0.01 }, 'pistol');
-  } else if (key === 'rifle') {
-    rifleFallbackGroup.visible = false;
-    attachWeapon(rifle, assets.rifle, 0.98, { z: -0.31 });
-    for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
-  } else if (key.startsWith('knife_')) {
-    if (match.player?.team === key.slice(6)) mountKnife(key);
-  } else if (key === 'ct' || key === 't') {
-    for (const actor of match.actors) if (actor.team === key && !actor.isPlayer) mountFighter(actor);
-  }
-}
-let mountedKnife;
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
 function mountKnife(key) {
-  if (!assets[key]) return;
-  if (mountedKnife) knife.remove(mountedKnife);
-  knifeFallback.visible = false;
-  mountedKnife = attachWeapon(knife, assets[key], 0.58, { x: 0.035, z: -0.20, y: 0.04 }, 'knife');
-  mountedKnife.rotation.y = 0;
-  mountedKnife.rotation.z = -0.15;
+  if (assets[key]) views.knife.setModel(assets[key]);
+  else views.knife.setModel(null);
 }
 for (const [key, filename] of Object.entries(assetFiles)) {
-  loader.load(`${import.meta.env.BASE_URL}models/${filename}.glb`, result => {
-    assets[key] = (key === 'ct' || key === 't') ? result : result.scene;
-    installAsset(key);
-  }, undefined, error => console.warn(`Не удалось загрузить ${filename}.glb`, error));
+  loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
+    assets[key] = result.scene;
+    if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
+    else if (match.player?.team === key.slice(6)) mountKnife(key);
+  }, undefined, error => console.warn('Не удалось загрузить ' + filename + '.glb', error));
 }
 
+// No character GLBs. Temporary visible targets make the 5v5 match testable
+// without reintroducing distorted, unanimated, or unsuitable player models.
 const fighters = new Map();
 function createFighter(actor) {
+  if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
-  const soldier = createSoldier(actor.team);
-  root.add(soldier.root);
-  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5),
-    new THREE.MeshBasicMaterial({ color: 0xffd67d }));
-  flash.position.set(0.04, 1.20, -0.89); root.add(flash);
-  const shield = new THREE.Mesh(new THREE.TorusGeometry(0.65, 0.024, 4, 22),
-    new THREE.MeshBasicMaterial({ color: TEAMS[actor.team].color }));
-  shield.rotation.x = Math.PI / 2; shield.position.y = 0.025; root.add(shield);
-  const health = box(0.62, 0.05, 0.04, TEAMS[actor.team].color, 0, 2.07, 0, root);
-  fighters.set(actor.id, { root, legs: soldier.legs, arms: soldier.arms,
-    flash, shield, health, body: soldier.root, fallbackBody: soldier.root,
-    animated: null, botRifle: null, previousX: actor.x, previousZ: actor.z, stride: 0 });
-  mountFighter(actor);
-  mountBotRifle(actor);
-}
-function mountFighter(actor) {
-  const entry = fighters.get(actor.id);
-  if (!entry || actor.isPlayer || !assets[actor.team] || entry.animated) return;
-  try {
-    entry.animated = buildAnimatedOperator(assets[actor.team], actor.team);
-    entry.fallbackBody.visible = false;
-    entry.body = entry.animated.root;
-    entry.root.add(entry.body);
-  } catch (error) {
-    console.warn(`Could not mount ${actor.team} operator`, error);
-  }
-}
-function mountBotRifle(actor) {
-  const entry = fighters.get(actor.id);
-  if (!entry || !assets.rifle || entry.botRifle || actor.isPlayer) return;
-  entry.botRifle = attachWeapon(entry.root, assets.rifle, 0.62, { x: 0.08, y: 1.16, z: -0.53 });
+  const color = TEAMS[actor.team].color;
+  const geometry = new THREE.BoxGeometry(0.84, 1.83, 0.62);
+  const fill = new THREE.Mesh(geometry,
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, depthWrite: false }));
+  fill.position.y = 0.915; root.add(fill);
+  const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.78 }));
+  outline.position.y = 0.915; root.add(outline);
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.065, 0.12),
+    new THREE.MeshBasicMaterial({ color }));
+  marker.position.y = 2.05; root.add(marker);
+  fighters.set(actor.id, { root, fill, outline, marker });
 }
 
 const $ = id => document.getElementById(id);
+setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
@@ -243,9 +119,7 @@ function start(team) {
   marks.length = 0;
   match.start(team);
   selectWeapon('pistol'); mountKnife(`knife_${team}`);
-  const sleeveColor = team === 'ct' ? 0x314b60 : 0x5d6246;
-  for (const rig of [pistolArms, rifleArms, knifeArms])
-    for (const mesh of rig.sleeves) mesh.material.color.setHex(sleeveColor);
+  for (const view of Object.values(views)) view.setTeam(team);
   // Models are reused across rounds; the player model is simply hidden.
   for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
@@ -334,7 +208,7 @@ function endJoy(event) {
 $('joy').addEventListener('pointerup', endJoy); $('joy').addEventListener('pointercancel', endJoy);
 // Multi-touch aiming still works while a finger is on fire/jump/crouch.
 document.addEventListener('pointerdown', event => {
-  if (!canControl() || event.target.closest('#joy, .menu, #weaponWheel, #weaponToggle')) return;
+  if (!canControl() || event.target.closest('#controls, .menu, #calibrationUI')) return;
   lookPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (event.pointerType === 'mouse' && event.target === renderer.domElement && event.button === 0) { firing = true; if (weapon !== 'rifle') shoot(); }
 }, { capture: true });
@@ -427,29 +301,15 @@ function effects(now) {
     const line = tracers[i].mesh; scene.remove(line); line.geometry.dispose(); line.material.dispose(); tracers.splice(i, 1);
   }
 }
-function updateModels(dt) {
+function updateModels() {
   for (const actor of match.actors) {
     const model = fighters.get(actor.id);
-    model.root.visible = match.phase !== 'selection' && actor.alive && !actor.isPlayer;
+    if (!model) continue;
+    model.root.visible = match.phase === 'playing' && actor.alive;
     if (!model.root.visible) continue;
-    const travelled = Math.hypot(actor.x - model.previousX, actor.z - model.previousZ);
-    model.stride += Math.min(travelled, dt * 4) * 9;
-    model.previousX = actor.x; model.previousZ = actor.z;
-    model.root.position.set(actor.x, actor.y, actor.z); model.root.rotation.y = actor.yaw;
-    if (model.animated) {
-      const velocity = travelled / Math.max(0.01, dt);
-      model.animated.update(dt, velocity, match.time - actor.lastShotAt < 0.22);
-    } else {
-      const stride = Math.min(1, travelled / Math.max(0.001, dt * 2.7));
-      model.body.position.y = Math.abs(Math.sin(model.stride)) * 0.025 * stride;
-      model.body.rotation.z = Math.sin(model.stride * 0.5) * 0.018 * stride;
-      model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.42 : 0);
-      model.arms.forEach((arm, i) => arm.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.07 : 0);
-    }
-    model.root.scale.y = actor.crouch ? 0.67 : 1;
-    model.flash.visible = match.time - actor.lastShotAt < 0.065;
-    model.shield.visible = match.time < actor.protectedUntil;
-    model.health.scale.x = actor.health / 100;
+    model.root.position.set(actor.x, actor.y, actor.z);
+    model.root.rotation.y = actor.yaw;
+    model.root.scale.y = actor.crouch ? 0.7 : 1;
   }
 }
 function drawRadar() {
@@ -479,6 +339,7 @@ function updateHUD() {
   stats.textContent = `♥ ${player.health}  ${weapon !== 'knife' ? `▣ ${player.ammo} / ${player.reserve}${player.reloadingUntil ? '  ↻' : ''}` : '🔪 Нож'}`;
   $('personalScore').textContent = `${player.kills} убийств · ${player.deaths} смертей`;
   $('crouch').classList.toggle('active', player.crouch || keys.has('ControlLeft'));
+  $('reload').classList.toggle('reloading', !!player.reloadingUntil && weapon !== 'knife');
   $('deathNotice').hidden = player.alive || match.phase !== 'playing';
   if (!player.alive) $('respawnTimer').textContent = Math.max(1, Math.ceil(player.respawnAt - match.time));
   const feed = match.killfeed.map(item => `${item.killer} → ${item.victim}`).join('|');
@@ -529,28 +390,21 @@ function frame(now) {
   }
   effects(now); updateModels(dt); updateHUD(); drawRadar();
   recoil = Math.max(0, recoil - dt * (weapon === 'rifle' ? 0.45 : 0.8));
-  const visible = canControl(); gun.visible = visible && weapon === 'pistol'; knife.visible = visible && weapon === 'knife'; rifle.visible = visible && weapon === 'rifle';
+  const visible = canControl();
   const player = match.player;
-  const bob = visible && (Math.hypot(move.x, move.y) > 0.1 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key))) ? Math.sin(now * 0.008) * 0.006 : 0;
-  const reloadProgress = player?.reloadingUntil && weapon !== 'knife' ? Math.max(0, Math.min(1, 1 - (player.reloadingUntil - match.time) / WEAPONS[weapon].reload)) : -1;
-  const reloadPose = reloadProgress >= 0 ? Math.sin(Math.PI * reloadProgress) : 0;
-  if (pistolArms.support) { pistolArms.support.position.y = -reloadPose * 0.14; pistolArms.support.rotation.x = reloadPose * 0.4; }
-  if (rifleArms.support) { rifleArms.support.position.y = -reloadPose * 0.23; rifleArms.support.position.z = reloadPose * 0.16; rifleArms.support.rotation.z = -reloadPose * 0.23; }
-  const reloadTilt = reloadProgress >= 0 ? Math.sin(Math.PI * Math.min(1, reloadProgress * 1.8)) : 0;
-  const inspectT = visible ? match.time - inspectAt : 10;
-  const inspectPose = inspectT >= 0 && inspectT < 1.9 ? Math.sin(Math.PI * inspectT / 1.9) : 0;
-  const right = camera.aspect < 1 ? 0.11 : 0.27;
-  gun.position.set(right + bob - inspectPose * 0.13, -0.17 - Math.abs(bob) - reloadPose * 0.18 + inspectPose * 0.11, -0.72 + recoil * 0.65);
-  gun.rotation.set(recoil * 1.1 - reloadPose * 0.5 + inspectPose * 0.24, 0.09 + inspectPose * 1.1, -reloadPose * 0.35 - reloadTilt * 0.32 + inspectPose * 0.3);
-  rifle.position.set(right + bob - inspectPose * 0.16, -0.2 - Math.abs(bob) - reloadPose * 0.22 + inspectPose * 0.08, -0.78 + recoil * 0.75);
-  rifle.rotation.set(recoil * 1.1 - reloadPose * 0.55 + inspectPose * 0.25, 0.08 + inspectPose * 1.25, -reloadPose * 0.3 - reloadTilt * 0.24 + inspectPose * 0.33);
-  knife.position.set(right + bob, -0.2 - Math.abs(bob), -0.7 - recoil * 0.9);
-  const slashT = match.time - swingAt;
-  knife.rotation.set(inspectPose * 0.6, (slashT >= 0 && slashT < 0.35 ? Math.sin(slashT / 0.35 * Math.PI) * 1.25 : 0) + inspectPose * 1.8,
-    -recoil * 2 + inspectPose * 0.6);
-  knife.position.y += inspectPose * 0.12;
-  muzzle.visible = !!player && weapon === 'pistol' && match.time - player.lastShotAt < 0.045;
-  rifleMuzzle.visible = !!player && weapon === 'rifle' && match.time - player.lastShotAt < 0.045;
+  const current = views[weapon];
+  const moving = Math.hypot(move.x, move.y) > 0.1 ||
+    ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key));
+  const reloadProgress = visible && player?.reloadingUntil && weapon !== 'knife'
+    ? Math.max(0, Math.min(1,
+      1 - (player.reloadingUntil - match.time) / WEAPONS[weapon].reload)) : -1;
+  for (const view of Object.values(views)) view.root.visible = visible && current === view;
+  if (visible) current.animate({
+    time: now, right: camera.aspect < 1 ? 0.13 : 0.27, moving, recoil,
+    inspectTime: match.time - inspectAt,
+    reloadProgress, slashTime: match.time - swingAt,
+    firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
+  });
   renderer.clear(); renderer.render(scene, camera); renderer.clearDepth(); renderer.render(viewScene, viewCamera);
 }
 requestAnimationFrame(frame);
