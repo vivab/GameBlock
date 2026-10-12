@@ -1,40 +1,32 @@
-name: Fetch CC0 player models (temporary)
+name: Verify CC0 character integration (temporary)
 on:
   push:
     branches: [feat/licensed-cs-style-models]
     paths: ['.github/workflows/import-cc0-gameblock.yml']
 permissions:
-  contents: write
+  contents: read
 jobs:
-  import:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fetch Quaternius CC0 rigged humanoids from public GitHub mirror
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Check GLB skeletons and rifle/idle/run clips
         run: |
           python3 - <<'PY'
-          import requests, pathlib, json, struct, hashlib
-          dest=pathlib.Path("public/models"); dest.mkdir(parents=True, exist_ok=True)
-          base="https://raw.githubusercontent.com/Hhk187/Zomopocalypse/main/Assets/Models/Characters/Ultimate%20Modular%20Men%20Pack-glb"
-          for name,filename in (("ct_swat","Swat.glb"), ("t_hoodie","Hoodie%20Character.glb")):
-            url=base+"/"+filename
-            r=requests.get(url,timeout=120)
-            print("FETCH",name,r.status_code,len(r.content),r.url,flush=True)
-            r.raise_for_status()
-            assert r.content[:4]==b"glTF" and len(r.content)>100000, "not a GLB file"
-            (dest/(name+".glb")).write_bytes(r.content)
-            n=struct.unpack_from("<I",r.content,12)[0]
-            meta=json.loads(r.content[20:20+n])
-            animations=[(a.get("name",""),len(a.get("channels",[]))) for a in meta.get("animations",[])]
-            print("MODEL",name,"animations",animations,"skins",len(meta.get("skins",[])),
-              "nodes",len(meta.get("nodes",[])),"meshes",len(meta.get("meshes",[])),
-              "sha256",hashlib.sha256(r.content).hexdigest(),flush=True)
-            assert len(meta.get("skins",[]))>=1, "rig/skeleton missing"
-            assert len(animations)>=2, "expected bundled character animations"
+          import json,pathlib,struct
+          for path in [pathlib.Path("public/models/ct_swat.glb"),pathlib.Path("public/models/t_hoodie.glb")]:
+            b=path.read_bytes()
+            assert b[:4]==b"glTF"
+            meta=json.loads(b[20:20+struct.unpack_from("<I",b,12)[0]])
+            clips=[a.get("name","") for a in meta.get("animations",[])]
+            assert len(meta.get("skins",[]))>=1
+            for name in ["Idle_Gun","Run_Shoot","Gun_Shoot","Death"]:
+              assert any(clip.endswith("|"+name) or clip==name for clip in clips), (path,name)
+            print(path,"ready:",len(clips),"animations",len(meta.get("skins",[])),"skin(s)")
           PY
-      - name: Commit imported models on feature branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/models/ct_swat.glb public/models/t_hoodie.glb
-          git diff --cached --quiet || (git commit -m "Import original CC0 rigged SWAT and Hoodie characters from Quaternius" && git push)
