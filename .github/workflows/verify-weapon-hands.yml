@@ -4,7 +4,7 @@ on:
     branches: [fix/weapon-hands-only]
     paths: ['.github/workflows/verify-weapon-hands.yml']
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -70,9 +70,23 @@ jobs:
           assert.deepEqual(errors,[]);
           fs.mkdirSync('artifacts',{recursive:true});
           await page.screenshot({path:'artifacts/gameblock-hands.png'});
+          fs.mkdirSync('qa',{recursive:true});
+          await page.screenshot({path:'qa/first-person-pistol.png'});
+          await page.keyboard.press('Digit3');
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await page.screenshot({path:'qa/first-person-ak.png'});
+          await page.keyboard.press('Digit2');
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await page.screenshot({path:'qa/first-person-knife.png'});
           console.log('Browser smoke test successful, calibration/reload controls work.');
           await browser.close();
           JS
+      - name: Temporary screenshots for visual review (feature branch only)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/first-person-*.png
+          git diff --cached --quiet || (git commit -m "Temporary visual QA screenshots of weapon grips" && git push origin HEAD:fix/weapon-hands-only)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
