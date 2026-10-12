@@ -1,4 +1,4 @@
-name: Visual CS model final screenshot
+name: Visual CS model with real rifles QA
 on:
   push:
     branches: [feat/cs-classic-operators]
@@ -30,7 +30,7 @@ jobs:
           await page.setViewport({width:1240,height:500,deviceScaleFactor:1});
           let errors=[],assets=[];
           page.on('pageerror',e=>errors.push(e.message));
-          page.on('console',m=>{if(/Cannot rig|Cannot load|Не удалось загрузить/.test(m.text()))errors.push(m.text())});
+          page.on('console',m=>{if(/Cannot rig|Cannot load|Cannot equip|Не удалось загрузить/.test(m.text()))errors.push(m.text())});
           page.on('response',r=>{if(/models\/(t|ct)\.glb/.test(r.url()))assets.push([r.url(),r.status()])});
           fs.mkdirSync('qa',{recursive:true});
           for(const [team,button] of [['ct','#chooseCT'],['t','#chooseT']]){
