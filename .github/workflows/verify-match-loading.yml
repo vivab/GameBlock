@@ -1,4 +1,4 @@
-name: Verify match loading and operators
+name: Verify match loading and block operators
 on:
   push:
     branches: [feature/match-loading-procedural-operators]
