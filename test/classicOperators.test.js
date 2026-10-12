@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator, uprightRotationFromBones } from '../src/classicOperators.js';
+import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator, uprightRotationFromBones, flattenOriginalSkinnedModel } from '../src/classicOperators.js';
 
 test('rig has articulated shoulders, elbows, thighs and knees for original GIGN', () => {
   const rig = makeCtSkeleton();
@@ -68,4 +68,31 @@ test('humanoid is turned upright from head/feet joints, regardless of export axi
     const direction = head.clone().sub(feet).normalize().applyQuaternion(q);
     assert.ok(direction.distanceTo(new THREE.Vector3(0, 1, 0)) < 1e-6);
   }
+});
+
+test('old skinned Leet can be baked into a static textured mesh for the stable GPU rig', () => {
+  const root = new THREE.Group();
+  const bone = new THREE.Bone();
+  const geometry = new THREE.BoxGeometry(0.7, 0.3, 1.8);
+  geometry.translate(0, 0, 0.9);
+  const count = geometry.getAttribute('position').count;
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4));
+  const weights = new Float32Array(count * 4);
+  for (let i=0;i<count;i++) weights[i * 4] = 1;
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+  const original = new THREE.SkinnedMesh(geometry,
+    new THREE.MeshStandardMaterial({color:0x626c40}));
+  root.add(bone);
+  root.add(original);
+  root.updateMatrixWorld(true);
+  original.bind(new THREE.Skeleton([bone]));
+  const baked = flattenOriginalSkinnedModel(root);
+  let mesh = null;
+  baked.traverse(x=>{if(x.isMesh)mesh=x});
+  assert.ok(mesh && !mesh.isSkinnedMesh);
+  assert.equal(mesh.geometry.getAttribute('skinIndex'),undefined);
+  assert.ok(mesh.geometry.boundingBox.getSize(new THREE.Vector3()).z > 1.7);
+  const model = buildClassicOperator({scene:root},'t');
+  assert.equal(model.mode,'generated');
+  assert.equal(model.rig.bones.length,10);
 });
