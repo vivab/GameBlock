@@ -16,7 +16,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - name: Ensure no unwanted character models ship
+      - name: Verify all unwanted character models are absent
         run: |
           test ! -e public/models/ct_swat.glb
           test ! -e public/models/t_hoodie.glb
@@ -25,4 +25,56 @@ jobs:
           test -e public/models/ak47.glb
           test -e public/models/knife_ct.glb
           test -e public/models/knife_t.glb
-          echo "Character GLBs removed, weapon assets retained."
+          echo "Character GLBs removed, original weapon GLBs retained."
+      - name: Install headless browser driver
+        run: npm install --no-save puppeteer-core
+      - name: Test real game UI in Chromium
+        run: |
+          npm run preview -- --host 127.0.0.1 >/tmp/gameblock-vite.log 2>&1 &
+          sleep 4
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import puppeteer from 'puppeteer-core';
+          import fs from 'node:fs';
+          const browser = await puppeteer.launch({
+            executablePath: '/usr/bin/google-chrome',
+            headless: true,
+            args: ['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist',
+              '--use-gl=angle','--use-angle=swiftshader'],
+          });
+          const page = await browser.newPage();
+          await page.setViewport({width: 1250,height: 510});
+          const errors = [];
+          page.on('pageerror', error => { errors.push(error.message); console.log('JS ERROR',error.message); });
+          await page.goto('http://127.0.0.1:4173/GameBlock/', {waitUntil:'networkidle2',timeout:45000});
+          await page.click('#chooseCT');
+          await new Promise(resolve => setTimeout(resolve, 1600));
+          const team = await page.$eval('#teamBadge', el => el.textContent);
+          console.log('Team',team);
+          assert.equal(team, 'Спецназ');
+          await page.click('#calibrationOpen');
+          const visible = await page.$eval('#calibrationPanel', el => !el.hidden);
+          assert.equal(visible, true);
+          await page.select('#calWeapon', 'rifle');
+          await page.$eval('input[data-key="scale"]', input => {
+            input.value = '1.5'; input.dispatchEvent(new Event('input', {bubbles:true}));
+          });
+          const calib = await page.$eval('#calOutput', el => el.value);
+          assert.ok(calib.includes('"scale":1.5'),calib);
+          await page.click('#calibrationClose');
+          await page.click('#fire');
+          await page.click('#reload');
+          await new Promise(resolve => setTimeout(resolve, 160));
+          const status = await page.$eval('#reload', el => el.classList.contains('reloading'));
+          assert.ok(status, 'Reload button should visibly respond after a shot');
+          assert.deepEqual(errors,[]);
+          fs.mkdirSync('artifacts',{recursive:true});
+          await page.screenshot({path:'artifacts/gameblock-hands.png'});
+          console.log('Browser smoke test successful, calibration/reload controls work.');
+          await browser.close();
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: weapon-preview
+          path: artifacts/gameblock-hands.png
