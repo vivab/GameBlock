@@ -13,7 +13,7 @@ for (const team of ['ct', 't']) {
     assert.ok(bounds.getSize(new THREE.Vector3()).y > 1.7);
     assert.ok(bounds.getSize(new THREE.Vector3()).y < 2.1);
     assert.ok(bounds.getSize(new THREE.Vector3()).x < 1.5);
-    assert.ok(bounds.getSize(new THREE.Vector3()).z < 1.5);
+    assert.ok(bounds.getSize(new THREE.Vector3()).z < 2.0, 'rifle may extend forward of the body');
     assert.equal(model.legs.length, 2);
     assert.equal(model.arms.length, 2);
     assert.ok(model.gun.children.length >= 3);
