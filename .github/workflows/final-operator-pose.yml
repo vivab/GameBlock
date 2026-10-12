@@ -1,0 +1,56 @@
+name: Final two-handed GIGN Leet rifle validation
+on:
+  push:
+    branches: [feat/cs-classic-operators]
+    paths: ['.github/workflows/final-operator-pose.yml']
+permissions:
+  contents: write
+jobs:
+  screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm install --no-save puppeteer-core
+      - name: Run real headless 3D scene for each team
+        run: |
+          npm run preview -- --host 127.0.0.1 >/tmp/vite.log 2>&1 &
+          sleep 4
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import puppeteer from 'puppeteer-core';
+          const browser=await puppeteer.launch({executablePath:'/usr/bin/google-chrome',headless:true,
+             args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl','--ignore-gpu-blocklist','--use-gl=angle','--use-angle=swiftshader']});
+          const page=await browser.newPage();
+          await page.setViewport({width:1240,height:500,deviceScaleFactor:1});
+          let errors=[],assets=[];
+          page.on('pageerror',e=>errors.push(e.message));
+          page.on('console',m=>{if(/Cannot rig|Cannot load|Cannot equip|Не удалось загрузить/.test(m.text()))errors.push(m.text())});
+          page.on('response',r=>{if(/models\/(t|ct)\.glb/.test(r.url()))assets.push([r.url(),r.status()])});
+          fs.mkdirSync('qa',{recursive:true});
+          for(const [team,button] of [['ct','#chooseCT'],['t','#chooseT']]){
+            await page.goto('http://127.0.0.1:4173/GameBlock/',{waitUntil:'networkidle2',timeout:60000});
+            await page.click(button);
+            await new Promise(resolve=>setTimeout(resolve,1900));
+            await page.screenshot({path:'qa/final-'+team+'.png'});
+            const badge=await page.$eval('#teamBadge',el=>el.textContent);
+            assert.equal(badge,team==='ct'?'Спецназ':'Террористы');
+          }
+          console.log('Original operator GLB download statuses:',JSON.stringify(assets));
+          assert.ok(assets.some(([u,c])=>u.includes('/ct.glb')&&c===200));
+          assert.ok(assets.some(([u,c])=>u.includes('/t.glb')&&c===200));
+          assert.deepEqual(errors,[]);
+          await browser.close();
+          JS
+      - name: Commit screenshots for visual approval, feature branch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/final-*.png
+          git diff --cached --quiet || (git commit -m "Temporary screenshot for operator visual review" && git push origin HEAD:feat/cs-classic-operators)
