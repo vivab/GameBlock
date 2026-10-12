@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
-import { buildClassicOperator, animateClassicOperator, buildThirdPersonRifle } from './classicOperators.js';
+import { buildBlockOperator, animateBlockOperator } from './blockOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
@@ -59,70 +59,44 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct', t: 't' };
-function mountKnife(key) {
-  if (assets[key]) views.knife.setModel(assets[key]);
-  else views.knife.setModel(null);
-}
-for (const [key, filename] of Object.entries(assetFiles)) {
+// Only weapon files need the network. Characters are generated locally.
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
+const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
+const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
+const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
-    assets[key] = (key === 'ct' || key === 't') ? result : result.scene;
-    if (key === 'pistol' || key === 'rifle') {
-      views[key].setModel(result.scene);
-      if (key === 'rifle') for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
-    } else if (key === 'ct' || key === 't') {
-      for (const actor of match.actors) if (!actor.isPlayer && actor.team === key) mountClassicFighter(actor);
-    } else if (match.player?.team === key.slice(6)) mountKnife(key);
-  }, undefined, error => console.warn('Не удалось загрузить ' + filename + '.glb', error));
+    assets[key] = result.scene;
+    assetStatus[key] = 'ready'; assetProgress[key] = 1;
+    if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
+    else if (match.player?.team === key.slice(6)) mountKnife(key);
+    resolve();
+  }, event => {
+    if (event.lengthComputable && event.total > 0)
+      assetProgress[key] = Math.min(0.99, event.loaded / event.total);
+  }, error => {
+    console.warn('Не удалось загрузить ' + filename + '.glb', error);
+    assetStatus[key] = 'failed'; assetProgress[key] = 1;
+    // Do not hang on an unavailable asset. The fallback weapon remains visible.
+    resolve();
+  });
+}));
+const weaponsReady = Promise.all(assetTasks);
+function mountKnife(key) {
+  views.knife.setModel(assets[key] || null);
 }
 
-// The owner's detailed original GIGN/Leet GLBs, not the cartoon replacements.
+// These models are always ready instantly, including on slow mobile networks.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
-  const color = TEAMS[actor.team].color;
-  // Only displayed until the correct GLB finishes loading.
-  const fallback = new THREE.Group(); root.add(fallback);
-  const geometry = new THREE.BoxGeometry(0.56, 1.83, 0.48);
-  const fill = new THREE.Mesh(geometry,
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13, depthWrite: false }));
-  fill.position.y = 0.915; fallback.add(fill);
-  const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.65 }));
-  outline.position.y = 0.915; fallback.add(outline);
-  const marker = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.048, 0.085),
-    new THREE.MeshBasicMaterial({ color }));
-  marker.position.y = 2.12; root.add(marker);
-  fighters.set(actor.id, {
-    root, fallback, marker, animated: null, gun: null, lastX: actor.x, lastZ: actor.z,
-  });
-  mountClassicFighter(actor);
+  const animated = buildBlockOperator(actor.team);
+  root.add(animated.root);
+  fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
 }
-function mountClassicFighter(actor) {
-  const entry = fighters.get(actor.id);
-  if (!entry || entry.animated || !assets[actor.team]) return;
-  try {
-    const model = buildClassicOperator(assets[actor.team], actor.team);
-    entry.animated = model;
-    entry.fallback.visible = false;
-    entry.root.add(model.root);
-    mountBotRifle(actor);
-  } catch (error) {
-    // Fail safely: never hide an invisible enemy if a malformed GLB is provided.
-    console.warn('Cannot rig ' + actor.team + ' fighter', error);
-  }
-}
-
-function mountBotRifle(actor) {
-  const entry = fighters.get(actor.id);
-  if (!entry || !entry.animated || !assets.rifle || entry.gun) return;
-  try {
-    entry.gun = buildThirdPersonRifle(assets.rifle);
-    entry.animated.root.add(entry.gun);
-  } catch (error) {
-    console.warn('Cannot equip bot AK-47', error);
-  }
+function matchLoadFraction() {
+  const values = Object.values(assetProgress);
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 const $ = id => document.getElementById(id);
@@ -181,8 +155,51 @@ function start(team) {
   $('teamBadge').dataset.team = team;
   document.body.dataset.phase = 'playing';
 }
-$('chooseCT').addEventListener('click', () => start('ct'));
-$('chooseT').addEventListener('click', () => start('t'));
+let matchLoading = false;
+async function prepareMatch(team) {
+  if (matchLoading) return;
+  matchLoading = true;
+  const overlay = $('matchLoading');
+  const fill = $('matchLoadingFill');
+  const progress = $('matchLoadingPercent');
+  const status = $('matchLoadingStatus');
+  overlay.hidden = false;
+  document.body.dataset.phase = 'loading';
+  for (const button of [$('chooseCT'), $('chooseT')]) button.disabled = true;
+  let active = true;
+  const tick = () => {
+    if (!active) return;
+    const fraction = matchLoadFraction();
+    const percent = Math.round(fraction * 100);
+    fill.style.width = percent + '%';
+    progress.textContent = percent + '%';
+    status.textContent = 'Подготавливаем оружие и бойцов…';
+    if (fraction < 1) requestAnimationFrame(tick);
+  };
+  tick();
+  try {
+    await weaponsReady;
+    active = false;
+    fill.style.width = '100%';
+    progress.textContent = '100%';
+    const missing = Object.values(assetStatus).filter(x => x === 'failed').length;
+    status.textContent = missing ? 'Готово! Недоступное оружие заменено запасными моделями.' : 'Все модели загружены. В бой!';
+    // Let the player see 100% and allow the browser to paint it first.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    start(team);
+  } catch (error) {
+    console.error('Match initialization failed', error);
+    status.textContent = 'Ошибка запуска. Попробуй ещё раз.';
+    document.body.dataset.phase = 'selection';
+  } finally {
+    active = false;
+    matchLoading = false;
+    overlay.hidden = true;
+    for (const button of [$('chooseCT'), $('chooseT')]) button.disabled = false;
+  }
+}
+$('chooseCT').addEventListener('click', () => prepareMatch('ct'));
+$('chooseT').addEventListener('click', () => prepareMatch('t'));
 $('playAgain').addEventListener('click', () => start(match.playerTeam));
 $('changeTeam').addEventListener('click', () => {
   resetInputs(); match.phase = 'selection';
@@ -402,7 +419,7 @@ function updateModels(dt) {
     model.root.scale.y = actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if (model.animated) animateClassicOperator(model.animated, actor,
+    if (model.animated) animateBlockOperator(model.animated, actor,
       match.time, dt, dist / Math.max(0.01, dt));
   }
 }
