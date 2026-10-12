@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
+import { InspectTimeline } from './inspectTimeline.js';
 import { buildClassicOperator, animateClassicOperator, buildThirdPersonRifle } from './classicOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
@@ -129,7 +130,8 @@ const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = 
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
 let firePointer = null, fireLastX = 0, fireLastY = 0;
-let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false, inspectAt = -10, swingAt = -10;
+let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false, swingAt = -10;
+const inspection = new InspectTimeline();
 let game1Burst = 0;
 // Four explicit accuracy states live in accuracy.js; burst recovers every frame.
 let wheelPointer = null, wheelChoice = null, wheelWasOpen = false;
@@ -140,18 +142,27 @@ const markMaterial = new THREE.MeshBasicMaterial({ color: 0x242424, side: THREE.
 function resetInputs() {
   move.x = move.y = 0; keys.clear(); lookPointers.clear(); firing = jumpHeld = false; joyId = null;
   firePointer = null;
+  inspection.cancel();
   if (match.player) match.player.keyboardCrouch = false;
   $('knob').style.transform = ''; $('weaponWheel').classList.remove('open'); wheelPointer = null; wheelChoice = null;
 }
 function selectWeapon(name) {
   if (!['pistol', 'rifle', 'knife'].includes(name)) return;
   if (match.player) match.equip(match.player, name);
-  weapon = name; recoil = 0; firing = false; inspectAt = -10;
+  // Any weapon selection interrupts knife/gun inspection immediately.
+  inspection.cancel();
+  weapon = name; recoil = 0; firing = false;
   views[name].draw(performance.now() / 1000); // Game1 draw animation on every switch
   $('weaponLabel').textContent = { pistol: 'Glock 18', rifle: 'AK-47', knife: 'Нож' }[name];
   $('weaponWheel').classList.remove('open');
 }
-function inspect() { if (canControl()) { firing = false; inspectAt = match.time; $('weaponWheel').classList.remove('open'); } }
+function inspect() {
+  if (!canControl()) return;
+  firing = false;
+  // Even if the current animation is already running, restart from 0:00.
+  inspection.restart(weapon, match.time);
+  $('weaponWheel').classList.remove('open');
+}
 function start(team) {
   resetInputs();
   recoil = 0; shots = 0; game1Burst = 0; lastPlayerShot = -10; finishShown = false;
@@ -333,7 +344,7 @@ function shoot() {
   if (!hit) return;
   views[weapon].fire(); // Game1 weapon kick and animated muzzle flash
   if (weapon !== 'knife') game1Burst = Math.min(ACCURACY.maxBurst, game1Burst + ACCURACY.perShot);
-  inspectAt = -10;
+  inspection.cancel();
   if (weapon === 'knife') { recoil = 0.14; swingAt = match.time; }
   else {
     if (match.time - lastPlayerShot > 0.36) shots = 0;
@@ -474,7 +485,7 @@ function frame(now) {
   for (const view of Object.values(views)) view.root.visible = visible && current === view;
   if (visible) current.animate({
     time: now, aspect: camera.aspect, moving, recoil,
-    inspectTime: match.time - inspectAt,
+    inspectTime: inspection.elapsed(weapon, match.time),
     reloadProgress, slashTime: match.time - swingAt,
     firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
   });
