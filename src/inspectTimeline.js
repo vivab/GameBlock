@@ -30,7 +30,7 @@ export class InspectTimeline {
   elapsed(weapon, gameTime) {
     if (this.weapon !== weapon || this.startedAt === null) return -1;
     const elapsed = Math.max(0, gameTime - this.startedAt);
-    if (elapsed >= DURATIONS[weapon]) {
+    if (elapsed + 0.0000001 >= DURATIONS[weapon]) {
       this.cancel();
       return -1;
     }
