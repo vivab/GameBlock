@@ -9,7 +9,7 @@ const DEG = Math.PI / 180, U = 0.105;
 export const WEAPON_DEFAULTS = Object.freeze({
   pistol: { x: 0.01, y: -0.018, z: 0.03, rx: -5, ry: -42, rz: 0, scale: 0.94 },
   rifle:  { x: 0.005, y: 0.015, z: -0.055, rx: 0, ry: 0, rz: 0, scale: 0.80 },
-  knife:  { x: -0.24, y: -0.02, z: 0.045, rx: -12, ry: -75, rz: 8, scale: 0.92 },
+  knife:  { x: -0.34, y: -0.02, z: 0.045, rx: -12, ry: -75, rz: -6, scale: 0.92 },
 });
 const PROFILE = {
   pistol: { ndcX: 0.27, sy: -0.085, sz: -0.73, length: 0.48 },
