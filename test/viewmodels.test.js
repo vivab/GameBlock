@@ -58,7 +58,7 @@ test('weapons, right glove and left glove stay under a shared animated transform
   const knife=createWeaponView('knife');
   assert.ok(knife.root.children.includes(knife.arms.left.parent),'left knife hand should remain static');
   knife.animate({time:30000,inspectTime:1.2});
-  assert.ok(Math.abs(knife.animated.rotation.x)>0.2,'Game1 knife wrist inspect missing');
+  assert.ok(Math.abs(knife.animated.rotation.z)>0.4,'Game1 knife wrist roll animation missing');
 });
 
 test('each hand can be calibrated independently including finger bend and pose',()=>{
