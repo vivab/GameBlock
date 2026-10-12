@@ -85,18 +85,46 @@ for (const [group, length] of [[rifleFallbackGroup, 0.47]]) {
 }
 const pistolArms = createViewArms(gun, 'pistol');
 const rifleArms = createViewArms(rifle, 'rifle');
-createViewArms(knife, 'knife');
+const knifeArms = createViewArms(knife, 'knife');
 const loader = new GLTFLoader();
 const assets = {};
 // Unrigged character GLBs make enormous T-pose wings: use articulated operators instead.
 const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
 // Models have different native axes and scales. Mount them once in world units;
 // cloned meshes share geometry/texture buffers between the ten fighters.
+// Detect which end of a pistol contains its muzzle by looking for the end
+// without the hanging grip. Align that end to camera forward (-Z).
+function orientPistol(model) {
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const dims = bounds.getSize(new THREE.Vector3());
+  const axis = dims.x > dims.z ? 'x' : 'z';
+  const min = bounds.min[axis], max = bounds.max[axis];
+  const lower = min + (max - min) * 0.34, upper = max - (max - min) * 0.34;
+  let lowY = 0, highY = 0, lowCount = 0, highCount = 0;
+  const point = new THREE.Vector3();
+  model.traverse(child => {
+    if (!child.isMesh) return;
+    const position = child.geometry?.attributes?.position;
+    if (!position) return;
+    const stride = Math.max(1, Math.ceil(position.count / 1400));
+    for (let i = 0; i < position.count; i += stride) {
+      point.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
+      if (point[axis] < lower) { lowY += point.y; lowCount++; }
+      if (point[axis] > upper) { highY += point.y; highCount++; }
+    }
+  });
+  const positiveMuzzle = highCount && lowCount ? highY / highCount >= lowY / lowCount : true;
+  model.rotation.y = axis === 'x'
+    ? (positiveMuzzle ? Math.PI / 2 : -Math.PI / 2)
+    : (positiveMuzzle ? Math.PI : 0);
+}
 function fittedModel(source, kind, size) {
   const holder = new THREE.Group();
   const model = source.clone(true); holder.add(model);
   if (kind === 'weapon') model.rotation.y = Math.PI / 2;
-  if (kind === 'pistol' || kind === 'knife') model.rotation.y = 0;
+  if (kind === 'pistol') orientPistol(model);
+  if (kind === 'knife') model.rotation.y = 0;
   if (kind === 't') model.rotation.x = Math.PI / 2;
   if (kind === 'character' || kind === 't') model.rotation.y = Math.PI;
   model.updateMatrixWorld(true);
@@ -198,6 +226,9 @@ function start(team) {
   marks.length = 0;
   match.start(team);
   selectWeapon('pistol'); mountKnife(`knife_${team}`);
+  const sleeveColor = team === 'ct' ? 0x314b60 : 0x5d6246;
+  for (const rig of [pistolArms, rifleArms, knifeArms])
+    for (const mesh of rig.sleeves) mesh.material.color.setHex(sleeveColor);
   // Models are reused across rounds; the player model is simply hidden.
   for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
