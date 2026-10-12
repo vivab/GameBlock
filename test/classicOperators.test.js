@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator, uprightRotationFromBones, flattenOriginalSkinnedModel } from '../src/classicOperators.js';
+import { makeCtSkeleton, ctSkinWeights, buildClassicOperator, animateClassicOperator, uprightRotationFromBones, buildThirdPersonRifle, flattenOriginalSkinnedModel } from '../src/classicOperators.js';
 
 test('rig has articulated shoulders, elbows, thighs and knees for original GIGN', () => {
   const rig = makeCtSkeleton();
@@ -95,4 +95,19 @@ test('old skinned Leet can be baked into a static textured mesh for the stable G
   const model = buildClassicOperator({scene:root},'t');
   assert.equal(model.mode,'generated');
   assert.equal(model.rig.bones.length,10);
+});
+
+test('third-person bot rifle uses provided AK mesh at realistic scale and shared receiver position', () => {
+  const raw = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.50, 0.24, 0.34),
+    new THREE.MeshStandardMaterial({ color: 0x343434 }));
+  raw.add(body);
+  const rifle = buildThirdPersonRifle(raw);
+  assert.ok(Math.abs(rifle.position.y - 1.2) < 1e-5);
+  assert.ok(rifle.children.length === 1);
+  rifle.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(rifle);
+  const size = bounds.getSize(new THREE.Vector3());
+  assert.ok(size.z > 0.72 && size.z < 0.84, 'World model AK should have 78cm barrel-length axis');
+  assert.ok(size.y < 2 && size.x < 1);
 });
