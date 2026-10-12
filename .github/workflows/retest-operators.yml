@@ -2,7 +2,7 @@ name: Operator rig final checks
 on:
   push:
     branches: [feat/cs-classic-operators]
-    paths: ['src/classicOperators.js', 'test/classicOperators.test.js']
+    paths: ['.github/workflows/retest-operators.yml']
 
 permissions:
   contents: write
@@ -70,6 +70,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin feat/cs-classic-operators
           git add qa/classic-*.png
           git diff --cached --quiet || (git commit -m "Temporary QA screenshots of rigged classic CS operators" && git push origin HEAD:feat/cs-classic-operators)
       - uses: actions/upload-artifact@v4
