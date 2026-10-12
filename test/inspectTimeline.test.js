@@ -47,13 +47,13 @@ test('restarting knife inspection resets its visual keyframe, not user calibrati
   const saved = knife.handCalibration.R;
   clip.restart('knife', 2);
   knife.animate({ time: 3000, inspectTime: clip.elapsed('knife', 3) });
-  const firstPeak = knife.animated.rotation.z;
+  const firstPeak = knife.knifeWrist.rotation.z;
   assert.ok(Math.abs(firstPeak) > 0.3, 'Knife should turn visibly during inspection');
   clip.restart('knife', 3);
   knife.animate({ time: 3001, inspectTime: clip.elapsed('knife', 3) });
-  assert.ok(Math.abs(knife.animated.rotation.z) < 0.05, 'Second tap should return to keyframe zero');
+  assert.ok(Math.abs(knife.knifeWrist.rotation.z) < 0.05, 'Second tap should return to keyframe zero');
   assert.deepEqual(knife.handCalibration.R, saved);
   clip.cancel();
   knife.animate({ time: 3100, inspectTime: clip.elapsed('knife', 3.1) });
-  assert.ok(Math.abs(knife.animated.rotation.z) < 0.05, 'Canceled inspection must clear knife rotation');
+  assert.ok(Math.abs(knife.knifeWrist.rotation.z) < 0.05, 'Canceled inspection must clear knife rotation');
 });
