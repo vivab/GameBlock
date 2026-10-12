@@ -154,6 +154,7 @@ test('knife inspect pivots only wrist, with blade and fingers together and forea
     assert.equal(knife.modelMount.parent.parent,knife.knifeWrist);
     assert.equal(forearm.parent,knife.arms.right.userData.mesh);
     knife.animate({time:2000,inspectTime:-1});
+    knife.root.updateMatrixWorld(true);
     const armRest=forearm.matrixWorld.clone();
     const baselineHand=hand.matrixWorld.clone();
     const pivotBase=knife.knifeWrist.rotation.clone();
