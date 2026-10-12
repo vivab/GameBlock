@@ -17,7 +17,7 @@ function readSaved() {
 function persist(data) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
 }
-export function setupWeaponCalibration({ views, getWeapon }) {
+export function setupWeaponCalibration({ views, getWeapon, setWeapon = () => {} }) {
   const saved = readSaved();
   for (const name of Object.keys(views)) if (saved[name]) views[name].calibrate(saved[name]);
 
@@ -102,7 +102,7 @@ export function setupWeaponCalibration({ views, getWeapon }) {
     if (!panel.hidden) showWeapon(getWeapon());
   });
   $('calibrationClose').addEventListener('click', () => { panel.hidden = true; });
-  weaponSelect.addEventListener('change', () => showWeapon(weaponSelect.value));
+  weaponSelect.addEventListener('change', () => { setWeapon(weaponSelect.value); showWeapon(weaponSelect.value); });
   $('calReset').addEventListener('click', () => {
     const name = weaponSelect.value;
     views[name].calibrate({ ...WEAPON_DEFAULTS[name] });
