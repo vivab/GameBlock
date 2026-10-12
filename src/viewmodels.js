@@ -4,15 +4,15 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 // First-person-only rig. Palms/fingers and the weapon are children of the
 // same transform: inspect/recoil/knife slashes cannot detach the weapon.
 export const WEAPON_DEFAULTS = Object.freeze({
-  pistol: { x: 0, y: 0.00, z: -0.05, rx: 0, ry: 0, rz: 0, scale: 1 },
-  rifle:  { x: 0, y: 0.025, z: -0.10, rx: 0, ry: 0, rz: 0, scale: 1 },
-  knife:  { x: 0, y: 0, z: -0.07, rx: 0, ry: 0, rz: 0, scale: 1 },
+  pistol: { x: 0.035, y: -0.005, z: -0.05, rx: -4, ry: -22, rz: 0, scale: 0.87 },
+  rifle:  { x: 0, y: 0.025, z: -0.10, rx: 0, ry: 0, rz: 0, scale: 0.92 },
+  knife:  { x: 0.105, y: 0.0, z: -0.08, rx: 0, ry: 90, rz: -10, scale: 0.87 },
 });
 const WEAPON_LENGTH = { pistol: 0.66, rifle: 1.26, knife: 0.79 };
 const LOOK = {
-  pistol: { x: 0.25, y: -0.215, z: -0.76, scale: 0.93 },
-  rifle: { x: 0.26, y: -0.245, z: -0.81, scale: 0.92 },
-  knife: { x: 0.25, y: -0.205, z: -0.77, scale: 0.95 },
+  pistol: { x: 0.32, y: -0.18, z: -1.16, scale: 0.93 },
+  rifle: { x: 0.31, y: -0.22, z: -1.13, scale: 0.92 },
+  knife: { x: 0.31, y: -0.19, z: -1.15, scale: 0.95 },
 };
 const mat = (color, roughness = 0.94) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.02, flatShading: false });
 const glove = mat(0x232a2b), gloveTop = mat(0x333c3e);
