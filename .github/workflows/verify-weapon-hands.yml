@@ -1,0 +1,28 @@
+name: Verify weapon-only GameBlock (temporary)
+on:
+  push:
+    branches: [fix/weapon-hands-only]
+    paths: ['.github/workflows/verify-weapon-hands.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Ensure no unwanted character models ship
+        run: |
+          test ! -e public/models/ct_swat.glb
+          test ! -e public/models/t_hoodie.glb
+          test ! -e src/riggedActors.js
+          test -e public/models/g18.glb
+          test -e public/models/ak47.glb
+          test -e public/models/knife_ct.glb
+          test -e public/models/knife_t.glb
+          echo "Character GLBs removed, weapon assets retained."
