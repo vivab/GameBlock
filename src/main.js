@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
+import { buildClassicOperator, animateClassicOperator, buildThirdPersonRifle } from './classicOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
@@ -56,37 +57,70 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct', t: 't' };
 function mountKnife(key) {
   if (assets[key]) views.knife.setModel(assets[key]);
   else views.knife.setModel(null);
 }
 for (const [key, filename] of Object.entries(assetFiles)) {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
-    assets[key] = result.scene;
-    if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-    else if (match.player?.team === key.slice(6)) mountKnife(key);
+    assets[key] = (key === 'ct' || key === 't') ? result : result.scene;
+    if (key === 'pistol' || key === 'rifle') {
+      views[key].setModel(result.scene);
+      if (key === 'rifle') for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
+    } else if (key === 'ct' || key === 't') {
+      for (const actor of match.actors) if (!actor.isPlayer && actor.team === key) mountClassicFighter(actor);
+    } else if (match.player?.team === key.slice(6)) mountKnife(key);
   }, undefined, error => console.warn('Не удалось загрузить ' + filename + '.glb', error));
 }
 
-// No character GLBs. Temporary visible targets make the 5v5 match testable
-// without reintroducing distorted, unanimated, or unsuitable player models.
+// The owner's detailed original GIGN/Leet GLBs, not the cartoon replacements.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
   const color = TEAMS[actor.team].color;
-  const geometry = new THREE.BoxGeometry(0.84, 1.83, 0.62);
+  // Only displayed until the correct GLB finishes loading.
+  const fallback = new THREE.Group(); root.add(fallback);
+  const geometry = new THREE.BoxGeometry(0.56, 1.83, 0.48);
   const fill = new THREE.Mesh(geometry,
-    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.16, depthWrite: false }));
-  fill.position.y = 0.915; root.add(fill);
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.13, depthWrite: false }));
+  fill.position.y = 0.915; fallback.add(fill);
   const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.78 }));
-  outline.position.y = 0.915; root.add(outline);
-  const marker = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.065, 0.12),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.65 }));
+  outline.position.y = 0.915; fallback.add(outline);
+  const marker = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.048, 0.085),
     new THREE.MeshBasicMaterial({ color }));
-  marker.position.y = 2.05; root.add(marker);
-  fighters.set(actor.id, { root, fill, outline, marker });
+  marker.position.y = 2.12; root.add(marker);
+  fighters.set(actor.id, {
+    root, fallback, marker, animated: null, gun: null, lastX: actor.x, lastZ: actor.z,
+  });
+  mountClassicFighter(actor);
+}
+function mountClassicFighter(actor) {
+  const entry = fighters.get(actor.id);
+  if (!entry || entry.animated || !assets[actor.team]) return;
+  try {
+    const model = buildClassicOperator(assets[actor.team], actor.team);
+    entry.animated = model;
+    entry.fallback.visible = false;
+    entry.root.add(model.root);
+    mountBotRifle(actor);
+  } catch (error) {
+    // Fail safely: never hide an invisible enemy if a malformed GLB is provided.
+    console.warn('Cannot rig ' + actor.team + ' fighter', error);
+  }
+}
+
+function mountBotRifle(actor) {
+  const entry = fighters.get(actor.id);
+  if (!entry || !entry.animated || !assets.rifle || entry.gun) return;
+  try {
+    entry.gun = buildThirdPersonRifle(assets.rifle);
+    entry.animated.root.add(entry.gun);
+  } catch (error) {
+    console.warn('Cannot equip bot AK-47', error);
+  }
 }
 
 const $ = id => document.getElementById(id);
@@ -335,7 +369,7 @@ function effects(now) {
     const line = tracers[i].mesh; scene.remove(line); line.geometry.dispose(); line.material.dispose(); tracers.splice(i, 1);
   }
 }
-function updateModels() {
+function updateModels(dt) {
   for (const actor of match.actors) {
     const model = fighters.get(actor.id);
     if (!model) continue;
@@ -343,7 +377,11 @@ function updateModels() {
     if (!model.root.visible) continue;
     model.root.position.set(actor.x, actor.y, actor.z);
     model.root.rotation.y = actor.yaw;
-    model.root.scale.y = actor.crouch ? 0.7 : 1;
+    model.root.scale.y = actor.crouch ? 0.73 : 1;
+    const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
+    model.lastX = actor.x; model.lastZ = actor.z;
+    if (model.animated) animateClassicOperator(model.animated, actor,
+      match.time, dt, dist / Math.max(0.01, dt));
   }
 }
 function drawRadar() {
