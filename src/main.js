@@ -87,7 +87,7 @@ function createFighter(actor) {
 }
 
 const $ = id => document.getElementById(id);
-setupWeaponCalibration({ views, getWeapon: () => weapon });
+setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
