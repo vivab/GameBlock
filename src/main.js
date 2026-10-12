@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { setupWeaponCalibration } from './calibration.js';
+import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
+import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
+import { rotateAim } from './aim.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
@@ -91,9 +94,10 @@ setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => sele
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
+let firePointer = null, fireLastX = 0, fireLastY = 0;
 let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false, inspectAt = -10, swingAt = -10;
 let game1Burst = 0;
-const GAME1_SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
+// Four explicit accuracy states live in accuracy.js; burst recovers every frame.
 let wheelPointer = null, wheelChoice = null, wheelWasOpen = false;
 const direction = new THREE.Vector3();
 const marks = [], tracers = [];
@@ -101,6 +105,7 @@ const markGeometry = new THREE.CircleGeometry(0.055, 10);
 const markMaterial = new THREE.MeshBasicMaterial({ color: 0x242424, side: THREE.DoubleSide, depthWrite: false });
 function resetInputs() {
   move.x = move.y = 0; keys.clear(); lookPointers.clear(); firing = jumpHeld = false; joyId = null;
+  firePointer = null;
   if (match.player) match.player.keyboardCrouch = false;
   $('knob').style.transform = ''; $('weaponWheel').classList.remove('open'); wheelPointer = null; wheelChoice = null;
 }
@@ -144,19 +149,32 @@ function jump() {
   const player = match.player;
   if (!player.ground || match.time - player.lastJump < 0.24) return;
   player.jumps = match.time - player.lastJump < 1.15 ? Math.min(player.jumps + 1, 6) : 0;
-  player.lastJump = match.time; player.vy = 5.8; player.ground = false;
+  player.lastJump = match.time; player.vy = JUMP_IMPULSE; player.ground = false;
 }
 function reload() { if (canControl() && weapon !== 'knife') match.reload(match.player); }
 function bind(id, down, up) {
   const button = $(id);
   button.addEventListener('pointerdown', event => {
     event.preventDefault(); if (!canControl()) return;
-    button.setPointerCapture(event.pointerId); down();
+    button.setPointerCapture(event.pointerId); down(event);
   });
-  button.addEventListener('pointerup', () => up?.());
-  button.addEventListener('pointercancel', () => up?.());
+  button.addEventListener('pointerup', event => up?.(event));
+  button.addEventListener('pointercancel', event => up?.(event));
 }
-bind('fire', () => { firing = true; shoot(); }, () => firing = false);
+// The firing finger itself can swipe to counter recoil while holding the
+// button. A second finger in the normal look area works at the same time.
+bind('fire', event => {
+  firing = true; firePointer = event.pointerId;
+  fireLastX = event.clientX; fireLastY = event.clientY;
+  shoot();
+}, event => {
+  if (event.pointerId === firePointer) { firing = false; firePointer = null; }
+});
+$('fire').addEventListener('pointermove', event => {
+  if (event.pointerId !== firePointer || !canControl()) return;
+  applyLookDelta(event.clientX - fireLastX, event.clientY - fireLastY);
+  fireLastX = event.clientX; fireLastY = event.clientY;
+});
 bind('jump', () => { jumpHeld = true; jump(); }, () => jumpHeld = false);
 bind('crouch', () => match.player.crouch = !match.player.crouch);
 bind('reload', reload);
@@ -215,13 +233,20 @@ document.addEventListener('pointerdown', event => {
   lookPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (event.pointerType === 'mouse' && event.target === renderer.domElement && event.button === 0) { firing = true; if (weapon !== 'rifle') shoot(); }
 }, { capture: true });
+function applyLookDelta(dx, dy) {
+  if (!canControl()) return;
+  const next = rotateAim(match.player.yaw, match.player.pitch, dx, dy);
+  match.player.yaw = next.yaw;
+  match.player.pitch = next.pitch;
+  // Keep the raycast camera in sync when a finger moves between render frames.
+  camera.rotation.set(match.player.pitch, match.player.yaw, 0, 'YXZ');
+}
 document.addEventListener('pointermove', event => {
   const point = lookPointers.get(event.pointerId);
   if (!point || !canControl()) return;
   const dx = event.clientX - point.x, dy = event.clientY - point.y;
   point.x = event.clientX; point.y = event.clientY;
-  match.player.yaw -= dx * 0.004;
-  match.player.pitch = Math.max(-1.2, Math.min(1.2, match.player.pitch - dy * 0.004));
+  applyLookDelta(dx, dy);
 }, { capture: true });
 function endLook(event) {
   lookPointers.delete(event.pointerId);
@@ -262,20 +287,18 @@ function shoot() {
   const player = match.player;
   const moving = Math.hypot(move.x, move.y) > 0.15 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key));
   const crouched = player.crouch || keys.has('ControlLeft');
-  // Ported from Game1: accuracy depends on movement, jumping, crouch and
-  // accumulated recoil; standing still gradually recovers accuracy.
-  game1Burst = Math.max(0, game1Burst - Math.max(0, match.time - lastPlayerShot) * GAME1_SPREAD.recover);
-  let spread = GAME1_SPREAD.base + game1Burst + (moving ? GAME1_SPREAD.move : 0) +
-    (!player.ground ? GAME1_SPREAD.air : 0);
-  if (crouched) spread *= GAME1_SPREAD.crouch;
-  if (weapon === 'pistol') spread *= 0.78;
+  // Recoil can still be compensated by dragging the fire button or screen.
+  // Accuracy depends on crouching / standing / running / jumping.
+  const spread = weaponSpread({
+    ground: player.ground, crouched, moving, weapon, burst: game1Burst,
+  });
   direction.set((Math.random() - 0.5) * spread * 2, (Math.random() - 0.5) * spread * 2, -1);
   if (weapon === 'knife') direction.set(0, 0, -1);
   direction.normalize().applyQuaternion(camera.quaternion);
   const hit = match.fire(player, direction, weapon === 'knife');
   if (!hit) return;
   views[weapon].fire(); // Game1 weapon kick and animated muzzle flash
-  if (weapon !== 'knife') game1Burst = Math.min(GAME1_SPREAD.max, game1Burst + GAME1_SPREAD.perShot);
+  if (weapon !== 'knife') game1Burst = Math.min(ACCURACY.maxBurst, game1Burst + ACCURACY.perShot);
   inspectAt = -10;
   if (weapon === 'knife') { recoil = 0.14; swingAt = match.time; }
   else {
@@ -379,7 +402,7 @@ function movePlayer(dt) {
   const speed = (crouched ? 2 : 4.2) * (player.jumps > 1 ? Math.max(0.72, 1 - player.jumps * 0.055) : 1);
   match.move(player, (mx * Math.cos(player.yaw) + mz * Math.sin(player.yaw)) / length * speed * dt,
     (-mx * Math.sin(player.yaw) + mz * Math.cos(player.yaw)) / length * speed * dt);
-  player.vy -= 14 * dt; player.y += player.vy * dt;
+  player.vy -= GRAVITY * dt; player.y += player.vy * dt;
   if (player.y <= 0) { player.y = 0; player.vy = 0; player.ground = true; }
   if (player.ground && (jumpHeld || keys.has('Space'))) jump();
   camera.position.set(player.x, player.y + (crouched ? 1.05 : 1.65), player.z);
@@ -401,6 +424,7 @@ function frame(now) {
   }
   effects(now); updateModels(dt); updateHUD(); drawRadar();
   recoil = Math.max(0, recoil - dt * (weapon === 'rifle' ? 0.45 : 0.8));
+  game1Burst = recoverBurst(game1Burst, dt);
   const visible = canControl();
   const player = match.player;
   const current = views[weapon];
