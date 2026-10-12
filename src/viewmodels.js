@@ -4,11 +4,12 @@ import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 
 // Game1 hand rig and animation mechanics adapted for GameBlock's existing
 // Glock18, AK47 and CT/T knife .glb files. Nothing from Game1's map is used.
-const DEG = Math.PI / 180, U = 0.105 * 1.35;
+// Game1 geometry, scaled for GameBlock's narrower (58°) first-person FOV.
+const DEG = Math.PI / 180, U = 0.105;
 export const WEAPON_DEFAULTS = Object.freeze({
   pistol: { x: 0.01, y: -0.018, z: 0.03, rx: -5, ry: -42, rz: 0, scale: 0.94 },
   rifle:  { x: 0.005, y: 0.015, z: -0.055, rx: 0, ry: 0, rz: 0, scale: 0.80 },
-  knife:  { x: 0.005, y: -0.02, z: 0.045, rx: -12, ry: -75, rz: 8, scale: 0.92 },
+  knife:  { x: -0.24, y: -0.02, z: 0.045, rx: -12, ry: -75, rz: 8, scale: 0.92 },
 });
 const PROFILE = {
   pistol: { ndcX: 0.27, sy: -0.085, sz: -0.73, length: 0.48 },
@@ -33,7 +34,7 @@ export const HAND_DEFAULTS = Object.freeze({
 });
 const ANCHORS = {
   pistol: { R: [0.065, -0.105, 0.135], L: [-0.05, -0.17, 0.17] },
-  rifle: { R: [0.035, -0.045, 0.65], L: [-0.060, 0.005, 0.26] },
+  rifle: { R: [-0.035, 0.025, 0.38], L: [-0.10, 0.06, 0.02] },
   knife: { R: [-0.235, 0.005, 0.155], L: [-0.12, -0.19, 0.22] },
 };
 const matte = c => new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 });
