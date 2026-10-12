@@ -1,0 +1,104 @@
+name: Verify Game1 weapon mechanics port
+on:
+  push:
+    branches: [feat/game1-hands-mechanics]
+    paths: ['.github/workflows/test-game1-port.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Confirm GameBlock arena and original 4 GLBs
+        run: |
+          test -f public/models/g18.glb
+          test -f public/models/ak47.glb
+          test -f public/models/knife_ct.glb
+          test -f public/models/knife_t.glb
+          test -f src/game1Hands.js
+          test -f src/game1Motion.js
+          test ! -f public/models/lowpoly__fps__tdm__game__map_by_resoforge.glb
+      - name: Install browser driver
+        run: npm install --no-save puppeteer-core
+      - name: Browser test weapons and hands calibration
+        run: |
+          npm run preview -- --host 127.0.0.1 >/tmp/vite-gameblock.log 2>&1 &
+          sleep 4
+          node --input-type=module <<'JS'
+          import puppeteer from 'puppeteer-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await puppeteer.launch({
+            executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl',
+              '--ignore-gpu-blocklist','--use-gl=angle','--use-angle=swiftshader']
+          });
+          const page=await browser.newPage();
+          await page.setViewport({width:1250,height:510,deviceScaleFactor:1});
+          const errors=[];
+          page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+          page.on('console',m=>{if(m.type()==='error')console.log('CONSOLE',m.text())});
+          await page.goto('http://127.0.0.1:4173/GameBlock/',{waitUntil:'networkidle2',timeout:60000});
+          await page.click('#chooseCT');
+          await new Promise(resolve=>setTimeout(resolve,1800));
+          fs.mkdirSync('qa',{recursive:true});
+          await page.screenshot({path:'qa/game1-glock.png'});
+          await page.keyboard.press('Digit3');
+          await new Promise(resolve=>setTimeout(resolve,1500));
+          assert.equal(await page.$eval('#weaponLabel',el=>el.textContent),'AK-47');
+          await page.screenshot({path:'qa/game1-ak.png'});
+          await page.keyboard.press('KeyF');
+          await new Promise(resolve=>setTimeout(resolve,850));
+          await page.screenshot({path:'qa/game1-inspect.png'});
+          await page.keyboard.press('Digit2');
+          await new Promise(resolve=>setTimeout(resolve,1000));
+          await page.screenshot({path:'qa/game1-knife.png'});
+          await page.click('#calibrationOpen');
+          assert.equal(await page.$eval('#calibrationPanel',el=>!el.hidden),true);
+          await page.select('#calPart','R');
+          await page.$eval('input[data-key="k"]', el=>{
+            el.value='0.65';el.dispatchEvent(new Event('input',{bubbles:true}));
+          });
+          assert.ok((await page.$eval('#calOutput',el=>el.value)).includes('"k":0.65'));
+          await page.select('#calPose','cup');
+          assert.ok((await page.$eval('#calOutput',el=>el.value)).includes('"pose":"cup"'));
+          await page.select('#calPart','L');
+          await page.$eval('input[data-key="x"]',el=>{
+            el.value='-3.8';el.dispatchEvent(new Event('input',{bubbles:true}));
+          });
+          assert.ok((await page.$eval('#calOutput',el=>el.value)).includes('"x":-3.8'));
+          await page.select('#calPart','weapon');
+          await page.select('#calWeapon','pistol');
+          await page.$eval('input[data-key="scale"]',el=>{
+            el.value='1.15';el.dispatchEvent(new Event('input',{bubbles:true}));
+          });
+          assert.equal(await page.$eval('#weaponLabel',el=>el.textContent),'Glock 18');
+          const exportValue=JSON.parse(await page.$eval('#calOutput',el=>el.value));
+          assert.equal(exportValue.mount.scale,1.15);
+          await page.click('#calibrationClose');
+          await page.click('#fire');
+          await page.click('#reload');
+          await new Promise(resolve=>setTimeout(resolve,150));
+          assert.ok(await page.$eval('#reload',el=>el.classList.contains('reloading')));
+          assert.deepEqual(errors,[]);
+          console.log('BROWSER PASS: four GameBlock GLBs, Game1 gloves, gestures, reload, inspect, grip sliders.');
+          await browser.close();
+          JS
+      - name: Save temporary QA screenshots on feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/*.png
+          git diff --cached --quiet || (git commit -m "Temporary screenshot review of Game1 grip port" && git push origin HEAD:feat/game1-hands-mechanics)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game1-weapon-qa
+          path: qa/*.png
