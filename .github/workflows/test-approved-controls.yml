@@ -1,0 +1,100 @@
+name: Verify player-approved weapons and controls (temporary)
+on:
+  push:
+    branches: [feat/player-calibration-spread-reload-aim]
+    paths: ['.github/workflows/test-approved-controls.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Ensure original arena and weapon GLBs are intact
+        run: |
+          for f in g18 ak47 knife_ct knife_t; do test -f "public/models/$f.glb"; done
+          test -f src/combat.js
+          test -f src/game1Hands.js
+      - name: Browser dependency
+        run: npm install --no-save puppeteer-core
+      - name: Verify calibration, held-fire aiming and reload animation in browser
+        run: |
+          npm run preview -- --host 127.0.0.1 >/tmp/gameblock-preview.log 2>&1 &
+          sleep 4
+          node --input-type=module <<'JS'
+          import puppeteer from 'puppeteer-core';
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const browser=await puppeteer.launch({
+            executablePath:'/usr/bin/google-chrome',headless:true,
+            args:['--no-sandbox','--disable-dev-shm-usage','--enable-webgl',
+              '--ignore-gpu-blocklist','--use-gl=angle','--use-angle=swiftshader'],
+          });
+          const page=await browser.newPage();
+          await page.setViewport({width:1250,height:510,deviceScaleFactor:1});
+          const errors=[];
+          page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+          await page.goto('http://127.0.0.1:4173/GameBlock/',{waitUntil:'networkidle2',timeout:60000});
+          await page.click('#chooseCT');
+          await new Promise(resolve=>setTimeout(resolve,1050));
+          fs.mkdirSync('qa',{recursive:true});
+          await page.screenshot({path:'qa/pistol-approved.png'});
+          await page.click('#calibrationOpen');
+          const getCal=async()=>JSON.parse(await page.$eval('#calOutput',e=>e.value));
+          let cal=await getCal();
+          assert.equal(cal.weapon,'pistol');
+          assert.equal(cal.mount.ry,180);
+          assert.equal(cal.mount.y,-0.14);
+          assert.equal(cal.hands.R.y,-0.85);
+          assert.equal(cal.hands.L.k,0.55);
+          await page.select('#calWeapon','rifle');
+          cal=await getCal();
+          assert.equal(cal.mount.scale,1.87);
+          assert.equal(cal.hands.R.y,-2.9);
+          assert.equal(cal.hands.L.z,-0.5);
+          await page.select('#calWeapon','knife');
+          cal=await getCal();
+          assert.equal(cal.mount.rz,77);
+          assert.equal(cal.hands.R.x,1.35);
+          assert.equal(cal.hands.L.y,1.5);
+          await page.click('#calibrationClose');
+          await new Promise(resolve=>setTimeout(resolve,750));
+          await page.screenshot({path:'qa/knife-approved.png'});
+          await page.keyboard.press('Digit3');
+          await new Promise(resolve=>setTimeout(resolve,900));
+          await page.screenshot({path:'qa/rifle-approved.png'});
+          await page.keyboard.press('Digit1');
+          await new Promise(resolve=>setTimeout(resolve,1000));
+          const btn=await page.$('#fire'), rect=await btn.boundingBox();
+          await page.mouse.move(rect.x+rect.width/2,rect.y+rect.height/2);
+          await page.mouse.down();
+          await page.mouse.move(rect.x-50,rect.y+rect.height/2,{steps:5});
+          await page.mouse.move(rect.x+20,rect.y-80,{steps:6});
+          await page.mouse.up();
+          await page.click('#reload');
+          await new Promise(resolve=>setTimeout(resolve,500));
+          assert.equal(await page.$eval('#reload',e=>e.classList.contains('reloading')),true);
+          await page.screenshot({path:'qa/reload-lowered.png'});
+          await new Promise(resolve=>setTimeout(resolve,1250));
+          assert.equal(await page.$eval('#reload',e=>e.classList.contains('reloading')),false);
+          assert.deepEqual(errors,[]);
+          console.log('BROWSER PASS: presets, fire drag, reload button, reload lowering, four original GLBs.');
+          await browser.close();
+          JS
+      - name: Save temporary screenshots only on feature branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa/*.png
+          git diff --cached --quiet || (git commit -m "Temporary visual QA for approved weapon presets" && git push origin HEAD:feat/player-calibration-spread-reload-aim)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: approved-weapons-preview
+          path: qa/*.png
