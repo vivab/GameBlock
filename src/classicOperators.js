@@ -98,7 +98,7 @@ export function skinCtMesh(source) {
   const center = rawBounds.getCenter(new THREE.Vector3());
   const normalization = new THREE.Matrix4()
     .makeTranslation(-center.x * scale, -rawBounds.min.y * scale, -center.z * scale)
-    .multiply(new THREE.Matrix4().makeScale(scale));
+    .multiply(new THREE.Matrix4().makeScale(scale, scale, scale));
   const rig = makeCtSkeleton();
   const root = new THREE.Group();
   root.add(rig.armature);
