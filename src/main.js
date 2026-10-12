@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { createSoldier, createViewArms } from './visuals.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
@@ -52,42 +53,78 @@ function arm(parent, from, to, width, color) {
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
   return mesh;
 }
-box(0.145, 0.13, 0.48, 0x30373e, 0, 0.02, -0.13, gun); // slide
-box(0.135, 0.065, 0.37, 0x171c22, 0, -0.067, -0.1, gun); // frame
-const grip = box(0.105, 0.21, 0.13, 0x232a32, 0, -0.16, 0.075, gun);
+const pistolFallback = new THREE.Group(); gun.add(pistolFallback);
+box(0.145, 0.13, 0.48, 0x30373e, 0, 0.02, -0.13, pistolFallback); // slide
+box(0.135, 0.065, 0.37, 0x171c22, 0, -0.067, -0.1, pistolFallback); // frame
+const grip = box(0.105, 0.21, 0.13, 0x232a32, 0, -0.16, 0.075, pistolFallback);
 grip.rotation.x = -0.22;
-box(0.045, 0.047, 0.1, 0x11161a, 0, 0.002, -0.4, gun); // barrel
-box(0.027, 0.025, 0.026, 0x9ea7ac, 0, 0.095, -0.34, gun); // front sight
-for (const x of [-0.042, 0.042]) box(0.018, 0.03, 0.023, 0x15191d, x, 0.1, 0.04, gun);
-box(0.12, 0.125, 0.15, 0xbfa17f, 0.025, -0.14, 0.105, gun);
-box(0.09, 0.115, 0.14, 0xb29373, -0.065, -0.13, 0.08, gun);
-arm(gun, [0.07, -0.2, 0.13], [0.19, -0.35, 0.5], 0.115, 0x344b58);
-arm(gun, [-0.09, -0.18, 0.11], [-0.36, -0.34, 0.48], 0.115, 0x344b58);
-box(0.085, 0.11, 0.24, 0x393b38, 0, -0.05, 0.04, knife);
-const blade = box(0.032, 0.07, 0.5, 0xc3cdd0, 0, 0.01, -0.29, knife);
+box(0.045, 0.047, 0.1, 0x11161a, 0, 0.002, -0.4, pistolFallback); // barrel
+box(0.027, 0.025, 0.026, 0x9ea7ac, 0, 0.095, -0.34, pistolFallback); // front sight
+for (const x of [-0.042, 0.042]) box(0.018, 0.03, 0.023, 0x15191d, x, 0.1, 0.04, pistolFallback);
+box(0.12, 0.125, 0.15, 0xbfa17f, 0.025, -0.14, 0.105, pistolFallback);
+box(0.09, 0.115, 0.14, 0xb29373, -0.065, -0.13, 0.08, pistolFallback);
+arm(pistolFallback, [0.07, -0.2, 0.13], [0.19, -0.35, 0.5], 0.115, 0x344b58);
+arm(pistolFallback, [-0.09, -0.18, 0.11], [-0.36, -0.34, 0.48], 0.115, 0x344b58);
+const knifeFallback = new THREE.Group(); knife.add(knifeFallback);
+box(0.085, 0.11, 0.24, 0x393b38, 0, -0.05, 0.04, knifeFallback);
+const blade = box(0.032, 0.07, 0.5, 0xc3cdd0, 0, 0.01, -0.29, knifeFallback);
 blade.rotation.z = -0.15;
-box(0.15, 0.025, 0.055, 0x889293, 0, -0.01, -0.04, knife);
-box(0.13, 0.13, 0.16, 0xbfa17f, 0.025, -0.085, 0.09, knife);
-arm(knife, [0.06, -0.15, 0.14], [0.18, -0.32, 0.52], 0.12, 0x344b58);
+box(0.15, 0.025, 0.055, 0x889293, 0, -0.01, -0.04, knifeFallback);
+box(0.13, 0.13, 0.16, 0xbfa17f, 0.025, -0.085, 0.09, knifeFallback);
+arm(knifeFallback, [0.06, -0.15, 0.14], [0.18, -0.32, 0.52], 0.12, 0x344b58);
 const muzzle = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.18, 5), new THREE.MeshBasicMaterial({ color: 0xffdc7a }));
 muzzle.rotation.x = -Math.PI / 2; muzzle.position.set(0, 0.005, -0.49); gun.add(muzzle);
-const rifleFallback = box(0.13, 0.11, 0.8, 0x3a4140, 0, 0.02, -0.27, rifle);
-box(0.11, 0.18, 0.18, 0x8e6038, 0, -0.13, 0.03, rifle);
+const rifleFallbackGroup = new THREE.Group(); rifle.add(rifleFallbackGroup);
+const rifleFallback = box(0.13, 0.11, 0.8, 0x3a4140, 0, 0.02, -0.27, rifleFallbackGroup);
+box(0.11, 0.18, 0.18, 0x8e6038, 0, -0.13, 0.03, rifleFallbackGroup);
 const rifleMuzzle = muzzle.clone(); rifleMuzzle.position.z = -0.82; rifle.add(rifleMuzzle);
-for (const [group, length] of [[rifle, 0.47]]) {
+for (const [group, length] of [[rifleFallbackGroup, 0.47]]) {
   arm(group, [0.09, -0.19, 0.12], [0.25, -0.38, 0.47], 0.13, 0x344b58);
   arm(group, [-0.09, -0.12, -0.22], [-0.3, -0.36, 0.42], 0.13, 0x344b58);
   box(0.13, 0.12, 0.16, 0xbfa17f, 0.07, -0.15, length - 0.35, group);
 }
+const pistolArms = createViewArms(gun, 'pistol');
+const rifleArms = createViewArms(rifle, 'rifle');
+const knifeArms = createViewArms(knife, 'knife');
 const loader = new GLTFLoader();
 const assets = {};
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct', t: 't' };
+// Unrigged character GLBs make enormous T-pose wings: use articulated operators instead.
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
 // Models have different native axes and scales. Mount them once in world units;
 // cloned meshes share geometry/texture buffers between the ten fighters.
+// Detect which end of a pistol contains its muzzle by looking for the end
+// without the hanging grip. Align that end to camera forward (-Z).
+function orientPistol(model) {
+  model.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const dims = bounds.getSize(new THREE.Vector3());
+  const axis = dims.x > dims.z ? 'x' : 'z';
+  const min = bounds.min[axis], max = bounds.max[axis];
+  const lower = min + (max - min) * 0.34, upper = max - (max - min) * 0.34;
+  let lowY = 0, highY = 0, lowCount = 0, highCount = 0;
+  const point = new THREE.Vector3();
+  model.traverse(child => {
+    if (!child.isMesh) return;
+    const position = child.geometry?.attributes?.position;
+    if (!position) return;
+    const stride = Math.max(1, Math.ceil(position.count / 1400));
+    for (let i = 0; i < position.count; i += stride) {
+      point.fromBufferAttribute(position, i).applyMatrix4(child.matrixWorld);
+      if (point[axis] < lower) { lowY += point.y; lowCount++; }
+      if (point[axis] > upper) { highY += point.y; highCount++; }
+    }
+  });
+  const positiveMuzzle = highCount && lowCount ? highY / highCount >= lowY / lowCount : true;
+  model.rotation.y = axis === 'x'
+    ? (positiveMuzzle ? Math.PI / 2 : -Math.PI / 2)
+    : (positiveMuzzle ? Math.PI : 0);
+}
 function fittedModel(source, kind, size) {
   const holder = new THREE.Group();
   const model = source.clone(true); holder.add(model);
   if (kind === 'weapon') model.rotation.y = Math.PI / 2;
+  if (kind === 'pistol') orientPistol(model);
+  if (kind === 'knife') model.rotation.y = 0;
   if (kind === 't') model.rotation.x = Math.PI / 2;
   if (kind === 'character' || kind === 't') model.rotation.y = Math.PI;
   model.updateMatrixWorld(true);
@@ -101,72 +138,32 @@ function fittedModel(source, kind, size) {
   if (kind === 'character' || kind === 't') model.position.y -= fitted.min.y - center.y;
   return holder;
 }
-function posedFighter(source, team) {
-  const fitted = fittedModel(source, team === 't' ? 't' : 'character', 1.85);
-  fitted.updateMatrixWorld(true);
-  const posed = new THREE.Group();
-  fitted.traverse(child => {
-    if (!child.isMesh) return;
-    const geometry = child.geometry.clone();
-    const positions = geometry.attributes.position;
-    const point = new THREE.Vector3();
-    for (let i = 0; i < positions.count; i++) {
-      // Bake the original pose, then lower the outstretched arms toward the
-      // weapon. This also handles the CT mesh, which has no skeleton at all.
-      child.getVertexPosition(i, point).applyMatrix4(child.matrixWorld);
-      // Rotate outstretched arms about each shoulder instead of squeezing
-      // their vertices together (the latter produced the notorious "wings").
-      const side = Math.sign(point.x);
-      const shoulderX = side * 0.32, shoulderY = 1.47;
-      const armX = Math.abs(point.x) - 0.32;
-      const armZone = Math.max(0, Math.min(1, (armX - 0.05) / 0.20));
-      const verticalMask = Math.max(0, Math.min(1, (point.y - 0.92) / 0.18, (1.84 - point.y) / 0.18));
-      const blend = armZone * verticalMask;
-      if (blend > 0) {
-        const angle = 1.10; // upper arm goes down rather than straight sideways
-        const newX = shoulderX + side * (armX * Math.cos(angle) - (point.y - shoulderY) * Math.sin(angle));
-        const newY = shoulderY - armX * Math.sin(angle) + (point.y - shoulderY) * Math.cos(angle);
-        point.x += (newX - point.x) * blend;
-        point.y += (newY - point.y) * blend;
-        point.z -= Math.max(0, armX) * 0.42 * blend;
-      }
-      positions.setXYZ(i, point.x, point.y, point.z);
-    }
-    positions.needsUpdate = true; geometry.computeVertexNormals();
-    posed.add(new THREE.Mesh(geometry, child.material));
-  });
-  return posed;
-}
-function attachWeapon(group, asset, length, mount = {}) {
-  const loaded = fittedModel(asset, 'weapon', length);
+function attachWeapon(group, asset, length, mount = {}, kind = 'weapon') {
+  const loaded = fittedModel(asset, kind, length);
   loaded.position.set(mount.x || 0, mount.y || 0, mount.z || -0.18);
   group.add(loaded);
   return loaded;
 }
 function installAsset(key) {
   if (key === 'pistol') {
-    // Keep the hands and muzzle; replace the temporary block gun.
-    for (const child of [...gun.children]) if (child.isMesh && child !== muzzle && child.position.z < 0.08 && child.position.y > -0.1) child.visible = false;
-    attachWeapon(gun, assets.pistol, 0.56, { z: -0.16 });
+    pistolFallback.visible = false;
+    attachWeapon(gun, assets.pistol, 0.57, { z: -0.20, y: 0.01 }, 'pistol');
   } else if (key === 'rifle') {
-    rifleFallback.visible = false;
-    attachWeapon(rifle, assets.rifle, 0.95, { z: -0.27 });
+    rifleFallbackGroup.visible = false;
+    attachWeapon(rifle, assets.rifle, 0.98, { z: -0.31 });
     for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
   } else if (key.startsWith('knife_')) {
     if (match.player?.team === key.slice(6)) mountKnife(key);
-  } else {
-    for (const actor of match.actors) if (actor.team === key && !actor.isPlayer) mountFighter(actor);
   }
 }
 let mountedKnife;
 function mountKnife(key) {
   if (!assets[key]) return;
   if (mountedKnife) knife.remove(mountedKnife);
-  // The fallback blade/handle stays hidden when a supplied model is ready.
-  for (const child of knife.children) if (child.isMesh && child.position.z < 0.08) child.visible = false;
-  mountedKnife = attachWeapon(knife, assets[key], 0.62, { x: 0.05, z: -0.15, y: 0.04 });
-  mountedKnife.rotation.y = Math.PI;
-  mountedKnife.rotation.z = -0.2;
+  knifeFallback.visible = false;
+  mountedKnife = attachWeapon(knife, assets[key], 0.58, { x: 0.035, z: -0.20, y: 0.04 }, 'knife');
+  mountedKnife.rotation.y = 0;
+  mountedKnife.rotation.z = -0.15;
 }
 for (const [key, filename] of Object.entries(assetFiles)) {
   loader.load(`${import.meta.env.BASE_URL}models/${filename}.glb`, result => {
@@ -177,32 +174,18 @@ for (const [key, filename] of Object.entries(assetFiles)) {
 const fighters = new Map();
 function createFighter(actor) {
   const root = new THREE.Group(); scene.add(root);
-  const color = TEAMS[actor.team].color, skin = actor.team === 'ct' ? 0xc0a589 : 0xc5a27b;
-  box(0.43, 0.43, 0.4, skin, 0, 1.62, 0, root);
-  box(0.46, 0.14, 0.43, actor.team === 'ct' ? 0x243e52 : 0x6c6047, 0, 1.8, 0, root);
-  box(0.25, 0.08, 0.025, 0x20262a, 0, 1.65, -0.21, root);
-  box(0.65, 0.62, 0.4, color, 0, 1.05, 0, root);
-  box(0.5, 0.38, 0.13, 0x293b40, 0, 1.07, -0.235, root);
-  box(0.58, 0.25, 0.37, 0x344752, 0, 0.64, 0, root);
-  const legs = [-1, 1].map(sign => box(0.24, 0.55, 0.29, 0x263d49, sign * 0.19, 0.28, 0, root));
-  arm(root, [0.37, 1.25, 0], [0.26, 1.08, -0.48], 0.18, color);
-  arm(root, [-0.37, 1.25, 0], [0.1, 1.1, -0.48], 0.18, color);
-  box(0.15, 0.12, 0.55, 0x20272c, 0.2, 1.15, -0.55, root);
-  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.09, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffd67d }));
-  flash.position.set(0.2, 1.15, -0.88); root.add(flash);
-  const shield = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.025, 4, 20), new THREE.MeshBasicMaterial({ color }));
-  shield.rotation.x = Math.PI / 2; shield.position.y = 0.03; root.add(shield);
-  const health = box(0.65, 0.055, 0.04, color, 0, 2.02, 0, root);
-  fighters.set(actor.id, { root, legs, flash, shield, health, previousX: actor.x, previousZ: actor.z, stride: 0, body: null, botRifle: null });
-  mountFighter(actor); mountBotRifle(actor);
-}
-function mountFighter(actor) {
-  const entry = fighters.get(actor.id), asset = assets[actor.team];
-  if (!entry || !asset || entry.body) return;
-  entry.body = posedFighter(asset, actor.team);
-  entry.root.add(entry.body);
-  // Health bar, spawn ring and muzzle flash remain visible.
-  for (const child of entry.root.children) if (child !== entry.body && child !== entry.botRifle && child !== entry.flash && child !== entry.shield && child !== entry.health) child.visible = false;
+  const soldier = createSoldier(actor.team);
+  root.add(soldier.root);
+  const flash = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5),
+    new THREE.MeshBasicMaterial({ color: 0xffd67d }));
+  flash.position.set(0.04, 1.20, -0.89); root.add(flash);
+  const shield = new THREE.Mesh(new THREE.TorusGeometry(0.65, 0.024, 4, 22),
+    new THREE.MeshBasicMaterial({ color: TEAMS[actor.team].color }));
+  shield.rotation.x = Math.PI / 2; shield.position.y = 0.025; root.add(shield);
+  const health = box(0.62, 0.05, 0.04, TEAMS[actor.team].color, 0, 2.07, 0, root);
+  fighters.set(actor.id, { root, legs: soldier.legs, arms: soldier.arms,
+    flash, shield, health, body: soldier.root, botRifle: null,
+    previousX: actor.x, previousZ: actor.z, stride: 0 });
   mountBotRifle(actor);
 }
 function mountBotRifle(actor) {
@@ -243,6 +226,9 @@ function start(team) {
   marks.length = 0;
   match.start(team);
   selectWeapon('pistol'); mountKnife(`knife_${team}`);
+  const sleeveColor = team === 'ct' ? 0x314b60 : 0x5d6246;
+  for (const rig of [pistolArms, rifleArms, knifeArms])
+    for (const mesh of rig.sleeves) mesh.material.color.setHex(sleeveColor);
   // Models are reused across rounds; the player model is simply hidden.
   for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
@@ -439,7 +425,8 @@ function updateModels(dt) {
       model.body.rotation.z = Math.sin(model.stride * 0.5) * 0.018 * stride;
     }
     model.root.scale.y = actor.crouch ? 0.67 : 1;
-    model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.4 : 0);
+    model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.42 : 0);
+    model.arms.forEach((arm, i) => arm.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.07 : 0);
     model.flash.visible = match.time - actor.lastShotAt < 0.065;
     model.shield.visible = match.time < actor.protectedUntil;
     model.health.scale.x = actor.health / 100;
@@ -527,6 +514,8 @@ function frame(now) {
   const bob = visible && (Math.hypot(move.x, move.y) > 0.1 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key))) ? Math.sin(now * 0.008) * 0.006 : 0;
   const reloadProgress = player?.reloadingUntil && weapon !== 'knife' ? Math.max(0, Math.min(1, 1 - (player.reloadingUntil - match.time) / WEAPONS[weapon].reload)) : -1;
   const reloadPose = reloadProgress >= 0 ? Math.sin(Math.PI * reloadProgress) : 0;
+  if (pistolArms.support) { pistolArms.support.position.y = -reloadPose * 0.14; pistolArms.support.rotation.x = reloadPose * 0.4; }
+  if (rifleArms.support) { rifleArms.support.position.y = -reloadPose * 0.23; rifleArms.support.position.z = reloadPose * 0.16; rifleArms.support.rotation.z = -reloadPose * 0.23; }
   const reloadTilt = reloadProgress >= 0 ? Math.sin(Math.PI * Math.min(1, reloadProgress * 1.8)) : 0;
   const inspectT = visible ? match.time - inspectAt : 10;
   const inspectPose = inspectT >= 0 && inspectT < 1.9 ? Math.sin(Math.PI * inspectT / 1.9) : 0;
