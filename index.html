@@ -51,7 +51,7 @@
     #controls #weaponToggle { right: 190px; bottom: 28px; width: 54px; height: 54px; background: #233747eb; font-size: 25px; }
     #weaponWheel { position: absolute; right: 110px; bottom: 82px; width: 210px; height: 210px; border-radius: 50%; background: #15242ff2; border: 2px solid #ffffff77; display: none; pointer-events: auto; box-shadow: 0 4px 24px #0009; }
     #weaponWheel.open { display: block; }
-    #controls #weaponWheel button { width: 62px; height: 62px; font-size: 28px; }
+    #controls #weaponWheel button { width: 62px; height: 62px; font-size: 16px; letter-spacing: .03em; }
     #choosePistol { left: 10px; top: 73px; }
     #chooseKnife { right: 10px; top: 73px; }
     #chooseRifle { left: 73px; bottom: 8px; }
@@ -146,7 +146,7 @@
       <button id="crouch" aria-label="Присесть"><svg viewBox="0 0 32 32"><circle cx="18" cy="7" r="3"/><path d="M17 12l-5 7 8 2 4 7M13 19l-8 5M20 21l-8 7"/></svg></button>
       <div id="weaponLabel">Пистолет</div>
       <button id="weaponToggle" aria-label="Выбрать оружие">◉</button>
-      <div id="weaponWheel"><div id="bombSlot" aria-label="Место для бомбы, пока пусто">◇</div><button id="choosePistol" aria-label="Пистолет Glock 18">🔫</button><button id="chooseKnife" aria-label="Нож">🔪</button><button id="chooseRifle" aria-label="Автомат AK-47">▰</button><button id="inspectWeapon" aria-label="Осмотреть оружие">↻</button></div>
+      <div id="weaponWheel"><div id="bombSlot" aria-label="Место для бомбы, пока пусто">◇</div><button id="choosePistol" aria-label="Пистолет Glock 18">G18</button><button id="chooseKnife" aria-label="Нож">НОЖ</button><button id="chooseRifle" aria-label="Автомат AK-47">AK</button><button id="inspectWeapon" aria-label="Осмотреть оружие">↻</button></div>
       <button id="reload" aria-label="Перезарядить"><svg viewBox="0 0 32 32"><path d="M26 13A11 11 0 1 0 27 20M26 5v8h-8"/></svg></button>
     </div>
     <div id="deathNotice" role="status" hidden><strong>Ты погиб</strong>Возрождение на базе через <b id="respawnTimer">3</b> с<small>После возрождения — короткая защита</small></div>

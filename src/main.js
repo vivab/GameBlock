@@ -89,6 +89,7 @@ function fittedModel(source, kind, size) {
   const model = source.clone(true); holder.add(model);
   if (kind === 'weapon') model.rotation.y = Math.PI / 2;
   if (kind === 't') model.rotation.x = Math.PI / 2;
+  if (kind === 'character' || kind === 't') model.rotation.y = Math.PI;
   model.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(model);
   const dims = bounds.getSize(new THREE.Vector3());
@@ -99,6 +100,33 @@ function fittedModel(source, kind, size) {
   model.position.sub(center);
   if (kind === 'character' || kind === 't') model.position.y -= fitted.min.y - center.y;
   return holder;
+}
+function posedFighter(source, team) {
+  const fitted = fittedModel(source, team === 't' ? 't' : 'character', 1.85);
+  fitted.updateMatrixWorld(true);
+  const posed = new THREE.Group();
+  fitted.traverse(child => {
+    if (!child.isMesh) return;
+    const geometry = child.geometry.clone();
+    const positions = geometry.attributes.position;
+    const point = new THREE.Vector3();
+    for (let i = 0; i < positions.count; i++) {
+      // Bake the original pose, then lower the outstretched arms toward the
+      // weapon. This also handles the CT mesh, which has no skeleton at all.
+      child.getVertexPosition(i, point).applyMatrix4(child.matrixWorld);
+      const reach = point.y > 1.04 && point.y < 1.7
+        ? Math.min(1, Math.max(0, (Math.abs(point.x) - 0.38) / 0.55)) : 0;
+      if (reach) {
+        point.x = Math.sign(point.x) * (Math.abs(point.x) - reach * 0.68);
+        point.y -= reach * 0.42;
+        point.z -= reach * 0.55;
+      }
+      positions.setXYZ(i, point.x, point.y, point.z);
+    }
+    positions.needsUpdate = true; geometry.computeVertexNormals();
+    posed.add(new THREE.Mesh(geometry, child.material));
+  });
+  return posed;
 }
 function attachWeapon(group, asset, length, mount = {}) {
   const loaded = fittedModel(asset, 'weapon', length);
@@ -114,6 +142,7 @@ function installAsset(key) {
   } else if (key === 'rifle') {
     rifleFallback.visible = false;
     attachWeapon(rifle, assets.rifle, 0.95, { z: -0.27 });
+    for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
   } else if (key.startsWith('knife_')) {
     if (match.player?.team === key.slice(6)) mountKnife(key);
   } else {
@@ -126,7 +155,8 @@ function mountKnife(key) {
   if (mountedKnife) knife.remove(mountedKnife);
   // The fallback blade/handle stays hidden when a supplied model is ready.
   for (const child of knife.children) if (child.isMesh && child.position.z < 0.08) child.visible = false;
-  mountedKnife = attachWeapon(knife, assets[key], 0.62, { z: -0.23, y: 0.03 });
+  mountedKnife = attachWeapon(knife, assets[key], 0.62, { x: 0.05, z: -0.15, y: 0.04 });
+  mountedKnife.rotation.y = Math.PI;
   mountedKnife.rotation.z = -0.2;
 }
 for (const [key, filename] of Object.entries(assetFiles)) {
@@ -154,16 +184,22 @@ function createFighter(actor) {
   const shield = new THREE.Mesh(new THREE.TorusGeometry(0.68, 0.025, 4, 20), new THREE.MeshBasicMaterial({ color }));
   shield.rotation.x = Math.PI / 2; shield.position.y = 0.03; root.add(shield);
   const health = box(0.65, 0.055, 0.04, color, 0, 2.02, 0, root);
-  fighters.set(actor.id, { root, legs, flash, shield, health, previousX: actor.x, previousZ: actor.z, stride: 0, body: null });
-  mountFighter(actor);
+  fighters.set(actor.id, { root, legs, flash, shield, health, previousX: actor.x, previousZ: actor.z, stride: 0, body: null, botRifle: null });
+  mountFighter(actor); mountBotRifle(actor);
 }
 function mountFighter(actor) {
   const entry = fighters.get(actor.id), asset = assets[actor.team];
   if (!entry || !asset || entry.body) return;
-  entry.body = fittedModel(asset, actor.team === 't' ? 't' : 'character', 1.85);
+  entry.body = posedFighter(asset, actor.team);
   entry.root.add(entry.body);
   // Health bar, spawn ring and muzzle flash remain visible.
-  for (const child of entry.root.children) if (child !== entry.body && child !== entry.flash && child !== entry.shield && child !== entry.health) child.visible = false;
+  for (const child of entry.root.children) if (child !== entry.body && child !== entry.botRifle && child !== entry.flash && child !== entry.shield && child !== entry.health) child.visible = false;
+  mountBotRifle(actor);
+}
+function mountBotRifle(actor) {
+  const entry = fighters.get(actor.id);
+  if (!entry || !assets.rifle || entry.botRifle || actor.isPlayer) return;
+  entry.botRifle = attachWeapon(entry.root, assets.rifle, 0.62, { x: 0.08, y: 1.16, z: -0.53 });
 }
 
 const $ = id => document.getElementById(id);
