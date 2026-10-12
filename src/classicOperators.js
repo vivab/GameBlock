@@ -269,6 +269,34 @@ export function buildClassicOperator(gltf, team) {
   return { root, mode: 'native', rig: poseNative(loaded) };
 }
 
+// The same AK GLB already used by the owner's first-person hands. In third
+// person it receives its own independent object, shared textures/geometry,
+// with the barrel pointing toward the combat actor's -Z forward direction.
+export function buildThirdPersonRifle(source) {
+  if (!source) throw new Error('AK model missing');
+  const mesh = source.clone(true);
+  const initial = new THREE.Box3().setFromObject(mesh);
+  if (initial.isEmpty()) throw new Error('AK model is empty');
+  const dims = initial.getSize(new THREE.Vector3());
+  if (dims.x > dims.y && dims.x > dims.z) mesh.rotation.y = Math.PI / 2;
+  else if (dims.y > dims.z) mesh.rotation.x = -Math.PI / 2;
+  else mesh.rotation.y = Math.PI;
+  mesh.updateMatrixWorld(true);
+  const aligned = new THREE.Box3().setFromObject(mesh);
+  const length = aligned.getSize(new THREE.Vector3()).z;
+  if (!(length > 0.001)) throw new Error('AK barrel axis was not determined');
+  mesh.scale.multiplyScalar(0.78 / length);
+  mesh.updateMatrixWorld(true);
+  const centered = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+  mesh.position.sub(centered);
+  const mount = new THREE.Group();
+  mount.name = 'Bot AK-47';
+  // Receivers sit near the hands, while the barrel points away from the torso.
+  mount.position.set(0.015, 1.20, -0.52);
+  mount.add(mesh);
+  return mount;
+}
+
 // Native bones use their original local bind quaternions. Apply a rotation
 // expressed in soldier-local 3D axes, transformed through the parent;
 // no vertex-level T-pose edits, and no shared skeletons between bots.
@@ -298,9 +326,11 @@ export function animateClassicOperator(model, actor, time, dt, movement) {
     // Native bone skinning computed by Three.js GPU, no per-frame vertices.
     for (let i = 0; i < 2; i++) {
       const sign = i === 0 ? 1 : -1;
-      rig.upperArms[i].rotation.set(0, sign * 0.64,
-        -sign * (1.37 + (fire ? 0.08 : 0)));
-      rig.forearms[i].rotation.set(0, 0, sign * 1.05);
+      // Aim both elbows forward and bring wrists together around the gun,
+      // rather than leaving classic GLB arms spread in an A/T pose.
+      rig.upperArms[i].rotation.set(0, sign * (0.95 + (fire ? -0.03 : 0)),
+        -sign * 0.51);
+      rig.forearms[i].rotation.set(0, sign * 0.95, -sign * (0.06 + (fire ? 0.13 : 0)));
       rig.thighs[i].rotation.set(stride * (i === 0 ? 0.45 : -0.45) * walk, 0, 0);
       rig.calves[i].rotation.set(Math.max(0, -stride * (i === 0 ? 1 : -1)) * 0.24 * walk, 0, 0);
     }
