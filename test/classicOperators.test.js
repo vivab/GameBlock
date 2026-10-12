@@ -47,9 +47,11 @@ test('static GIGN becomes real GPU skinned meshes, with intact geometry and mate
   assert.ok(m.geometry.getAttribute('skinIndex'));
   assert.ok(m.geometry.getAttribute('skinWeight'));
   assert.equal(m.skeleton.bones.length, 10);
-  const limits = new THREE.Box3().setFromObject(model.root);
-  assert.ok(limits.getSize(new THREE.Vector3()).y > 1.75);
-  assert.ok(limits.getSize(new THREE.Vector3()).y < 1.96);
+  // Geometry contains upright rest-pose coordinates. Three.js Box3's CPU
+  // skinning bounds are not guaranteed until bone matrices have been updated.
+  m.geometry.computeBoundingBox();
+  const size = m.geometry.boundingBox.getSize(new THREE.Vector3());
+  assert.ok(size.y > 1.75 && size.y < 1.96, 'Incorrect GIGN rest-pose height: '+size.y);
   const actor = { lastShotAt: -100, crouch: false };
   animateClassicOperator(model, actor, 0.4, 0.016, 2.5);
   assert.ok(Math.abs(model.rig.upperArms[0].rotation.z) > 0.3);
