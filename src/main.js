@@ -92,6 +92,8 @@ const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = 
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
 let recoil = 0, shots = 0, lastPlayerShot = -10, hitTimer = 0, finishShown = false, inspectAt = -10, swingAt = -10;
+let game1Burst = 0;
+const GAME1_SPREAD = { base: 0.004, move: 0.014, air: 0.05, crouch: 0.5, perShot: 0.005, max: 0.04, recover: 0.03 };
 let wheelPointer = null, wheelChoice = null, wheelWasOpen = false;
 const direction = new THREE.Vector3();
 const marks = [], tracers = [];
@@ -106,13 +108,14 @@ function selectWeapon(name) {
   if (!['pistol', 'rifle', 'knife'].includes(name)) return;
   if (match.player) match.equip(match.player, name);
   weapon = name; recoil = 0; firing = false; inspectAt = -10;
+  views[name].draw(performance.now() / 1000); // Game1 draw animation on every switch
   $('weaponLabel').textContent = { pistol: 'Glock 18', rifle: 'AK-47', knife: 'Нож' }[name];
   $('weaponWheel').classList.remove('open');
 }
 function inspect() { if (canControl()) { firing = false; inspectAt = match.time; $('weaponWheel').classList.remove('open'); } }
 function start(team) {
   resetInputs();
-  recoil = 0; shots = 0; lastPlayerShot = -10; finishShown = false;
+  recoil = 0; shots = 0; game1Burst = 0; lastPlayerShot = -10; finishShown = false;
   for (const tracer of tracers) { scene.remove(tracer.mesh); tracer.mesh.geometry.dispose(); tracer.mesh.material.dispose(); }
   tracers.length = 0;
   for (const mark of marks) scene.remove(mark.mesh);
@@ -259,12 +262,20 @@ function shoot() {
   const player = match.player;
   const moving = Math.hypot(move.x, move.y) > 0.15 || ['KeyW', 'KeyA', 'KeyS', 'KeyD'].some(key => keys.has(key));
   const crouched = player.crouch || keys.has('ControlLeft');
-  const spread = (!player.ground ? 0.042 : moving ? 0.024 : crouched ? 0.0035 : 0.009) * (weapon === 'rifle' ? 1.2 : 0.72);
+  // Ported from Game1: accuracy depends on movement, jumping, crouch and
+  // accumulated recoil; standing still gradually recovers accuracy.
+  game1Burst = Math.max(0, game1Burst - Math.max(0, match.time - lastPlayerShot) * GAME1_SPREAD.recover);
+  let spread = GAME1_SPREAD.base + game1Burst + (moving ? GAME1_SPREAD.move : 0) +
+    (!player.ground ? GAME1_SPREAD.air : 0);
+  if (crouched) spread *= GAME1_SPREAD.crouch;
+  if (weapon === 'pistol') spread *= 0.78;
   direction.set((Math.random() - 0.5) * spread * 2, (Math.random() - 0.5) * spread * 2, -1);
   if (weapon === 'knife') direction.set(0, 0, -1);
   direction.normalize().applyQuaternion(camera.quaternion);
   const hit = match.fire(player, direction, weapon === 'knife');
   if (!hit) return;
+  views[weapon].fire(); // Game1 weapon kick and animated muzzle flash
+  if (weapon !== 'knife') game1Burst = Math.min(GAME1_SPREAD.max, game1Burst + GAME1_SPREAD.perShot);
   inspectAt = -10;
   if (weapon === 'knife') { recoil = 0.14; swingAt = match.time; }
   else {
@@ -400,7 +411,7 @@ function frame(now) {
       1 - (player.reloadingUntil - match.time) / WEAPONS[weapon].reload)) : -1;
   for (const view of Object.values(views)) view.root.visible = visible && current === view;
   if (visible) current.animate({
-    time: now, right: camera.aspect < 1 ? 0.13 : 0.27, moving, recoil,
+    time: now, aspect: camera.aspect, moving, recoil,
     inspectTime: match.time - inspectAt,
     reloadProgress, slashTime: match.time - swingAt,
     firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
