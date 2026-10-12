@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createSoldier, createViewArms } from './visuals.js';
+import { buildAnimatedOperator } from './riggedActors.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
@@ -89,7 +90,7 @@ const knifeArms = createViewArms(knife, 'knife');
 const loader = new GLTFLoader();
 const assets = {};
 // Unrigged character GLBs make enormous T-pose wings: use articulated operators instead.
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
+const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t', ct: 'ct_swat', t: 't_hoodie' };
 // Models have different native axes and scales. Mount them once in world units;
 // cloned meshes share geometry/texture buffers between the ten fighters.
 // Detect which end of a pistol contains its muzzle by looking for the end
@@ -154,6 +155,8 @@ function installAsset(key) {
     for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
   } else if (key.startsWith('knife_')) {
     if (match.player?.team === key.slice(6)) mountKnife(key);
+  } else if (key === 'ct' || key === 't') {
+    for (const actor of match.actors) if (actor.team === key && !actor.isPlayer) mountFighter(actor);
   }
 }
 let mountedKnife;
@@ -167,7 +170,8 @@ function mountKnife(key) {
 }
 for (const [key, filename] of Object.entries(assetFiles)) {
   loader.load(`${import.meta.env.BASE_URL}models/${filename}.glb`, result => {
-    assets[key] = result.scene; installAsset(key);
+    assets[key] = (key === 'ct' || key === 't') ? result : result.scene;
+    installAsset(key);
   }, undefined, error => console.warn(`Не удалось загрузить ${filename}.glb`, error));
 }
 
@@ -184,9 +188,22 @@ function createFighter(actor) {
   shield.rotation.x = Math.PI / 2; shield.position.y = 0.025; root.add(shield);
   const health = box(0.62, 0.05, 0.04, TEAMS[actor.team].color, 0, 2.07, 0, root);
   fighters.set(actor.id, { root, legs: soldier.legs, arms: soldier.arms,
-    flash, shield, health, body: soldier.root, botRifle: null,
-    previousX: actor.x, previousZ: actor.z, stride: 0 });
+    flash, shield, health, body: soldier.root, fallbackBody: soldier.root,
+    animated: null, botRifle: null, previousX: actor.x, previousZ: actor.z, stride: 0 });
+  mountFighter(actor);
   mountBotRifle(actor);
+}
+function mountFighter(actor) {
+  const entry = fighters.get(actor.id);
+  if (!entry || actor.isPlayer || !assets[actor.team] || entry.animated) return;
+  try {
+    entry.animated = buildAnimatedOperator(assets[actor.team], actor.team);
+    entry.fallbackBody.visible = false;
+    entry.body = entry.animated.root;
+    entry.root.add(entry.body);
+  } catch (error) {
+    console.warn(`Could not mount ${actor.team} operator`, error);
+  }
 }
 function mountBotRifle(actor) {
   const entry = fighters.get(actor.id);
@@ -419,14 +436,17 @@ function updateModels(dt) {
     model.stride += Math.min(travelled, dt * 4) * 9;
     model.previousX = actor.x; model.previousZ = actor.z;
     model.root.position.set(actor.x, actor.y, actor.z); model.root.rotation.y = actor.yaw;
-    if (model.body) {
+    if (model.animated) {
+      const velocity = travelled / Math.max(0.01, dt);
+      model.animated.update(dt, velocity, match.time - actor.lastShotAt < 0.22);
+    } else {
       const stride = Math.min(1, travelled / Math.max(0.001, dt * 2.7));
       model.body.position.y = Math.abs(Math.sin(model.stride)) * 0.025 * stride;
       model.body.rotation.z = Math.sin(model.stride * 0.5) * 0.018 * stride;
+      model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.42 : 0);
+      model.arms.forEach((arm, i) => arm.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.07 : 0);
     }
     model.root.scale.y = actor.crouch ? 0.67 : 1;
-    model.legs.forEach((leg, i) => leg.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.42 : 0);
-    model.arms.forEach((arm, i) => arm.rotation.x = travelled > 0.001 ? Math.sin(model.stride + i * Math.PI) * 0.07 : 0);
     model.flash.visible = match.time - actor.lastShotAt < 0.065;
     model.shield.visible = match.time < actor.protectedUntil;
     model.health.scale.x = actor.health / 100;
