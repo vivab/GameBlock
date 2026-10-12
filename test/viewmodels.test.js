@@ -173,6 +173,7 @@ test('knife inspect pivots only wrist, with blade and fingers together and forea
       assert.equal(knife.modelMount.parent.parent,hand.parent);
     }
     knife.animate({time:5100,inspectTime:-1});
+    knife.root.updateMatrixWorld(true);
     assert.ok(Math.abs(knife.knifeWrist.rotation.z-pivotBase.z)<1e-9);
     assert.ok(hand.matrixWorld.equals(baselineHand));
   }
