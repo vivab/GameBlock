@@ -16,6 +16,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: echo 'Checking re-calibrated first-person weapon mounts'
       - name: Verify all unwanted character models are absent
         run: |
           test ! -e public/models/ct_swat.glb
