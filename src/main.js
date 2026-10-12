@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
-import { buildClassicOperator, animateClassicOperator } from './classicOperators.js';
+import { buildClassicOperator, animateClassicOperator, buildThirdPersonRifle } from './classicOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
@@ -65,8 +65,10 @@ function mountKnife(key) {
 for (const [key, filename] of Object.entries(assetFiles)) {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
     assets[key] = (key === 'ct' || key === 't') ? result : result.scene;
-    if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-    else if (key === 'ct' || key === 't') {
+    if (key === 'pistol' || key === 'rifle') {
+      views[key].setModel(result.scene);
+      if (key === 'rifle') for (const actor of match.actors) if (!actor.isPlayer) mountBotRifle(actor);
+    } else if (key === 'ct' || key === 't') {
       for (const actor of match.actors) if (!actor.isPlayer && actor.team === key) mountClassicFighter(actor);
     } else if (match.player?.team === key.slice(6)) mountKnife(key);
   }, undefined, error => console.warn('Не удалось загрузить ' + filename + '.glb', error));
@@ -91,7 +93,7 @@ function createFighter(actor) {
     new THREE.MeshBasicMaterial({ color }));
   marker.position.y = 2.12; root.add(marker);
   fighters.set(actor.id, {
-    root, fallback, marker, animated: null, lastX: actor.x, lastZ: actor.z,
+    root, fallback, marker, animated: null, gun: null, lastX: actor.x, lastZ: actor.z,
   });
   mountClassicFighter(actor);
 }
@@ -103,9 +105,21 @@ function mountClassicFighter(actor) {
     entry.animated = model;
     entry.fallback.visible = false;
     entry.root.add(model.root);
+    mountBotRifle(actor);
   } catch (error) {
     // Fail safely: never hide an invisible enemy if a malformed GLB is provided.
     console.warn('Cannot rig ' + actor.team + ' fighter', error);
+  }
+}
+
+function mountBotRifle(actor) {
+  const entry = fighters.get(actor.id);
+  if (!entry || !entry.animated || !assets.rifle || entry.gun) return;
+  try {
+    entry.gun = buildThirdPersonRifle(assets.rifle);
+    entry.animated.root.add(entry.gun);
+  } catch (error) {
+    console.warn('Cannot equip bot AK-47', error);
   }
 }
 
