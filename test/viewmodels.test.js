@@ -56,8 +56,8 @@ test('weapons, right glove and left glove stay under a shared animated transform
   rifle.animate({time:12110,reloadProgress:0.5});
   assert.ok(rifle.root.position.y < idleY-0.35,
     'gun and both gloves should lower together while reloading');
-  assert.ok(left.position.distanceTo(base)<1e-8,
-    'support glove must stay attached to the weapon during reload');
+  assert.ok(left.position.distanceTo(base)>0.05,
+    'support glove should reach for the magazine during reload');
   rifle.animate({time:12200,reloadProgress:-1});
   assert.ok(Math.abs(rifle.root.position.y-idleY)<1e-8,
     'weapon must return to its original height after reloading');
@@ -136,10 +136,13 @@ test('reload pose is down through the middle, easing at both ends, with no hand 
     for(const progress of [0.25,0.5,0.75]){
       rig.animate({time:2000+progress*1000,reloadProgress:progress});
       assert.ok(rig.root.position.y<=baseline.y-0.4);
-      assert.ok(rig.arms.left.position.distanceTo(left)<1e-8);
+      assert.ok(rig.arms.left.position.distanceTo(left)>0.02,
+      'support glove should animate toward the magazine');
       assert.ok(rig.arms.right.position.distanceTo(right)<1e-8);
     }
     rig.animate({time:3100,reloadProgress:1});
+    assert.ok(rig.arms.left.position.distanceTo(left)<1e-8,
+      'support glove returns to the calibrated grip');
     assert.ok(rig.root.position.distanceTo(baseline)<1e-8);
   }
 });

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { makeHand } from './game1Hands.js';
 import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 
@@ -99,6 +100,9 @@ export function createWeaponView(kind) {
   } else animated.add(modelMount);
   const staticHolder = new THREE.Group(); root.add(staticHolder);
   const handGroup = new THREE.Group(); animated.add(handGroup);
+  const importedHandsMount = new THREE.Group(); animated.add(importedHandsMount);
+  importedHandsMount.visible = false;
+  let importedHands = null, importedBones = null, importedRest = null;
   const arms = { group: handGroup, left: new THREE.Group(), right: new THREE.Group() };
   handGroup.add(arms.right);
   (kind === 'knife' ? staticHolder : handGroup).add(arms.left);
@@ -148,9 +152,62 @@ export function createWeaponView(kind) {
   updateMount();
   updateHand('R',true); updateHand('L',true);
 
+  // The knife blade lives under the legacy wrist pivot. Hide only the
+  // procedural glove polygons, never their child weapon model.
+  function showKnifeProceduralGlove(show) {
+    if (kind !== 'knife') return;
+    const rig = arms.right.userData.mesh;
+    rig?.traverse(node => {
+      if (!node.isMesh) return;
+      let ancestor = node;
+      while (ancestor && ancestor !== rig) {
+        if (ancestor === modelMount) return;
+        ancestor = ancestor.parent;
+      }
+      node.visible = show;
+    });
+  }
   let kick=0,lastNow=null;
   const view = {
-    kind, root, animated, arms, modelMount, muzzle, knifeWrist,
+    kind, root, animated, arms, modelMount, muzzle, knifeWrist, importedHandsMount,
+    get usesImportedHands() { return !!importedHands; },
+    setHands(gltfScene) {
+      if (importedHands) importedHandsMount.remove(importedHands);
+      importedHands = null; importedBones = importedRest = null;
+      if (!gltfScene) {
+        importedHandsMount.visible = false;
+        handGroup.visible = true; staticHolder.visible = true;
+        showKnifeProceduralGlove(true);
+        return false;
+      }
+      const model = cloneSkinned(gltfScene);
+      const bounds = new THREE.Box3().setFromObject(model);
+      const size = bounds.getSize(new THREE.Vector3());
+      if (!Number.isFinite(size.x) || Math.max(size.x, size.y, size.z) < 0.001) return false;
+      // Keep the original Source hand skeleton intact. Position/scale its
+      // entire rig, not the SkinnedMesh, so the skin bind matrices remain valid.
+      const factor = 0.82 / Math.max(size.x, size.z, 0.001);
+      model.scale.setScalar(factor);
+      const middle = bounds.getCenter(new THREE.Vector3());
+      model.position.set(-middle.x * factor, -middle.y * factor, -middle.z * factor);
+      importedHandsMount.position.set(kind === 'rifle' ? 0 : -0.035, -0.28, 0.11);
+      importedHandsMount.rotation.set(-0.15, 0, 0);
+      importedHandsMount.add(model);
+      importedHands = model;
+      importedHandsMount.visible = true;
+      handGroup.visible = kind === 'knife'; // preserve the knife wrist/model
+      staticHolder.visible = false;
+      showKnifeProceduralGlove(false);
+      importedBones = { left: null, right: null };
+      model.traverse(object => {
+        if (!object.isBone) return;
+        if (/Left_Arm_/i.test(object.name)) importedBones.left = object;
+        if (/Right_Arm_/i.test(object.name)) importedBones.right = object;
+      });
+      importedRest = Object.fromEntries(Object.entries(importedBones)
+        .map(([side, bone]) => [side, bone?.quaternion.clone() || null]));
+      return true;
+    },
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
     setModel(gltfScene) {
@@ -162,6 +219,7 @@ export function createWeaponView(kind) {
       if (team===side)return;
       team=side;
       updateHand('R',true); updateHand('L',true);
+      if (importedHands) showKnifeProceduralGlove(false);
     },
     calibrate(config={}) {
       for(const k of ['x','y','z','rx','ry','rz','scale']){
@@ -217,12 +275,23 @@ export function createWeaponView(kind) {
         if(kind==='knife')kw=sample(KF.knife,inspectTime);
         else add(sample(KF[kind==='rifle'?'heavy':'pistol'],inspectTime));
       }
-      // Reload deliberately has no magazine manipulation: lower the complete
-      // hand+weapon rig, hold it briefly, then bring it back up together.
-      // No independent left-hand motion that could break the calibrated grip.
-      const reloadDip = kind !== 'knife' && reloadProgress >= 0 && reloadProgress < 1
-        ? Math.max(0, Math.min(1, reloadProgress / 0.2, (1 - reloadProgress) / 0.2))
-        : 0;
+      // Source-inspired reload choreography: support hand releases its grip,
+      // travels to the magazine, pulls it down, seats a fresh one and returns.
+      // Curves are eased to prevent sharp transitions on mobile frame rates.
+      const smooth = v => { const t=clamp(v,0,1); return t*t*(3-2*t); };
+      const pulse = (p,a,b,c,d) => smooth((p-a)/(b-a))*(1-smooth((p-c)/(d-c)));
+      const reloading = kind !== 'knife' && reloadProgress >= 0 && reloadProgress < 1;
+      const p = reloading ? reloadProgress : -1;
+      const reloadDip = reloading ? pulse(p,0,0.15,0.79,1) : 0;
+      const magReach = reloading ? pulse(p,0.08,0.24,0.64,0.82) : 0;
+      const magPull = reloading ? pulse(p,0.23,0.34,0.47,0.60) : 0;
+      const boltPull = reloading && kind === 'rifle' ? pulse(p,0.76,0.84,0.89,0.98) : 0;
+      if(reloading) {
+        move[3] -= reloadDip*(kind==='rifle'?0.13:0.20);
+        move[4] += reloadDip*(kind==='rifle'?0.12:0.18);
+        move[5] += reloadDip*(kind==='rifle'?0.11:0.16);
+        move[2] += boltPull*0.055;
+      }
       if(kind!=='knife') {
         const k=KICK[kind];
         move[2]+=k[0]*kick+recoil*0.45;
@@ -269,7 +338,39 @@ export function createWeaponView(kind) {
       if(leftBase){
         arms.left.position.copy(leftBase);
         arms.left.rotation.set(poses.L.pitch*DEG,poses.L.yaw*DEG,poses.L.roll*DEG,'YXZ');
-        // The supporting hand stays locked to the weapon during reload.
+        // Support-hand key poses are relative to the calibrated neutral grip.
+        // On pistol reload the free hand comes in from below; on AK it grabs
+        // the magazine, pulls down and reaches toward the charging handle.
+        if(kind==='rifle') {
+          arms.left.position.x += magReach*0.075 + boltPull*0.12;
+          arms.left.position.y -= magReach*0.11 + magPull*0.17 - boltPull*0.07;
+          arms.left.position.z += magReach*0.17 - boltPull*0.12;
+          arms.left.rotation.x += magReach*0.42 - boltPull*0.35;
+          arms.left.rotation.z -= magReach*0.34;
+        } else if(kind==='pistol') {
+          arms.left.position.x += magReach*0.095;
+          arms.left.position.y -= magReach*0.16 + magPull*0.10;
+          arms.left.position.z -= magReach*0.14;
+          arms.left.rotation.x += magReach*0.30;
+          arms.left.rotation.z -= magReach*0.35;
+        }
+      }
+      if (importedBones && importedRest) {
+        // A small Source-style wrist action; the real model bones animate,
+        // rather than only sliding the entire imported hand mesh around.
+        const left = importedBones.left, right = importedBones.right;
+        if (left && importedRest.left) {
+          left.quaternion.copy(importedRest.left);
+          left.quaternion.multiply(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(-magReach * 0.45 + boltPull * 0.30, magReach * 0.23, -magPull * 0.25)));
+        }
+        if (right && importedRest.right) {
+          right.quaternion.copy(importedRest.right);
+          right.quaternion.multiply(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(kind === 'knife' ? (knifeWrist?.rotation.x || 0) : -reloadDip * 0.10,
+              kind === 'knife' ? (knifeWrist?.rotation.y || 0) : 0,
+              kind === 'knife' ? (knifeWrist?.rotation.z || 0) : kick * 0.025)));
+        }
       }
       muzzle.visible=visible&&kind!=='knife'&&firing;
     }
