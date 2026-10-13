@@ -481,17 +481,23 @@ export function createWeaponView(kind) {
           kind === 'knife' ? 0.20 : 0.09,
           -0.26 - reloadDip*0.045,
           kind === 'rifle' ? -0.14 : -0.12
-        );
-        const leftGrip = kind === 'rifle'
+        ).add(new THREE.Vector3(sourceGrip.R.x,sourceGrip.R.y,sourceGrip.R.z));
+        const leftGrip = (kind === 'rifle'
           ? new THREE.Vector3(-0.11, -0.27 - magReach*0.15 - magPull*0.10,
             -0.19 + magReach*0.16 - boltPull*0.13)
           : kind === 'pistol'
             ? new THREE.Vector3(-0.18, -0.58 + magReach*0.26,
               -0.08 - magReach*0.21)
-            : new THREE.Vector3(-0.25, -0.58, 0.02);
+            : new THREE.Vector3(-0.25, -0.58, 0.02))
+          .add(new THREE.Vector3(sourceGrip.L.x,sourceGrip.L.y,sourceGrip.L.z));
         // The receiver and both wrists move together under 'animated'.
         aimArm('right', rightGrip);
         aimArm('left', leftGrip);
+        importedBones.rightHand.quaternion.multiply(
+          new THREE.Quaternion().setFromAxisAngle(fingerAxis, sourceGrip.R.roll*DEG));
+        importedBones.leftHand.quaternion.multiply(
+          new THREE.Quaternion().setFromAxisAngle(fingerAxis, sourceGrip.L.roll*DEG));
+        poseSourceFingers();
         if (kind === 'knife') {
           importedBones.rightHand.quaternion.multiply(
             new THREE.Quaternion().setFromEuler(new THREE.Euler(
