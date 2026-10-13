@@ -4,6 +4,7 @@ import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildBlockOperator, animateBlockOperator } from './blockOperators.js';
+import { createImportedOperator, animateImportedOperator } from './importedOperators.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
@@ -42,9 +43,8 @@ for (const team of Object.values(TEAMS)) {
   box(1.6, 0.8, 0.06, team.color, 0.8, 0.75, 0, pole);
 }
 
-// Independent near-camera viewmodel: meshes never collide with the arena or
-// drift apart during animation. Enemy characters are temporarily represented
-// only by simple hitbox indicators, NOT by imported CT/T character models.
+// Independent near-camera viewmodel: meshes never collide with the arena.
+// Imported skinned CT/T agents and Source hands are loaded before the match.
 const viewScene = new THREE.Scene();
 const viewCamera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.01, 4);
 viewScene.add(viewCamera);
@@ -59,16 +59,28 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// Only weapon files need the network. Characters are generated locally.
-const assetFiles = { pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t' };
+// All 3D assets preload in the match loading screen; lightweight block
+// operators/procedural hands remain safe fallbacks when files are unavailable.
+const assetFiles = {
+  pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t',
+  operator_ct: 'operator_ct', operator_t: 'operator_t', hands: 'viewmodel_hands'
+};
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
-    assets[key] = result.scene;
-    assetStatus[key] = 'ready'; assetProgress[key] = 1;
-    if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-    else if (match.player?.team === key.slice(6)) mountKnife(key);
+    try {
+      assets[key] = key.startsWith('operator_') ? result : result.scene;
+      if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
+      else if (key === 'hands') {
+        for (const view of Object.values(views)) view.setHands(result.scene);
+      } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
+      assetStatus[key] = 'ready';
+    } catch (error) {
+      console.warn('Model setup failed:', key, error);
+      assetStatus[key] = 'failed';
+    }
+    assetProgress[key] = 1;
     resolve();
   }, event => {
     if (event.lengthComputable && event.total > 0)
@@ -85,12 +97,13 @@ function mountKnife(key) {
   views.knife.setModel(assets[key] || null);
 }
 
-// These models are always ready instantly, including on slow mobile networks.
+// Bot skins use the user's supplied skinned models if available.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
-  const animated = buildBlockOperator(actor.team);
+  const gltf = assets['operator_' + actor.team];
+  const animated = (gltf && createImportedOperator(gltf, actor.team)) || buildBlockOperator(actor.team);
   root.add(animated.root);
   fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
 }
@@ -419,7 +432,9 @@ function updateModels(dt) {
     model.root.scale.y = actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if (model.animated) animateBlockOperator(model.animated, actor,
+    if (model.animated?.mode === 'imported') animateImportedOperator(model.animated, actor,
+      match.time, dt, dist / Math.max(0.01, dt));
+    else if (model.animated) animateBlockOperator(model.animated, actor,
       match.time, dt, dist / Math.max(0.01, dt));
   }
 }
