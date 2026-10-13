@@ -241,6 +241,15 @@ $('changeTeam').addEventListener('click', () => {
   $('resultMenu').hidden = true; $('teamMenu').hidden = false;
   document.body.dataset.phase = 'selection';
 });
+$('returnHome').addEventListener('click', () => {
+  resetInputs();
+  match.phase='home';
+  document.body.dataset.phase='home';
+  $('resultMenu').hidden=true;
+  $('teamMenu').hidden=true;
+  document.body.classList.remove('dead');
+  retroMenu.show();
+});
 function canControl() { return match.phase === 'playing' && match.player?.alive; }
 function jump() {
   if (!canControl()) return;
