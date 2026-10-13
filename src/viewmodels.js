@@ -219,6 +219,7 @@ export function createWeaponView(kind) {
       if (team===side)return;
       team=side;
       updateHand('R',true); updateHand('L',true);
+      if (importedHands) showKnifeProceduralGlove(false);
     },
     calibrate(config={}) {
       for(const k of ['x','y','z','rx','ry','rz','scale']){
