@@ -42,6 +42,7 @@ export function buildRetroOperator(team) {
     .map(([name,color])=>[name,mat(color,name==='lens'?0.35:0.88)]));
   const root=new THREE.Group();
   root.name=team==='ct'?'GB Sentinel / Counter-Terrorist':'GB Nomad / Terrorist';
+  root.scale.setScalar(.93);
   const torso=new THREE.Group(); root.add(torso);
   torso.position.y=1.11;
   // Torso: tapered uniform with armor over it, not an untextured block.
@@ -93,8 +94,8 @@ export function buildRetroOperator(team) {
     const hip=segment(root,m.cloth,m.clothDark,sign*.165,.93,0,.43);
     const knee=segment(hip,m.clothDark,m.plates,0,-.43,0,.40,false);
     block(hip,m.plates,.245,.19,.20,0,-.38,-.09);
-    block(knee,m.boot,.245,.23,.29,0,-.44,-.083);
-    block(knee,m.boot,.255,.105,.385,0,-.79,-.087);
+    block(knee,m.boot,.245,.23,.29,0,-.35,-.083);
+    block(knee,m.boot,.255,.105,.385,0,-.405,-.087);
     legs.push({hip,knee,sign});
   }
   const gun=new THREE.Group();
