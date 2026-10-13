@@ -49,6 +49,17 @@ function sourceHandsFixture() {
     hand.name = 'v_weapon.' + side + '_Hand_' + (side === 'Left' ? '06' : '034');
     hand.position.set(0, -.03, -.84);
     arm.add(hand);
+    const segments = side === 'Left' ? ['021','022','023'] : ['045','046','047'];
+    const finger = new THREE.Bone();
+    finger.name = 'v_weapon.' + side + '_Middle01_' + segments[0];
+    finger.position.set(0,0,-.035);
+    const mid = new THREE.Bone();
+    mid.name = 'v_weapon.' + side + '_Middle02_' + segments[1];
+    mid.position.set(.04,0,0);
+    const tip = new THREE.Bone();
+    tip.name = 'v_weapon.' + side + '_Middle03_' + segments[2];
+    tip.position.set(.03,0,0);
+    finger.add(mid); mid.add(tip); hand.add(finger);
     group.add(arm);
   }
   const visibleGeometry = new THREE.Mesh(new THREE.BoxGeometry(.8,.35,1.0));
@@ -107,4 +118,40 @@ test('gun is visible and both imported operator wrists track the weapon', () => 
     assert.ok(model.gun.children.length > 0, 'gun must be in actor hierarchy');
     assert.ok(model.bones.leftHand && model.bones.rightHand);
   }
+});
+
+test('real Source finger bones curl to grip the gun and reset cleanly', () => {
+  const view = createWeaponView('pistol');
+  assert.equal(view.setHands(sourceHandsFixture()), true);
+  const finger = view.importedHandsMount.getObjectByName('v_weapon.Right_Middle01_045');
+  const before = finger.quaternion.clone();
+  view.animate({time:2000});
+  assert.ok(finger.quaternion.angleTo(before) > 0.3,
+    'real finger joint must curl, not remain open in the bind pose');
+  view.calibrateSource('R',{curl:0,roll:20,x:.10,y:-.08,z:.06});
+  view.animate({time:2016});
+  assert.ok(finger.quaternion.angleTo(before) < 1e-6,
+    'turning curl down to zero should straighten fingers');
+  assert.equal(view.sourceCalibration.R.x,.10);
+  assert.equal(view.sourceCalibration.R.roll,20);
+  view.calibrateSource('R',{curl:1.2});
+  view.animate({time:2032});
+  assert.ok(finger.quaternion.angleTo(before)>0.4,
+    'curl slider must actually rotate the Source finger bone');
+});
+test('Source hand model can be independently resized and positioned for each weapon', () => {
+  const rifle = createWeaponView('rifle');
+  const pistol = createWeaponView('pistol');
+  assert.equal(rifle.setHands(sourceHandsFixture()),true);
+  assert.equal(pistol.setHands(sourceHandsFixture()),true);
+  const initial = rifle.importedHandsMount.position.clone();
+  rifle.calibrateSource('model',{x:.21,y:-.11,z:.07,scale:.65,ry:15});
+  assert.ok(rifle.importedHandsMount.position.distanceTo(initial) > .2);
+  assert.equal(rifle.sourceCalibration.model.scale,.65);
+  assert.equal(rifle.sourceCalibration.model.ry,15);
+  assert.notEqual(pistol.sourceCalibration.model.x,rifle.sourceCalibration.model.x);
+  const config = rifle.sourceCalibration;
+  config.model.x = -5;
+  assert.equal(rifle.sourceCalibration.model.x,.21,
+    'settings getter must return an independent copy');
 });
