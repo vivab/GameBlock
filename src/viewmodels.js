@@ -232,6 +232,7 @@ export function createWeaponView(kind) {
         if (importedHands) importedHandsMount.remove(importedHands);
         importedHands = null;
         importedBones = importedRest = null;
+        importedFingerBones = [];
         importedHandsMount.visible = false;
         handGroup.visible = true;
         staticHolder.visible = true;
@@ -268,24 +269,25 @@ export function createWeaponView(kind) {
       if (importedHands) importedHandsMount.remove(importedHands);
       importedHandsMount.add(model);
       model.rotation.set(0, Math.PI, 0); // Source arms point away from -Z camera
-      model.scale.setScalar(0.66 / span);
-      model.position.set(0, 0, 0);
-      importedHandsMount.position.set(0, 0, 0);
-      importedHandsMount.rotation.set(0, 0, 0);
-      importedHandsMount.updateMatrixWorld(true);
-      const mid = joints.leftArm.getWorldPosition(new THREE.Vector3())
-        .add(joints.rightArm.getWorldPosition(new THREE.Vector3()))
-        .multiplyScalar(0.5);
-      // Shoulder location in the weapon's animated coordinate system.
-      const midpointLocal = importedHandsMount.worldToLocal(mid);
-      model.position.add(new THREE.Vector3(0, -0.43, 0.47).sub(midpointLocal));
-      model.updateMatrixWorld(true);
+      importedBaseScale = 0.66 / span;
+      model.position.set(0,0,0);
       // Bone animation can escape bind-pose bounds: never cull those hands.
       model.traverse(node => { if (node.isSkinnedMesh) node.frustumCulled = false; });
       importedHands = model;
       importedBones = joints;
       importedRest = Object.fromEntries(Object.entries(joints)
         .map(([name, bone]) => [name, bone.quaternion.clone()]));
+      importedFingerBones = [];
+      model.traverse(object => {
+        if (!object.isBone) return;
+        const m = /(?:^|\.)(Left|Right)_(Thumb|Index|Middle|Ring|Pinky)_?0?([123])_/i.exec(object.name);
+        if (m) importedFingerBones.push({
+          bone:object, rest:object.quaternion.clone(),
+          side:m[1].toLowerCase()==='right'?'R':'L',
+          digit:m[2], segment:Number(m[3])
+        });
+      });
+      applySourcePlacement();
       importedHandsMount.visible = true;
       handGroup.visible = kind === 'knife'; // knife blade keeps old wrist mount
       staticHolder.visible = false;
@@ -294,6 +296,22 @@ export function createWeaponView(kind) {
     },
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
+    get sourceCalibration() { return JSON.parse(JSON.stringify(sourceGrip)); },
+    calibrateSource(part, changes = {}) {
+      const config = sourceGrip[part];
+      if (!config) throw Error('Unknown Source hand calibration part: ' + part);
+      for (const key of Object.keys(config)) {
+        const n = changes[key];
+        if (typeof n !== 'number' || !Number.isFinite(n)) continue;
+        const lo = key === 'scale' ? 0.45 : key === 'curl' ? 0 : key === 'roll' ? -90
+          : key.startsWith('r') ? -160 : -0.65;
+        const hi = key === 'scale' ? 1.5 : key === 'curl' ? 1.6 : key === 'roll' ? 90
+          : key.startsWith('r') ? 160 : 0.65;
+        config[key] = clamp(n,lo,hi);
+      }
+      if (part === 'model') applySourcePlacement();
+      return { ...config };
+    },
     setModel(gltfScene) {
       modelMount.remove(loaded);
       loaded=gltfScene ? normalizeWeapon(gltfScene,kind) : fallbackModel(kind);
