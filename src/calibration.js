@@ -1,4 +1,4 @@
-import {WEAPON_DEFAULTS,HAND_DEFAULTS} from './viewmodels.js';
+import {WEAPON_DEFAULTS,HAND_DEFAULTS,SOURCE_HAND_DEFAULTS} from './viewmodels.js';
 // Game1-style calibration: separate gun, left glove, right glove and finger bend.
 const STORAGE='gameblock:game1-grip-v1';
 const WEAPON=[
@@ -11,6 +11,17 @@ const HAND=[
  ['pitch','Наклон',-180,180,1],['yaw','Разворот',-180,180,1],
  ['roll','Кисть',-180,180,1],['k','Сгиб пальцев',.25,1.8,.05]
 ];
+// These sliders move the actual skinned Source arms, NOT the old cube gloves.
+const SOURCE_MODEL=[
+ ['x','Вбок',-.65,.65,.01],['y','Высота',-.65,.65,.01],['z','Глубина',-.65,.65,.01],
+ ['rx','Наклон X',-160,160,1],['ry','Разворот Y',-160,160,1],
+ ['rz','Крен Z',-160,160,1],['scale','Размер рук',.45,1.5,.01]
+];
+const SOURCE_GRIP=[
+ ['x','Кисть X',-.65,.65,.01],['y','Кисть Y',-.65,.65,.01],
+ ['z','Кисть Z',-.65,.65,.01],['roll','Поворот',-90,90,1],
+ ['curl','Сжать пальцы',0,1.6,.05]
+];
 function read(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')||{}}catch{return {}}}
 function persist(data){try{localStorage.setItem(STORAGE,JSON.stringify(data))}catch{}}
 export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
@@ -19,17 +30,24 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
     const c=saved[name];if(!c)continue;
     if(c.weapon)views[name].calibrate(c.weapon);
     for(const hand of ['R','L'])if(c[hand])views[name].calibrateHand(hand,c[hand]);
+    if(c.source)for(const part of ['model','R','L'])
+      if(c.source[part])views[name].calibrateSource(part,c.source[part]);
   }
   const ui=document.createElement('div');ui.id='calibrationUI';
   ui.innerHTML=[
     '<button id="calibrationOpen" type="button" aria-label="Настроить хват" title="Настроить хват">⚙</button>',
     '<section id="calibrationPanel" hidden>',
-    '<div class="cal-head"><b>РУКИ GAME1 • ОРУЖИЕ GAMEBLOCK</b><button id="calibrationClose" type="button">✕</button></div>',
-    '<p>Настраивай оружие, правую и левую руки отдельно. Изменения сохраняются на этом телефоне.</p>',
+    '<div class="cal-head"><b>НАСТРОЙКА ХВАТА • CS SOURCE</b><button id="calibrationClose" type="button">✕</button></div>',
+    '<p id="calHint">Передвигай настоящие руки и сгибай пальцы. Положение сохраняется отдельно для Glock, AK и ножа.</p>',
     '<label class="cal-weapon">Оружие <select id="calWeapon"><option value="pistol">Glock 18</option>',
     '<option value="rifle">AK-47</option><option value="knife">Нож</option></select></label>',
-    '<label class="cal-weapon">Подгоняю <select id="calPart"><option value="weapon">Оружие</option>',
-    '<option value="R">Правую руку</option><option value="L">Левую руку</option></select></label>',
+    '<label class="cal-weapon">Подгоняю <select id="calPart">',
+    '<option value="sourceR">Правая кисть CS:S</option>',
+    '<option value="sourceL">Левая кисть CS:S</option>',
+    '<option value="sourceModel">Обе руки CS:S</option>',
+    '<option value="weapon">Оружие</option>',
+    '<option value="R">Запасная правая рука</option>',
+    '<option value="L">Запасная левая рука</option></select></label>',
     '<label class="cal-weapon" id="calPoseRow" hidden>Пальцы <select id="calPose">',
     '<option value="pistol">На спуске</option><option value="cup">Обхват</option>',
     '<option value="fist">Кулак</option><option value="open">Открытая</option></select></label>',
@@ -45,8 +63,8 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
     '#calibrationOpen{position:absolute;top:99px;left:max(12px,env(safe-area-inset-left));pointer-events:auto;',
     'background:#1c3246;border:1px solid #8caaba;border-radius:10px;width:37px;height:35px;font-size:22px}',
     '#calibrationUI button,#calibrationUI input,#calibrationUI select,#calibrationUI textarea{touch-action:auto;font:inherit;color:inherit}',
-    '#calibrationPanel{pointer-events:auto;position:absolute;top:3%;right:max(6px,env(safe-area-inset-right));',
-    'width:min(350px,70vw);max-height:94%;overflow-y:auto;overscroll-behavior:contain;',
+    '#calibrationPanel{pointer-events:auto;position:absolute;top:3%;left:max(6px,env(safe-area-inset-left));',
+    'width:min(320px,48vw);max-height:94%;overflow-y:auto;overscroll-behavior:contain;',
     'padding:11px;background:#142636fa;border:1px solid #8cadbe;border-radius:13px;box-shadow:0 10px 40px #000a}',
     '#calibrationPanel[hidden],#calPoseRow[hidden]{display:none}',
     '.cal-head{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:12px}',
@@ -67,21 +85,31 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   document.head.append(style);document.body.append(ui);
   const $=id=>ui.querySelector('#'+id),wp=$('calWeapon'),part=$('calPart'),pose=$('calPose'),panel=$('calibrationPanel');
   const current=()=>views[wp.value];
-  const values=()=>part.value==='weapon'?current().calibration:current().handCalibration[part.value];
+  const sourcePart=()=>part.value==='sourceModel'?'model':part.value==='sourceR'?'R':part.value==='sourceL'?'L':null;
+  const values=()=>sourcePart()?current().sourceCalibration[sourcePart()]
+    :part.value==='weapon'?current().calibration:current().handCalibration[part.value];
   function persistCurrent(){
-    saved[wp.value]={weapon:current().calibration,...current().handCalibration};
+    saved[wp.value]={weapon:current().calibration,...current().handCalibration,
+      source:current().sourceCalibration};
     persist(saved);
   }
   function output(){
     $('calOutput').value=JSON.stringify({weapon:wp.value,
-      mount:current().calibration,hands:current().handCalibration});
+      mount:current().calibration,hands:current().handCalibration,
+      source:current().sourceCalibration});
   }
   function show(){
-    const hand=part.value!=='weapon';
+    const hand=part.value==='R'||part.value==='L';
+    const src=sourcePart();
     $('calPoseRow').hidden=!hand;
     if(hand)pose.value=values().pose;
+    $('calHint').textContent = src && !current().usesImportedHands
+      ? 'Модель Source не загрузилась. Пока отображаются запасные руки.'
+      : src ? 'Двигай ползунки, пока кисть не возьмётся за оружие. Всё сохраняется автоматически.'
+      : 'Настройка сохраняется на этом телефоне отдельно для каждого оружия.';
     const area=$('calSliders');area.replaceChildren();
-    for(const [key,label,min,max,step] of (hand?HAND:WEAPON)){
+    const rows=src?(src==='model'?SOURCE_MODEL:SOURCE_GRIP):hand?HAND:WEAPON;
+    for(const [key,label,min,max,step] of rows){
       const row=document.createElement('label');row.className='cal-row';
       const name=document.createElement('span');name.textContent=label;
       const input=document.createElement('input');input.type='range';
@@ -91,10 +119,12 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
       row.append(name,input,value);area.append(row);
       input.addEventListener('input',()=>{
         const n=Number(input.value);
-        if(part.value==='weapon')current().calibrate({[key]:n});
+        if(src)current().calibrateSource(src,{[key]:n});
+        else if(part.value==='weapon')current().calibrate({[key]:n});
         else current().calibrateHand(part.value,{[key]:n});
         value.textContent=n.toFixed(step<1?2:0);
         persistCurrent();output();
+        $('calStatus').textContent='✓ Сохранено на этом устройстве';
       });
     }
     output();
@@ -108,7 +138,8 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   part.addEventListener('change',show);
   pose.addEventListener('change',()=>{current().calibrateHand(part.value,{pose:pose.value});persistCurrent();output()});
   $('calReset').addEventListener('click',()=>{
-    if(part.value==='weapon')current().calibrate(WEAPON_DEFAULTS[wp.value]);
+    if(sourcePart())current().calibrateSource(sourcePart(),SOURCE_HAND_DEFAULTS[wp.value][sourcePart()]);
+    else if(part.value==='weapon')current().calibrate(WEAPON_DEFAULTS[wp.value]);
     else current().calibrateHand(part.value,HAND_DEFAULTS[wp.value][part.value]);
     persistCurrent();show();$('calStatus').textContent='Стандартные значения восстановлены.';
   });
