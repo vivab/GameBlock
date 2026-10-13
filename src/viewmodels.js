@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { makeHand } from './game1Hands.js';
 import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 
@@ -99,6 +100,9 @@ export function createWeaponView(kind) {
   } else animated.add(modelMount);
   const staticHolder = new THREE.Group(); root.add(staticHolder);
   const handGroup = new THREE.Group(); animated.add(handGroup);
+  const importedHandsMount = new THREE.Group(); animated.add(importedHandsMount);
+  importedHandsMount.visible = false;
+  let importedHands = null, importedBones = null, importedRest = null;
   const arms = { group: handGroup, left: new THREE.Group(), right: new THREE.Group() };
   handGroup.add(arms.right);
   (kind === 'knife' ? staticHolder : handGroup).add(arms.left);
@@ -150,7 +154,43 @@ export function createWeaponView(kind) {
 
   let kick=0,lastNow=null;
   const view = {
-    kind, root, animated, arms, modelMount, muzzle, knifeWrist,
+    kind, root, animated, arms, modelMount, muzzle, knifeWrist, importedHandsMount,
+    get usesImportedHands() { return !!importedHands; },
+    setHands(gltfScene) {
+      if (importedHands) importedHandsMount.remove(importedHands);
+      importedHands = null; importedBones = importedRest = null;
+      if (!gltfScene) {
+        importedHandsMount.visible = false;
+        handGroup.visible = true; staticHolder.visible = true;
+        return false;
+      }
+      const model = cloneSkinned(gltfScene);
+      const bounds = new THREE.Box3().setFromObject(model);
+      const size = bounds.getSize(new THREE.Vector3());
+      if (!Number.isFinite(size.x) || Math.max(size.x, size.y, size.z) < 0.001) return false;
+      // Keep the original Source hand skeleton intact. Position/scale its
+      // entire rig, not the SkinnedMesh, so the skin bind matrices remain valid.
+      const factor = 0.82 / Math.max(size.x, size.z, 0.001);
+      model.scale.setScalar(factor);
+      const middle = bounds.getCenter(new THREE.Vector3());
+      model.position.set(-middle.x * factor, -middle.y * factor, -middle.z * factor);
+      importedHandsMount.position.set(kind === 'rifle' ? 0 : -0.035, -0.28, 0.11);
+      importedHandsMount.rotation.set(-0.15, 0, 0);
+      importedHandsMount.add(model);
+      importedHands = model;
+      importedHandsMount.visible = true;
+      handGroup.visible = false;
+      staticHolder.visible = false;
+      importedBones = { left: null, right: null };
+      model.traverse(object => {
+        if (!object.isBone) return;
+        if (/Left_Arm_/i.test(object.name)) importedBones.left = object;
+        if (/Right_Arm_/i.test(object.name)) importedBones.right = object;
+      });
+      importedRest = Object.fromEntries(Object.entries(importedBones)
+        .map(([side, bone]) => [side, bone?.quaternion.clone() || null]));
+      return true;
+    },
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
     setModel(gltfScene) {
@@ -295,6 +335,23 @@ export function createWeaponView(kind) {
           arms.left.position.z -= magReach*0.14;
           arms.left.rotation.x += magReach*0.30;
           arms.left.rotation.z -= magReach*0.35;
+        }
+      }
+      if (importedBones && importedRest) {
+        // A small Source-style wrist action; the real model bones animate,
+        // rather than only sliding the entire imported hand mesh around.
+        const left = importedBones.left, right = importedBones.right;
+        if (left && importedRest.left) {
+          left.quaternion.copy(importedRest.left);
+          left.quaternion.multiply(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(-magReach * 0.45 + boltPull * 0.30, magReach * 0.23, -magPull * 0.25)));
+        }
+        if (right && importedRest.right) {
+          right.quaternion.copy(importedRest.right);
+          right.quaternion.multiply(new THREE.Quaternion().setFromEuler(
+            new THREE.Euler(kind === 'knife' ? (knifeWrist?.rotation.x || 0) : -reloadDip * 0.10,
+              kind === 'knife' ? (knifeWrist?.rotation.y || 0) : 0,
+              kind === 'knife' ? (knifeWrist?.rotation.z || 0) : kick * 0.025)));
         }
       }
       muzzle.visible=visible&&kind!=='knife'&&firing;
