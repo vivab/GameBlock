@@ -152,6 +152,21 @@ export function createWeaponView(kind) {
   updateMount();
   updateHand('R',true); updateHand('L',true);
 
+  // The knife blade lives under the legacy wrist pivot. Hide only the
+  // procedural glove polygons, never their child weapon model.
+  function showKnifeProceduralGlove(show) {
+    if (kind !== 'knife') return;
+    const rig = arms.right.userData.mesh;
+    rig?.traverse(node => {
+      if (!node.isMesh) return;
+      let ancestor = node;
+      while (ancestor && ancestor !== rig) {
+        if (ancestor === modelMount) return;
+        ancestor = ancestor.parent;
+      }
+      node.visible = show;
+    });
+  }
   let kick=0,lastNow=null;
   const view = {
     kind, root, animated, arms, modelMount, muzzle, knifeWrist, importedHandsMount,
@@ -162,6 +177,7 @@ export function createWeaponView(kind) {
       if (!gltfScene) {
         importedHandsMount.visible = false;
         handGroup.visible = true; staticHolder.visible = true;
+        showKnifeProceduralGlove(true);
         return false;
       }
       const model = cloneSkinned(gltfScene);
@@ -179,8 +195,9 @@ export function createWeaponView(kind) {
       importedHandsMount.add(model);
       importedHands = model;
       importedHandsMount.visible = true;
-      handGroup.visible = false;
+      handGroup.visible = kind === 'knife'; // preserve the knife wrist/model
       staticHolder.visible = false;
+      showKnifeProceduralGlove(false);
       importedBones = { left: null, right: null };
       model.traverse(object => {
         if (!object.isBone) return;
