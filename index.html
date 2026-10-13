@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="theme-color" content="#101820" />
-  <title>GameBlock — Командный бой</title>
+  <title>GameBlock Retro — Sandstone Crossing</title>
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #101820; color: #edf4f6; font: 600 14px system-ui, Arial; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -133,9 +133,27 @@
       .team-mark { display: none; }
       .menu .help { margin-top: 12px; }
     }
+    body:not([data-phase="playing"]) #calibrationUI {display:none!important}
+    #teamMenu {z-index:24;background:linear-gradient(125deg,#091621f1,#162c3ec7,#1a2c29df)}
+    #teamMenu .menu-card {background:#122233f0;border-color:#bfa47655;
+      box-shadow:0 24px 80px #01060ce0}
+    #teamMenu h1 {color:#f3d6a2;letter-spacing:.03em}
+    #teamMenu .team-choice {background:linear-gradient(130deg,#294964,#182d3c);
+      border:1px solid #7c9bb46b}
+    #teamMenu .team-choice.terrorists {background:linear-gradient(130deg,#67523b,#2f322e);
+      border-color:#c6a37477}
+    #teamMenu .team-choice:active {transform:translateY(2px)}
+    #teamMenu .menu-back {display:block;margin-top:12px;background:none;color:#e1bd88;
+      border:1px solid #cfb58b63;border-radius:4px;padding:9px 12px}
+    #resultMenu {z-index:28;background:#09141fdc}
+    #resultMenu .result-actions {flex-wrap:wrap}
+    #hud #stats {border-color:#c9ae876b;background:#0f1a25e6}
+    #hud #matchBar {border-color:#bfaa8a6b;background:#0d1c2bea}
+    #hud #cross {font:700 28px monospace;color:#fff1d6}
+    #hud #radar {border-color:#d3b585aa;background:#1c2a27c8}
   </style>
 </head>
-<body data-phase="selection">
+<body data-phase="home">
   <div id="hud">
     <div id="info"><strong>GAMEBLOCK</strong><span id="teamBadge"></span><div id="personalScore">0 убийств · 0 смертей</div></div>
     <div id="matchBar" aria-label="Счёт и время матча">
@@ -169,17 +187,18 @@
       <div id="matchLoadingPercent">0%</div>
     </div>
   </section>
-  <section id="teamMenu" class="menu" aria-labelledby="menuTitle">
+  <section id="teamMenu" class="menu" aria-labelledby="menuTitle" hidden>
     <div class="menu-card">
-      <div class="eyebrow">GAMEBLOCK / КОМАНДНЫЙ БОЙ</div>
+      <div class="eyebrow">GAMEBLOCK RETRO / SANDSTONE CROSSING</div>
       <h1 id="menuTitle">Выбери свою сторону</h1>
-      <p>Ты и четыре бота против пяти бойцов другой команды. Побеждает сторона, набравшая больше очков.</p>
+      <p>Классическая тактическая перестрелка. Три маршрута на пустынной карте, собственные low-poly бойцы и живые противники-боты.</p>
       <div class="rules"><span>5 на 5</span><span>2 минуты</span><span>Убийство = 1 очко</span><span>Возрождение: 3 с</span></div>
       <div class="teams">
         <button id="chooseCT" class="team-choice" data-team="ct"><div class="team-mark">COUNTER-TERRORISTS</div><b>Спецназ</b><span>Синяя команда</span></button>
         <button id="chooseT" class="team-choice terrorists" data-team="t"><div class="team-mark">TERRORISTS</div><b>Террористы</b><span>Песочная команда</span></button>
       </div>
-      <p class="help">Телефон: джойстик слева, обзор справа. Держи красную кнопку стрельбы и веди по ней пальцем, чтобы контролировать отдачу (можно также целиться вторым пальцем). Сидя точность выше, в беге и прыжке ниже. Прыжок стал ниже. Зажми ◉ и проведи: влево Glock, вправо нож, вниз AK. Кнопка ↻: полный магазин — осмотр; неполный — перезарядка; с ножом — осмотр. Повторное нажатие начинает осмотр заново, смена оружия прерывает его. Значок ⚙ слева — подгонка оружия, отдельно ПРАВОЙ и ЛЕВОЙ руки, формы пальцев и копирование координат. Руки и анимации взяты из Game1, карта осталась GameBlock. Бойцы — собственные детализированные квадратные модели спецназа и террористов. После выбора команды дождись полной загрузки оружия. ПК: WASD, мышь, Space, Ctrl, R — осмотр или перезарядка; оружие 1 / 2 / 3.</p>
+      <p class="help">Телефон: слева — движение, справа — прицел. Нажми красную кнопку, чтобы стрелять; кнопку ↻ — для перезарядки либо осмотра полного оружия. Зажми ◉ для Glock, AK или ножа. ПК: WASD, мышь, Space, Ctrl, R, 1/2/3. Оружие и свои низкополигональные руки можно подстроить через ⚙ в матче.</p>
+      <button id="teamBack" class="menu-back" type="button">← Вернуться в главное меню</button>
     </div>
   </section>
   <section id="resultMenu" class="menu" aria-labelledby="resultTitle" hidden>
@@ -187,7 +206,7 @@
       <div class="eyebrow">МАТЧ ЗАВЕРШЁН</div>
       <h2 id="resultTitle">Победа!</h2>
       <p id="resultScore"></p><p id="resultDetails"></p>
-      <div class="result-actions"><button id="playAgain">Ещё один матч</button><button id="changeTeam">Выбрать сторону</button></div>
+      <div class="result-actions"><button id="playAgain">Ещё один матч</button><button id="changeTeam">Выбрать сторону</button><button id="returnHome">Главное меню</button></div>
     </div>
   </section>
   <script type="module" src="./src/main.js"></script>

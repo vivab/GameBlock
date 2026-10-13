@@ -3,8 +3,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
-import { buildBlockOperator, animateBlockOperator } from './blockOperators.js';
-import { createImportedOperator, animateImportedOperator } from './importedOperators.js';
+import { buildRetroOperator, animateRetroOperator } from './retroOperators.js';
+import { buildSandstoneArena } from './arena.js';
+import { installRetroMenu } from './menu.js';
+import { createGameAudio } from './audio.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
 import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
@@ -12,9 +14,9 @@ import { rotateAim } from './aim.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
 const match = new Match();
+match.phase = 'home';
+document.body.dataset.phase = 'home';
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x819fb0);
-scene.fog = new THREE.Fog(0x819fb0, 32, 75);
 const camera = new THREE.PerspectiveCamera(72, innerWidth / innerHeight, 0.05, 150);
 camera.rotation.order = 'YXZ';
 const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
@@ -23,28 +25,31 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.autoClear = false;
 renderer.domElement.setAttribute('aria-label', 'Арена GameBlock');
 document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff, 0x59626a, 2.5));
-const sunlight = new THREE.DirectionalLight(0xffffff, 2);
-sunlight.position.set(-5, 14, 8); scene.add(sunlight);
-const material = color => new THREE.MeshLambertMaterial({ color });
-function box(w, h, d, color, x, y, z, parent = scene) {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material(color));
-  mesh.position.set(x, y, z); parent.add(mesh); return mesh;
-}
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(48, 48), material(0x718079));
-floor.rotation.x = -Math.PI / 2; scene.add(floor);
-const grid = new THREE.GridHelper(48, 24, 0x344e55, 0x53665e);
-grid.position.y = 0.012; scene.add(grid);
-for (const w of ARENA_WALLS) box(w.w, w.h, w.d, 0x9ca6a1, w.x, w.h / 2, w.z);
-for (const team of Object.values(TEAMS)) {
-  const base = new THREE.Mesh(new THREE.PlaneGeometry(18, 5), new THREE.MeshBasicMaterial({ color: team.color, transparent: true, opacity: 0.18 }));
-  base.rotation.x = -Math.PI / 2; base.position.set(0, 0.02, team.spawnZ); scene.add(base);
-  const pole = box(0.1, 3, 0.1, 0xd7dedf, -9, 1.5, team.spawnZ);
-  box(1.6, 0.8, 0.06, team.color, 0.8, 0.75, 0, pole);
-}
+buildSandstoneArena(scene, ARENA_WALLS, TEAMS);
 
-// Independent near-camera viewmodel: meshes never collide with the arena.
-// Imported skinned CT/T agents and Source hands are loaded before the match.
+// A second lightweight scene presents a real 3D CT preview in the lobby.
+// Rendering reuses the same WebGL renderer (important for mobile GPUs).
+const menuScene = new THREE.Scene();
+menuScene.background = new THREE.Color(0x172632);
+const menuCamera = new THREE.PerspectiveCamera(43, innerWidth/innerHeight, .06, 40);
+menuCamera.position.set(0, 1.30, 3.60);
+menuCamera.lookAt(0, .94, 0);
+menuScene.add(new THREE.HemisphereLight(0xfff0d7, 0x404b5d, 2.7));
+const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
+menuLight.position.set(-4, 8, 5);menuScene.add(menuLight);
+const preview=buildRetroOperator('ct');
+preview.root.rotation.y=-.32;
+menuScene.add(preview.root);
+const plinth=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.75,.12,36),
+  new THREE.MeshStandardMaterial({color:0x29343d,roughness:.85}));
+plinth.position.set(0,-.12,0);menuScene.add(plinth);
+const pedestalRing=new THREE.Mesh(new THREE.TorusGeometry(1.5,.027,6,48),
+  new THREE.MeshBasicMaterial({color:0xd6aa6c}));
+pedestalRing.rotation.x=-Math.PI/2;pedestalRing.position.y=-.051;
+menuScene.add(pedestalRing);
+
+// Independent near-camera viewmodel: the original FPS gloves are procedural.
+// Only the existing gun/knife GLBs are downloaded; characters require none.
 const viewScene = new THREE.Scene();
 const viewCamera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.01, 4);
 viewScene.add(viewCamera);
@@ -59,22 +64,19 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// All 3D assets preload in the match loading screen; lightweight block
-// operators/procedural hands remain safe fallbacks when files are unavailable.
+// Only weapons come from GLB files. The original CT/T operatives and hands
+// are entirely local, deterministic geometry and are ready instantly.
 const assetFiles = {
-  pistol: 'g18', rifle: 'ak47', knife_ct: 'knife_ct', knife_t: 'knife_t',
-  operator_ct: 'operator_ct', operator_t: 'operator_t', hands: 'viewmodel_hands'
+  pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
     try {
-      assets[key] = key.startsWith('operator_') ? result : result.scene;
+      assets[key] = result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-      else if (key === 'hands') {
-        for (const view of Object.values(views)) view.setHands(result.scene);
-      } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
+      else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
       console.warn('Model setup failed:', key, error);
@@ -97,13 +99,12 @@ function mountKnife(key) {
   views.knife.setModel(assets[key] || null);
 }
 
-// Bot skins use the user's supplied skinned models if available.
+// Gameplay skins and rigs are our own low-poly meshes.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
-  const gltf = assets['operator_' + actor.team];
-  const animated = (gltf && createImportedOperator(gltf, actor.team, assets.rifle)) || buildBlockOperator(actor.team);
+  const animated = buildRetroOperator(actor.team);
   root.add(animated.root);
   fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
 }
@@ -113,6 +114,19 @@ function matchLoadFraction() {
 }
 
 const $ = id => document.getElementById(id);
+const audio = createGameAudio();
+let retroMenu;
+retroMenu = installRetroMenu({
+  onPlay: () => {
+    audio.unlock();audio.ui();
+    match.phase='selection';
+    document.body.dataset.phase='selection';
+    $('teamMenu').hidden=false;
+    retroMenu.hide();
+  },
+  onSound: enabled => audio.setEnabled(enabled)
+});
+$('teamMenu').hidden=true;
 setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
@@ -164,6 +178,7 @@ function start(team) {
   // Models are reused across rounds; the player model is simply hidden.
   for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
+  retroMenu.hide();
   $('teamBadge').textContent = TEAMS[team].name;
   $('teamBadge').dataset.team = team;
   document.body.dataset.phase = 'playing';
@@ -176,6 +191,7 @@ async function prepareMatch(team) {
   const fill = $('matchLoadingFill');
   const progress = $('matchLoadingPercent');
   const status = $('matchLoadingStatus');
+  audio.unlock();
   overlay.hidden = false;
   document.body.dataset.phase = 'loading';
   for (const button of [$('chooseCT'), $('chooseT')]) button.disabled = true;
@@ -213,11 +229,26 @@ async function prepareMatch(team) {
 }
 $('chooseCT').addEventListener('click', () => prepareMatch('ct'));
 $('chooseT').addEventListener('click', () => prepareMatch('t'));
+$('teamBack').addEventListener('click', () => {
+  match.phase='home';
+  $('teamMenu').hidden=true;
+  document.body.dataset.phase='home';
+  retroMenu.show();
+});
 $('playAgain').addEventListener('click', () => start(match.playerTeam));
 $('changeTeam').addEventListener('click', () => {
   resetInputs(); match.phase = 'selection';
   $('resultMenu').hidden = true; $('teamMenu').hidden = false;
   document.body.dataset.phase = 'selection';
+});
+$('returnHome').addEventListener('click', () => {
+  resetInputs();
+  match.phase='home';
+  document.body.dataset.phase='home';
+  $('resultMenu').hidden=true;
+  $('teamMenu').hidden=true;
+  document.body.classList.remove('dead');
+  retroMenu.show();
 });
 function canControl() { return match.phase === 'playing' && match.player?.alive; }
 function jump() {
@@ -236,7 +267,7 @@ function reloadOrInspect() {
       break;
     case 'reload':
       inspection.cancel();
-      match.reload(match.player);
+      if(match.reload(match.player))audio.reload();
       break;
   }
 }
@@ -359,8 +390,9 @@ addEventListener('keyup', event => {
 addEventListener('blur', resetInputs);
 document.addEventListener('visibilitychange', () => { if (document.hidden) resetInputs(); });
 addEventListener('resize', () => {
-  camera.aspect = viewCamera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix(); viewCamera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = viewCamera.aspect = menuCamera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();viewCamera.updateProjectionMatrix();
+  menuCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);
 });
 
 function showHitmarker(killed) {
@@ -383,7 +415,8 @@ function shoot() {
   direction.normalize().applyQuaternion(camera.quaternion);
   const hit = match.fire(player, direction, weapon === 'knife');
   if (!hit) return;
-  views[weapon].fire(); // Game1 weapon kick and animated muzzle flash
+  audio.shoot(weapon);
+  views[weapon].fire(); // weapon kick and muzzle flash
   if (weapon !== 'knife') game1Burst = Math.min(ACCURACY.maxBurst, game1Burst + ACCURACY.perShot);
   inspection.cancel();
   if (weapon === 'knife') { recoil = 0.14; swingAt = match.time; }
@@ -395,7 +428,7 @@ function shoot() {
     player.yaw += weapon === 'rifle' ? Math.sin(phase * 0.63) * 0.0035 + Math.sin(phase * 0.27) * 0.0025 : (Math.random() - 0.5) * 0.003;
     recoil = Math.min(0.15, recoil + (weapon === 'rifle' ? 0.035 : 0.09));
   }
-  if (hit.damaged) showHitmarker(!hit.actor.alive);
+  if (hit.damaged) {showHitmarker(!hit.actor.alive);audio.hit();}
 }
 function effects(now) {
   for (const event of match.takeEvents()) {
@@ -432,10 +465,8 @@ function updateModels(dt) {
     model.root.scale.y = actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if (model.animated?.mode === 'imported') animateImportedOperator(model.animated, actor,
-      match.time, dt, dist / Math.max(0.01, dt));
-    else if (model.animated) animateBlockOperator(model.animated, actor,
-      match.time, dt, dist / Math.max(0.01, dt));
+    if(model.animated) animateRetroOperator(model.animated, actor,
+      match.time, dt, dist / Math.max(.01,dt));
   }
 }
 function drawRadar() {
@@ -485,6 +516,9 @@ function updateHUD() {
     $('resultScore').textContent = `Спецназ ${match.score.ct} : ${match.score.t} Террористы`;
     $('resultDetails').textContent = `Твой результат: ${player.kills} убийств · ${player.deaths} смертей`;
     $('resultMenu').hidden = false;
+    retroMenu.recordMatch({kills:player.kills,deaths:player.deaths,
+      won:!!winner && winner===player.team});
+    if(winner===player.team)audio.win();else audio.lose();
   }
 }
 function movePlayer(dt) {
@@ -512,11 +546,15 @@ function frame(now) {
     match.step(elapsed);
     if (canControl()) { movePlayer(dt); if (firing && weapon !== 'knife') shoot(); }
   }
-  if (match.phase === 'selection') {
-    camera.position.set(0, 23, 28); camera.lookAt(0, 0, 0);
-    for (const model of fighters.values()) model.root.visible = false;
+  const lobby = match.phase === 'selection' || match.phase === 'home'
+    || match.phase === 'finished';
+  if (lobby) {
+    for(const model of fighters.values())model.root.visible=false;
+    preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
+    animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
   }
-  effects(now); updateModels(dt); updateHUD(); drawRadar();
+  effects(now); updateModels(dt);
+  if (match.player) {updateHUD(); drawRadar();}
   recoil = Math.max(0, recoil - dt * (weapon === 'rifle' ? 0.45 : 0.8));
   game1Burst = recoverBurst(game1Burst, dt);
   const visible = canControl();
@@ -534,6 +572,12 @@ function frame(now) {
     reloadProgress, slashTime: match.time - swingAt,
     firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
   });
-  renderer.clear(); renderer.render(scene, camera); renderer.clearDepth(); renderer.render(viewScene, viewCamera);
+  renderer.clear();
+  if(lobby) renderer.render(menuScene,menuCamera);
+  else {
+    renderer.render(scene,camera);
+    renderer.clearDepth();
+    renderer.render(viewScene,viewCamera);
+  }
 }
 requestAnimationFrame(frame);

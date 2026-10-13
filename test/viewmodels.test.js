@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {createWeaponView, WEAPON_DEFAULTS, HAND_DEFAULTS, weaponAxisRotation} from '../src/viewmodels.js';
 import {KF, DRAW, FROM, sample} from '../src/game1Motion.js';
-import {makeHand} from '../src/game1Hands.js';
+import {makeHand} from '../src/retroHands.js';
 
 test('actual Game1 hands include four three-joint fingers and an articulated thumb',()=>{
   for(const type of ['pistol','rifle','knife']){
