@@ -33,6 +33,26 @@ export const HAND_DEFAULTS = Object.freeze({
     L: { pose: 'open', x: -4.8, y: 1.5, z: -0.5, pitch: 25, yaw: -20, roll: 0, k: 1 },
   },
 });
+// Source viewmodel .glb has real finger bones. These presets are kept per
+// weapon and are editable from the in-game gear menu on a phone.
+// Coordinates are relative to the first-person weapon animation pivot.
+export const SOURCE_HAND_DEFAULTS = Object.freeze({
+  pistol: {
+    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
+    R: { x:0, y:0, z:0, curl:1.05, roll:-8 },
+    L: { x:-0.04, y:-0.10, z:0.16, curl:0.22, roll:0 },
+  },
+  rifle: {
+    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
+    R: { x:0, y:0, z:0, curl:1.10, roll:-8 },
+    L: { x:0, y:0, z:0, curl:1.05, roll:12 },
+  },
+  knife: {
+    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
+    R: { x:0.02, y:0.03, z:0, curl:1.18, roll:5 },
+    L: { x:-0.05, y:-0.06, z:0, curl:0.18, roll:0 },
+  },
+});
 const ANCHORS = {
   pistol: { R: [0.065, -0.105, 0.135], L: [-0.05, -0.17, 0.17] },
   rifle: { R: [-0.035, 0.025, 0.38], L: [-0.10, 0.06, 0.02] },
@@ -103,6 +123,8 @@ export function createWeaponView(kind) {
   const importedHandsMount = new THREE.Group(); animated.add(importedHandsMount);
   importedHandsMount.visible = false;
   let importedHands = null, importedBones = null, importedRest = null;
+  let importedBaseScale = 1, importedFingerBones = [];
+  const sourceGrip = JSON.parse(JSON.stringify(SOURCE_HAND_DEFAULTS[kind]));
   const arms = { group: handGroup, left: new THREE.Group(), right: new THREE.Group() };
   handGroup.add(arms.right);
   (kind === 'knife' ? staticHolder : handGroup).add(arms.left);
@@ -166,6 +188,40 @@ export function createWeaponView(kind) {
       }
       node.visible = show;
     });
+  }
+  // Real imported Source shoulders are anchored behind the rifle/pistol.
+  // Changing sliders must keep the shoulders at the same spot rather than
+  // making the whole skin drift as the model is resized.
+  function applySourcePlacement() {
+    if (!importedHands) return;
+    const c = sourceGrip.model;
+    importedHandsMount.position.set(c.x, c.y, c.z);
+    importedHandsMount.rotation.set(c.rx*DEG,c.ry*DEG,c.rz*DEG,'YXZ');
+    importedHands.scale.setScalar(importedBaseScale*c.scale);
+    importedHands.position.set(0,0,0);
+    importedHandsMount.updateMatrixWorld(true);
+    const left = importedBones.leftArm.getWorldPosition(new THREE.Vector3());
+    const right = importedBones.rightArm.getWorldPosition(new THREE.Vector3());
+    const shoulderMid = left.add(right).multiplyScalar(0.5);
+    const local = importedHandsMount.worldToLocal(shoulderMid);
+    importedHands.position.add(new THREE.Vector3(0,-0.39,0.40).sub(local));
+    importedHandsMount.updateMatrixWorld(true);
+  }
+  const fingerAxis = new THREE.Vector3(0,0,1);
+  const fingerTurn = new THREE.Quaternion();
+  function poseSourceFingers() {
+    // The uploaded Source model has 3 bones for each finger. Bend all
+    // phalanges: simply turning the wrist leaves fingers wide open.
+    for (const { bone, rest, side, digit, segment } of importedFingerBones) {
+      const cfg = sourceGrip[side];
+      const trigger = side === 'R' && kind === 'pistol' && digit === 'Index';
+      const amount = cfg.curl*(trigger ? 0.28 : 1);
+      const angle = digit === 'Thumb'
+        ? [0.25,0.42,0.25][segment-1] * amount
+        : [0.52,0.73,0.40][segment-1] * amount;
+      fingerTurn.setFromAxisAngle(fingerAxis, (digit === 'Thumb' ? 1 : -1)*angle);
+      bone.quaternion.copy(rest).multiply(fingerTurn);
+    }
   }
   let kick=0,lastNow=null;
   const view = {
