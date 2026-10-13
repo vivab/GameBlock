@@ -1,160 +1,155 @@
-import {WEAPON_DEFAULTS,HAND_DEFAULTS,SOURCE_HAND_DEFAULTS} from './viewmodels.js';
-// Game1-style calibration: separate gun, left glove, right glove and finger bend.
-const STORAGE='gameblock:game1-grip-v1';
+import { WEAPON_DEFAULTS,HAND_DEFAULTS } from './viewmodels.js';
+
+// The old Source-skeleton calibration is intentionally not migrated. The
+// new GameBlock glove rig has predictable local axes and fresh clean defaults.
+const STORAGE='gameblock:retro-grip-v2';
 const WEAPON=[
- ['x','Вбок',-1,1,.01],['y','Высота',-1,1,.01],['z','Глубина',-1,1,.01],
- ['rx','Наклон X',-180,180,1],['ry','Разворот Y',-180,180,1],
- ['rz','Крен Z',-180,180,1],['scale','Размер',.35,2.5,.01]
+  ['x','Вбок',-1,1,.01],['y','Высота',-1,1,.01],['z','Глубина',-1,1,.01],
+  ['rx','Наклон X',-180,180,1],['ry','Разворот Y',-180,180,1],
+  ['rz','Крен Z',-180,180,1],['scale','Размер',.35,2.5,.01]
 ];
 const HAND=[
- ['x','Вбок',-8,8,.05],['y','Высота',-8,8,.05],['z','Глубина',-8,8,.05],
- ['pitch','Наклон',-180,180,1],['yaw','Разворот',-180,180,1],
- ['roll','Кисть',-180,180,1],['k','Сгиб пальцев',.25,1.8,.05]
+  ['x','Кисть X',-8,8,.05],['y','Кисть Y',-8,8,.05],['z','Кисть Z',-8,8,.05],
+  ['pitch','Наклон',-180,180,1],['yaw','Разворот',-180,180,1],
+  ['roll','Поворот',-180,180,1],['k','Сжатие пальцев',.25,1.8,.05]
 ];
-// These sliders move the actual skinned Source arms, NOT the old cube gloves.
-const SOURCE_MODEL=[
- ['x','Вбок',-.65,.65,.01],['y','Высота',-.65,.65,.01],['z','Глубина',-.65,.65,.01],
- ['rx','Наклон X',-160,160,1],['ry','Разворот Y',-160,160,1],
- ['rz','Крен Z',-160,160,1],['scale','Размер рук',.45,1.5,.01]
-];
-const SOURCE_GRIP=[
- ['x','Кисть X',-.65,.65,.01],['y','Кисть Y',-.65,.65,.01],
- ['z','Кисть Z',-.65,.65,.01],['roll','Поворот',-90,90,1],
- ['curl','Сжать пальцы',0,1.6,.05]
-];
-function read(){try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')||{}}catch{return {}}}
-function persist(data){try{localStorage.setItem(STORAGE,JSON.stringify(data))}catch{}}
+function read(){
+  try{return JSON.parse(localStorage.getItem(STORAGE)||'{}')||{};}
+  catch{return {};}
+}
+function save(data){
+  try{localStorage.setItem(STORAGE,JSON.stringify(data));}catch{}
+}
 export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   const saved=read();
-  for(const name of Object.keys(views)){
-    const c=saved[name];if(!c)continue;
-    if(c.weapon)views[name].calibrate(c.weapon);
-    for(const hand of ['R','L'])if(c[hand])views[name].calibrateHand(hand,c[hand]);
-    if(c.source)for(const part of ['model','R','L'])
-      if(c.source[part])views[name].calibrateSource(part,c.source[part]);
+  for(const [kind,view] of Object.entries(views)){
+    const config=saved[kind];if(!config)continue;
+    if(config.weapon)view.calibrate(config.weapon);
+    for(const side of ['R','L'])if(config[side])view.calibrateHand(side,config[side]);
   }
-  const ui=document.createElement('div');ui.id='calibrationUI';
-  ui.innerHTML=[
-    '<button id="calibrationOpen" type="button" aria-label="Настроить хват" title="Настроить хват">⚙</button>',
-    '<section id="calibrationPanel" hidden>',
-    '<div class="cal-head"><b>НАСТРОЙКА ХВАТА • CS SOURCE</b><button id="calibrationClose" type="button">✕</button></div>',
-    '<p id="calHint">Передвигай настоящие руки и сгибай пальцы. Положение сохраняется отдельно для Glock, AK и ножа.</p>',
-    '<label class="cal-weapon">Оружие <select id="calWeapon"><option value="pistol">Glock 18</option>',
-    '<option value="rifle">AK-47</option><option value="knife">Нож</option></select></label>',
-    '<label class="cal-weapon">Подгоняю <select id="calPart">',
-    '<option value="sourceR">Правая кисть CS:S</option>',
-    '<option value="sourceL">Левая кисть CS:S</option>',
-    '<option value="sourceModel">Обе руки CS:S</option>',
-    '<option value="weapon">Оружие</option>',
-    '<option value="R">Запасная правая рука</option>',
-    '<option value="L">Запасная левая рука</option></select></label>',
-    '<label class="cal-weapon" id="calPoseRow" hidden>Пальцы <select id="calPose">',
-    '<option value="pistol">На спуске</option><option value="cup">Обхват</option>',
-    '<option value="fist">Кулак</option><option value="open">Открытая</option></select></label>',
-    '<div id="calSliders"></div><div class="cal-actions">',
-    '<button id="calReset" type="button">Сброс части</button>',
-    '<button id="calCopy" type="button">Копировать координаты</button></div>',
-    '<textarea id="calOutput" readonly rows="3" aria-label="Координаты рук и оружия"></textarea>',
-    '<small id="calStatus">Скопируй все настройки и отправь мне.</small></section>'
-  ].join('');
-  const style=document.createElement('style');
-  style.textContent=[
-    '#calibrationUI{position:fixed;inset:0;z-index:40;pointer-events:none;color:#edf7ff;font:600 12px system-ui,Arial}',
-    '#calibrationOpen{position:absolute;top:99px;left:max(12px,env(safe-area-inset-left));pointer-events:auto;',
-    'background:#1c3246;border:1px solid #8caaba;border-radius:10px;width:37px;height:35px;font-size:22px}',
-    '#calibrationUI button,#calibrationUI input,#calibrationUI select,#calibrationUI textarea{touch-action:auto;font:inherit;color:inherit}',
-    '#calibrationPanel{pointer-events:auto;position:absolute;top:3%;left:max(6px,env(safe-area-inset-left));',
-    'width:min(320px,48vw);max-height:94%;overflow-y:auto;overscroll-behavior:contain;',
-    'padding:11px;background:#142636fa;border:1px solid #8cadbe;border-radius:13px;box-shadow:0 10px 40px #000a}',
-    '#calibrationPanel[hidden],#calPoseRow[hidden]{display:none}',
-    '.cal-head{display:flex;justify-content:space-between;gap:6px;align-items:center;font-size:12px}',
-    '#calibrationPanel button{border:1px solid #789eb6;border-radius:7px;background:#31516a;padding:6px}',
-    '#calibrationPanel p{font-size:11px;line-height:1.35;font-weight:400;margin:6px 0;opacity:.85}',
-    '.cal-weapon{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:5px 0}',
-    '.cal-weapon select{background:#27485f;padding:4px;border-radius:6px;max-width:65%}',
-    '.cal-row{display:grid;grid-template-columns:79px 1fr 42px;align-items:center;gap:6px;margin:6px 0}',
-    '.cal-row input{min-width:0;width:100%;accent-color:#9ad8ff}',
-    '.cal-row output{font-size:11px;text-align:right;font-variant-numeric:tabular-nums}',
-    '.cal-actions{display:flex;justify-content:space-between;gap:8px;margin:9px 0}',
-    '.cal-actions button{font-size:11px}#calOutput{width:100%;height:51px;user-select:text;',
-    'background:#091a26;border:1px solid #7394a6;border-radius:6px;font-size:10px;padding:5px}',
-    '#calStatus{display:block;opacity:.75;font-weight:400;margin-top:5px}',
-    '@media(max-height:430px){#calibrationOpen{top:70px}#calibrationPanel{padding:8px}',
-    '.cal-row{margin:3px 0}.cal-weapon{margin:3px 0}#calibrationPanel p{margin:3px 0}}',
-  ].join('');
-  document.head.append(style);document.body.append(ui);
-  const $=id=>ui.querySelector('#'+id),wp=$('calWeapon'),part=$('calPart'),pose=$('calPose'),panel=$('calibrationPanel');
-  const current=()=>views[wp.value];
-  const sourcePart=()=>part.value==='sourceModel'?'model':part.value==='sourceR'?'R':part.value==='sourceL'?'L':null;
-  const values=()=>sourcePart()?current().sourceCalibration[sourcePart()]
-    :part.value==='weapon'?current().calibration:current().handCalibration[part.value];
-  function persistCurrent(){
-    saved[wp.value]={weapon:current().calibration,...current().handCalibration,
-      source:current().sourceCalibration};
-    persist(saved);
+  const wrapper=document.createElement('div');
+  wrapper.id='calibrationUI';
+  wrapper.innerHTML=`
+    <button id="calibrationOpen" aria-label="Настроить оружие и руки"
+      type="button">⚙</button>
+    <section id="calibrationPanel" aria-label="Настройка оружия" hidden>
+      <div class="cal-head"><b>НАСТРОЙКА ХВАТА</b>
+        <button id="calibrationClose" type="button">✕</button></div>
+      <p>Собственные 3D-руки и оружие. Все изменения сохраняются на этом устройстве.</p>
+      <label>Оружие <select id="calWeapon">
+        <option value="pistol">Glock 18</option><option value="rifle">AK-47</option>
+        <option value="knife">Нож</option></select></label>
+      <label>Подгоняю <select id="calPart">
+        <option value="R">Правая рука</option><option value="L">Левая рука</option>
+        <option value="weapon">Оружие</option></select></label>
+      <label id="calPoseRow">Пальцы <select id="calPose">
+        <option value="pistol">На спуске</option><option value="cup">Обхват</option>
+        <option value="fist">Кулак</option><option value="open">Открытая</option>
+      </select></label>
+      <div id="calSliders"></div>
+      <div class="cal-actions">
+        <button id="calReset" type="button">Сбросить</button>
+        <button id="calCopy" type="button">Копировать хват</button>
+      </div>
+      <textarea id="calOutput" readonly aria-label="Координаты" rows="3"></textarea>
+      <small id="calStatus">Передвигай руки ползунками и смотри на оружие.</small>
+    </section>`;
+  const css=document.createElement('style');
+  css.textContent=`
+    #calibrationUI{position:fixed;inset:0;z-index:40;pointer-events:none;
+      font:600 12px system-ui,Arial;color:#edf4ef}
+    #calibrationOpen{position:absolute;top:98px;left:max(12px,env(safe-area-inset-left));
+      pointer-events:auto;background:#172737;border:1px solid #b7a27f;
+      border-radius:8px;width:38px;height:38px;color:#fff;font-size:24px}
+    #calibrationPanel{position:absolute;top:2%;left:max(9px,env(safe-area-inset-left));
+      width:min(330px,46vw);max-height:94%;overflow:auto;overscroll-behavior:contain;
+      pointer-events:auto;background:#111e2bf7;border:1px solid #b7a27f;
+      border-radius:11px;padding:13px;box-shadow:0 12px 45px #000a}
+    #calibrationPanel[hidden],#calPoseRow[hidden]{display:none!important}
+    #calibrationUI button,#calibrationUI input,#calibrationUI select,
+    #calibrationUI textarea{touch-action:auto;color:inherit;font:inherit}
+    #calibrationPanel button{background:#324b59;border:1px solid #b2a180;
+      padding:6px 9px;border-radius:5px}
+    #calibrationPanel .cal-head {display:flex;align-items:center;
+      justify-content:space-between;letter-spacing:.07em}
+    #calibrationPanel p{font-size:11px;line-height:1.35;font-weight:400;
+      color:#b7c5c4;margin:8px 0}
+    #calibrationPanel label:not(.cal-row){display:flex;align-items:center;
+      justify-content:space-between;gap:9px;margin:7px 0}
+    #calibrationPanel select{background:#254152;border:1px solid #7e908b;
+      border-radius:4px;max-width:65%;padding:4px}
+    #calibrationPanel .cal-row {display:grid;grid-template-columns:85px minmax(0,1fr) 34px;
+      align-items:center;gap:7px;margin:6px 0}
+    #calibrationPanel .cal-row input{width:100%;accent-color:#e5b771}
+    #calibrationPanel .cal-row output{font-size:10px;text-align:right}
+    #calibrationPanel .cal-actions{display:flex;gap:5px;margin:11px 0}
+    #calibrationPanel textarea{background:#071621;border:1px solid #617987;
+      font-size:10px;padding:5px;width:100%;height:48px;user-select:text}
+    #calibrationPanel small{font-size:10px;color:#b7c2c2;font-weight:400}
+    @media(max-height:440px){
+      #calibrationOpen{top:63px}#calibrationPanel{padding:8px}
+      #calibrationPanel .cal-row{margin:2px 0}
+      #calibrationPanel p{margin:2px 0}
+    }`;
+  document.head.append(css);document.body.append(wrapper);
+  const $=id=>wrapper.querySelector('#'+id);
+  const wp=$('calWeapon'),part=$('calPart'),pose=$('calPose'),panel=$('calibrationPanel');
+  const view=()=>views[wp.value];
+  const value=()=>part.value==='weapon'?view().calibration:view().handCalibration[part.value];
+  function remember(){
+    saved[wp.value]={weapon:view().calibration,...view().handCalibration};
+    save(saved);
   }
   function output(){
     $('calOutput').value=JSON.stringify({weapon:wp.value,
-      mount:current().calibration,hands:current().handCalibration,
-      source:current().sourceCalibration});
+      mount:view().calibration,hands:view().handCalibration});
   }
-  function show(){
-    const hand=part.value==='R'||part.value==='L';
-    const src=sourcePart();
-    $('calPoseRow').hidden=!hand;
-    if(hand)pose.value=values().pose;
-    $('calHint').textContent = src && !current().usesImportedHands
-      ? 'Модель Source не загрузилась. Пока отображаются запасные руки.'
-      : src ? 'Двигай ползунки, пока кисть не возьмётся за оружие. Всё сохраняется автоматически.'
-      : 'Настройка сохраняется на этом телефоне отдельно для каждого оружия.';
-    const area=$('calSliders');area.replaceChildren();
-    const rows=src?(src==='model'?SOURCE_MODEL:SOURCE_GRIP):hand?HAND:WEAPON;
-    for(const [key,label,min,max,step] of rows){
+  function display(){
+    const hand=part.value!=='weapon';$('calPoseRow').hidden=!hand;
+    if(hand)pose.value=value().pose;
+    const sliders=$('calSliders');sliders.replaceChildren();
+    for(const [key,label,min,max,step] of hand?HAND:WEAPON){
       const row=document.createElement('label');row.className='cal-row';
       const name=document.createElement('span');name.textContent=label;
       const input=document.createElement('input');input.type='range';
-      input.min=min;input.max=max;input.step=step;input.dataset.key=key;
-      input.value=values()[key];input.setAttribute('aria-label',label);
-      const value=document.createElement('output');value.textContent=Number(input.value).toFixed(step<1?2:0);
-      row.append(name,input,value);area.append(row);
+      input.min=min;input.max=max;input.step=step;
+      input.value=value()[key];input.setAttribute('aria-label',label);
+      const number=document.createElement('output');number.textContent=input.value;
+      row.append(name,input,number);sliders.append(row);
       input.addEventListener('input',()=>{
         const n=Number(input.value);
-        if(src)current().calibrateSource(src,{[key]:n});
-        else if(part.value==='weapon')current().calibrate({[key]:n});
-        else current().calibrateHand(part.value,{[key]:n});
-        value.textContent=n.toFixed(step<1?2:0);
-        persistCurrent();output();
-        $('calStatus').textContent='✓ Сохранено на этом устройстве';
+        if(hand)view().calibrateHand(part.value,{[key]:n});
+        else view().calibrate({[key]:n});
+        number.textContent=input.value;remember();output();
+        $('calStatus').textContent='✓ Сохранено';
       });
     }
     output();
   }
-  $('calibrationOpen').addEventListener('pointerdown',e=>{
-    e.stopPropagation();e.preventDefault();
-    panel.hidden=!panel.hidden;if(!panel.hidden){wp.value=getWeapon();show()}
+  $('calibrationOpen').addEventListener('pointerdown',event=>{
+    event.stopPropagation();event.preventDefault();
+    panel.hidden=!panel.hidden;
+    if(!panel.hidden){wp.value=getWeapon();part.value='R';display();}
   });
-  $('calibrationClose').addEventListener('click',()=>{panel.hidden=true});
-  wp.addEventListener('change',()=>{setWeapon(wp.value);show()});
-  part.addEventListener('change',show);
-  pose.addEventListener('change',()=>{current().calibrateHand(part.value,{pose:pose.value});persistCurrent();output()});
+  $('calibrationClose').addEventListener('click',()=>panel.hidden=true);
+  wp.addEventListener('change',()=>{setWeapon(wp.value);display();});
+  part.addEventListener('change',display);
+  pose.addEventListener('change',()=>{
+    if(part.value==='weapon')return;
+    view().calibrateHand(part.value,{pose:pose.value});remember();output();
+  });
   $('calReset').addEventListener('click',()=>{
-    if(sourcePart())current().calibrateSource(sourcePart(),SOURCE_HAND_DEFAULTS[wp.value][sourcePart()]);
-    else if(part.value==='weapon')current().calibrate(WEAPON_DEFAULTS[wp.value]);
-    else current().calibrateHand(part.value,HAND_DEFAULTS[wp.value][part.value]);
-    persistCurrent();show();$('calStatus').textContent='Стандартные значения восстановлены.';
+    if(part.value==='weapon')view().calibrate(WEAPON_DEFAULTS[wp.value]);
+    else view().calibrateHand(part.value,HAND_DEFAULTS[wp.value][part.value]);
+    remember();display();$('calStatus').textContent='Настройки восстановлены';
   });
   $('calCopy').addEventListener('click',async()=>{
-    output();
-    try{
-      if(!navigator.clipboard?.writeText)throw Error('clipboard');
-      await navigator.clipboard.writeText($('calOutput').value);
-      $('calStatus').textContent='Координаты скопированы. Пришли их мне.';
-    }catch{
-      $('calOutput').focus();$('calOutput').select();
-      $('calStatus').textContent='Выделил координаты. Скопируй их вручную.';
-    }
+    output();try{await navigator.clipboard.writeText($('calOutput').value);
+      $('calStatus').textContent='Хват скопирован';}
+    catch{$('calOutput').focus();$('calOutput').select();
+      $('calStatus').textContent='Копируй выделенные координаты вручную';}
   });
-  ui.addEventListener('pointermove',e=>e.stopPropagation());
-  show();
-  return {showWeapon:name=>{wp.value=name;show()},open:()=>{panel.hidden=false;wp.value=getWeapon();show()}};
+  wrapper.addEventListener('pointermove',event=>event.stopPropagation());
+  return {showWeapon:name=>{wp.value=name;display()},
+    open:()=>{panel.hidden=false;wp.value=getWeapon();display()}};
 }
