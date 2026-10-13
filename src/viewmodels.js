@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { makeHand } from './game1Hands.js';
+import { makeHand } from './retroHands.js';
 import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 
 // Game1 hand rig and animation mechanics adapted for GameBlock's existing
@@ -31,26 +30,6 @@ export const HAND_DEFAULTS = Object.freeze({
   knife: {
     R: { pose: 'fist', x: 1.35, y: -0.4, z: -0.95, pitch: 26, yaw: 17, roll: -22, k: 0.75 },
     L: { pose: 'open', x: -4.8, y: 1.5, z: -0.5, pitch: 25, yaw: -20, roll: 0, k: 1 },
-  },
-});
-// Source viewmodel .glb has real finger bones. These presets are kept per
-// weapon and are editable from the in-game gear menu on a phone.
-// Coordinates are relative to the first-person weapon animation pivot.
-export const SOURCE_HAND_DEFAULTS = Object.freeze({
-  pistol: {
-    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
-    R: { x:0, y:0, z:0, curl:1.05, roll:-8 },
-    L: { x:-0.04, y:-0.10, z:0.16, curl:0.22, roll:0 },
-  },
-  rifle: {
-    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
-    R: { x:0, y:0, z:0, curl:1.10, roll:-8 },
-    L: { x:0, y:0, z:0, curl:1.05, roll:12 },
-  },
-  knife: {
-    model: { x:0, y:0, z:0, rx:0, ry:0, rz:0, scale:0.80 },
-    R: { x:0.02, y:0.03, z:0, curl:1.18, roll:5 },
-    L: { x:-0.05, y:-0.06, z:0, curl:0.18, roll:0 },
   },
 });
 const ANCHORS = {
@@ -120,11 +99,6 @@ export function createWeaponView(kind) {
   } else animated.add(modelMount);
   const staticHolder = new THREE.Group(); root.add(staticHolder);
   const handGroup = new THREE.Group(); animated.add(handGroup);
-  const importedHandsMount = new THREE.Group(); animated.add(importedHandsMount);
-  importedHandsMount.visible = false;
-  let importedHands = null, importedBones = null, importedRest = null;
-  let importedBaseScale = 1, importedFingerBones = [];
-  const sourceGrip = JSON.parse(JSON.stringify(SOURCE_HAND_DEFAULTS[kind]));
   const arms = { group: handGroup, left: new THREE.Group(), right: new THREE.Group() };
   handGroup.add(arms.right);
   (kind === 'knife' ? staticHolder : handGroup).add(arms.left);
@@ -174,144 +148,11 @@ export function createWeaponView(kind) {
   updateMount();
   updateHand('R',true); updateHand('L',true);
 
-  // The knife blade lives under the legacy wrist pivot. Hide only the
-  // procedural glove polygons, never their child weapon model.
-  function showKnifeProceduralGlove(show) {
-    if (kind !== 'knife') return;
-    const rig = arms.right.userData.mesh;
-    rig?.traverse(node => {
-      if (!node.isMesh) return;
-      let ancestor = node;
-      while (ancestor && ancestor !== rig) {
-        if (ancestor === modelMount) return;
-        ancestor = ancestor.parent;
-      }
-      node.visible = show;
-    });
-  }
-  // Real imported Source shoulders are anchored behind the rifle/pistol.
-  // Changing sliders must keep the shoulders at the same spot rather than
-  // making the whole skin drift as the model is resized.
-  function applySourcePlacement() {
-    if (!importedHands) return;
-    const c = sourceGrip.model;
-    importedHandsMount.position.set(c.x, c.y, c.z);
-    importedHandsMount.rotation.set(c.rx*DEG,c.ry*DEG,c.rz*DEG,'YXZ');
-    importedHands.scale.setScalar(importedBaseScale*c.scale);
-    importedHands.position.set(0,0,0);
-    importedHandsMount.updateMatrixWorld(true);
-    const left = importedBones.leftArm.getWorldPosition(new THREE.Vector3());
-    const right = importedBones.rightArm.getWorldPosition(new THREE.Vector3());
-    const shoulderMid = left.add(right).multiplyScalar(0.5);
-    const local = importedHandsMount.worldToLocal(shoulderMid);
-    importedHands.position.add(new THREE.Vector3(0,-0.39,0.40).sub(local));
-    importedHandsMount.updateMatrixWorld(true);
-  }
-  const fingerAxis = new THREE.Vector3(0,0,1);
-  const fingerTurn = new THREE.Quaternion();
-  function poseSourceFingers() {
-    // The uploaded Source model has 3 bones for each finger. Bend all
-    // phalanges: simply turning the wrist leaves fingers wide open.
-    for (const { bone, rest, side, digit, segment } of importedFingerBones) {
-      const cfg = sourceGrip[side];
-      const trigger = side === 'R' && kind === 'pistol' && digit === 'Index';
-      const amount = cfg.curl*(trigger ? 0.28 : 1);
-      const angle = digit === 'Thumb'
-        ? [0.25,0.42,0.25][segment-1] * amount
-        : [0.52,0.73,0.40][segment-1] * amount;
-      fingerTurn.setFromAxisAngle(fingerAxis, (digit === 'Thumb' ? 1 : -1)*angle);
-      bone.quaternion.copy(rest).multiply(fingerTurn);
-    }
-  }
   let kick=0,lastNow=null;
   const view = {
-    kind, root, animated, arms, modelMount, muzzle, knifeWrist, importedHandsMount,
-    get usesImportedHands() { return !!importedHands; },
-    setHands(gltfScene) {
-      const restoreFallback = () => {
-        if (importedHands) importedHandsMount.remove(importedHands);
-        importedHands = null;
-        importedBones = importedRest = null;
-        importedFingerBones = [];
-        importedHandsMount.visible = false;
-        handGroup.visible = true;
-        staticHolder.visible = true;
-        showKnifeProceduralGlove(true);
-        return false;
-      };
-      if (!gltfScene) return restoreFallback();
-      const model = cloneSkinned(gltfScene);
-      const joints = {};
-      model.traverse(object => {
-        if (!object.isBone) return;
-        if (/Left_Arm_/i.test(object.name)) joints.leftArm = object;
-        if (/Right_Arm_/i.test(object.name)) joints.rightArm = object;
-        if (/Left_Hand_/i.test(object.name)) joints.leftHand = object;
-        if (/Right_Hand_/i.test(object.name)) joints.rightHand = object;
-      });
-      if (!joints.leftArm || !joints.rightArm ||
-          !joints.leftHand || !joints.rightHand) {
-        console.warn('Source hand skeleton incomplete; using built-in gloves');
-        return restoreFallback();
-      }
-      // Source .glb contains long arms with the wrists far from the origin.
-      // Fitting by mesh bounds put the hands behind/below the FPS camera.
-      // Instead, fit by shoulder-to-wrist bone length and anchor the shoulders
-      // behind the weapon, then rotate each arm toward its real grip point.
-      model.updateMatrixWorld(true);
-      const shoulderL = joints.leftArm.getWorldPosition(new THREE.Vector3());
-      const shoulderR = joints.rightArm.getWorldPosition(new THREE.Vector3());
-      const handL = joints.leftHand.getWorldPosition(new THREE.Vector3());
-      const handR = joints.rightHand.getWorldPosition(new THREE.Vector3());
-      const span = Math.max(shoulderL.distanceTo(handL), shoulderR.distanceTo(handR));
-      if (!Number.isFinite(span) || span < 0.001) return restoreFallback();
-
-      if (importedHands) importedHandsMount.remove(importedHands);
-      importedHandsMount.add(model);
-      model.rotation.set(0, Math.PI, 0); // Source arms point away from -Z camera
-      importedBaseScale = 0.66 / span;
-      model.position.set(0,0,0);
-      // Bone animation can escape bind-pose bounds: never cull those hands.
-      model.traverse(node => { if (node.isSkinnedMesh) node.frustumCulled = false; });
-      importedHands = model;
-      importedBones = joints;
-      importedRest = Object.fromEntries(Object.entries(joints)
-        .map(([name, bone]) => [name, bone.quaternion.clone()]));
-      importedFingerBones = [];
-      model.traverse(object => {
-        if (!object.isBone) return;
-        const m = /(?:^|\.)(Left|Right)_(Thumb|Index|Middle|Ring|Pinky)_?0?([123])_/i.exec(object.name);
-        if (m) importedFingerBones.push({
-          bone:object, rest:object.quaternion.clone(),
-          side:m[1].toLowerCase()==='right'?'R':'L',
-          digit:m[2], segment:Number(m[3])
-        });
-      });
-      applySourcePlacement();
-      importedHandsMount.visible = true;
-      handGroup.visible = kind === 'knife'; // knife blade keeps old wrist mount
-      staticHolder.visible = false;
-      showKnifeProceduralGlove(false);
-      return true;
-    },
+    kind, root, animated, arms, modelMount, muzzle, knifeWrist,
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
-    get sourceCalibration() { return JSON.parse(JSON.stringify(sourceGrip)); },
-    calibrateSource(part, changes = {}) {
-      const config = sourceGrip[part];
-      if (!config) throw Error('Unknown Source hand calibration part: ' + part);
-      for (const key of Object.keys(config)) {
-        const n = changes[key];
-        if (typeof n !== 'number' || !Number.isFinite(n)) continue;
-        const lo = key === 'scale' ? 0.45 : key === 'curl' ? 0 : key === 'roll' ? -90
-          : key.startsWith('r') ? -160 : -0.65;
-        const hi = key === 'scale' ? 1.5 : key === 'curl' ? 1.6 : key === 'roll' ? 90
-          : key.startsWith('r') ? 160 : 0.65;
-        config[key] = clamp(n,lo,hi);
-      }
-      if (part === 'model') applySourcePlacement();
-      return { ...config };
-    },
     setModel(gltfScene) {
       modelMount.remove(loaded);
       loaded=gltfScene ? normalizeWeapon(gltfScene,kind) : fallbackModel(kind);
@@ -321,7 +162,6 @@ export function createWeaponView(kind) {
       if (team===side)return;
       team=side;
       updateHand('R',true); updateHand('L',true);
-      if (importedHands) showKnifeProceduralGlove(false);
     },
     calibrate(config={}) {
       for(const k of ['x','y','z','rx','ry','rz','scale']){
@@ -455,56 +295,6 @@ export function createWeaponView(kind) {
           arms.left.position.z -= magReach*0.14;
           arms.left.rotation.x += magReach*0.30;
           arms.left.rotation.z -= magReach*0.35;
-        }
-      }
-      if (importedBones && importedRest) {
-        // Every frame begins from bind pose. A one-joint shoulder-to-wrist
-        // aiming solution works for Source viewmodel arms (no elbow bone).
-        for (const [name, bone] of Object.entries(importedBones))
-          bone.quaternion.copy(importedRest[name]);
-        const aimArm = (side, grip) => {
-          const shoulder = importedBones[side+'Arm'];
-          const wrist = importedBones[side+'Hand'];
-          importedHandsMount.updateMatrixWorld(true);
-          const a = shoulder.getWorldPosition(new THREE.Vector3());
-          const b = wrist.getWorldPosition(new THREE.Vector3());
-          const target = importedHandsMount.localToWorld(grip);
-          const from = b.sub(a).normalize();
-          const to = target.sub(a).normalize();
-          if (from.lengthSq() < 1e-6 || to.lengthSq() < 1e-6) return;
-          const q = new THREE.Quaternion().setFromUnitVectors(from, to);
-          const parentQ = shoulder.parent.getWorldQuaternion(new THREE.Quaternion());
-          const correction = parentQ.clone().invert().multiply(q).multiply(parentQ);
-          shoulder.quaternion.premultiply(correction).normalize();
-        };
-        const rightGrip = new THREE.Vector3(
-          kind === 'knife' ? 0.20 : 0.09,
-          -0.26 - reloadDip*0.045,
-          kind === 'rifle' ? -0.14 : -0.12
-        ).add(new THREE.Vector3(sourceGrip.R.x,sourceGrip.R.y,sourceGrip.R.z));
-        const leftGrip = (kind === 'rifle'
-          ? new THREE.Vector3(-0.11, -0.27 - magReach*0.15 - magPull*0.10,
-            -0.19 + magReach*0.16 - boltPull*0.13)
-          : kind === 'pistol'
-            ? new THREE.Vector3(-0.18, -0.58 + magReach*0.26,
-              -0.08 - magReach*0.21)
-            : new THREE.Vector3(-0.25, -0.58, 0.02))
-          .add(new THREE.Vector3(sourceGrip.L.x,sourceGrip.L.y,sourceGrip.L.z));
-        // The receiver and both wrists move together under 'animated'.
-        aimArm('right', rightGrip);
-        aimArm('left', leftGrip);
-        importedBones.rightHand.quaternion.multiply(
-          new THREE.Quaternion().setFromAxisAngle(fingerAxis, sourceGrip.R.roll*DEG));
-        importedBones.leftHand.quaternion.multiply(
-          new THREE.Quaternion().setFromAxisAngle(fingerAxis, sourceGrip.L.roll*DEG));
-        poseSourceFingers();
-        if (kind === 'knife') {
-          importedBones.rightHand.quaternion.multiply(
-            new THREE.Quaternion().setFromEuler(new THREE.Euler(
-              knifeWrist?.rotation.x || 0,
-              knifeWrist?.rotation.y || 0,
-              knifeWrist?.rotation.z || 0
-            )));
         }
       }
       muzzle.visible=visible&&kind!=='knife'&&firing;
