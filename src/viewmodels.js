@@ -217,12 +217,23 @@ export function createWeaponView(kind) {
         if(kind==='knife')kw=sample(KF.knife,inspectTime);
         else add(sample(KF[kind==='rifle'?'heavy':'pistol'],inspectTime));
       }
-      // Reload deliberately has no magazine manipulation: lower the complete
-      // hand+weapon rig, hold it briefly, then bring it back up together.
-      // No independent left-hand motion that could break the calibrated grip.
-      const reloadDip = kind !== 'knife' && reloadProgress >= 0 && reloadProgress < 1
-        ? Math.max(0, Math.min(1, reloadProgress / 0.2, (1 - reloadProgress) / 0.2))
-        : 0;
+      // Source-inspired reload choreography: support hand releases its grip,
+      // travels to the magazine, pulls it down, seats a fresh one and returns.
+      // Curves are eased to prevent sharp transitions on mobile frame rates.
+      const smooth = v => { const t=clamp(v,0,1); return t*t*(3-2*t); };
+      const pulse = (p,a,b,c,d) => smooth((p-a)/(b-a))*(1-smooth((p-c)/(d-c)));
+      const reloading = kind !== 'knife' && reloadProgress >= 0 && reloadProgress < 1;
+      const p = reloading ? reloadProgress : -1;
+      const reloadDip = reloading ? pulse(p,0,0.15,0.79,1) : 0;
+      const magReach = reloading ? pulse(p,0.08,0.24,0.64,0.82) : 0;
+      const magPull = reloading ? pulse(p,0.23,0.34,0.47,0.60) : 0;
+      const boltPull = reloading && kind === 'rifle' ? pulse(p,0.76,0.84,0.89,0.98) : 0;
+      if(reloading) {
+        move[3] -= reloadDip*(kind==='rifle'?0.13:0.20);
+        move[4] += reloadDip*(kind==='rifle'?0.12:0.18);
+        move[5] += reloadDip*(kind==='rifle'?0.11:0.16);
+        move[2] += boltPull*0.055;
+      }
       if(kind!=='knife') {
         const k=KICK[kind];
         move[2]+=k[0]*kick+recoil*0.45;
@@ -269,7 +280,22 @@ export function createWeaponView(kind) {
       if(leftBase){
         arms.left.position.copy(leftBase);
         arms.left.rotation.set(poses.L.pitch*DEG,poses.L.yaw*DEG,poses.L.roll*DEG,'YXZ');
-        // The supporting hand stays locked to the weapon during reload.
+        // Support-hand key poses are relative to the calibrated neutral grip.
+        // On pistol reload the free hand comes in from below; on AK it grabs
+        // the magazine, pulls down and reaches toward the charging handle.
+        if(kind==='rifle') {
+          arms.left.position.x += magReach*0.075 + boltPull*0.12;
+          arms.left.position.y -= magReach*0.11 + magPull*0.17 - boltPull*0.07;
+          arms.left.position.z += magReach*0.17 - boltPull*0.12;
+          arms.left.rotation.x += magReach*0.42 - boltPull*0.35;
+          arms.left.rotation.z -= magReach*0.34;
+        } else if(kind==='pistol') {
+          arms.left.position.x += magReach*0.095;
+          arms.left.position.y -= magReach*0.16 + magPull*0.10;
+          arms.left.position.z -= magReach*0.14;
+          arms.left.rotation.x += magReach*0.30;
+          arms.left.rotation.z -= magReach*0.35;
+        }
       }
       muzzle.visible=visible&&kind!=='knife'&&firing;
     }
