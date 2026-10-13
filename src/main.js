@@ -103,7 +103,7 @@ function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
   const gltf = assets['operator_' + actor.team];
-  const animated = (gltf && createImportedOperator(gltf, actor.team)) || buildBlockOperator(actor.team);
+  const animated = (gltf && createImportedOperator(gltf, actor.team, assets.rifle)) || buildBlockOperator(actor.team);
   root.add(animated.root);
   fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
 }
