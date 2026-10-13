@@ -126,10 +126,12 @@ export function animateRetroOperator(model,actor,time,dt,movement) {
   model.head.rotation.y=Math.sin(time*.65)*.035;
   for(const limb of model.arms) {
     // Positive shoulder X rotates the arm forward toward the weapon.
+    // Both elbows angle inward so the gloves meet the receiver/foregrip,
+    // rather than floating to the sides of the actor's chest.
     limb.shoulder.rotation.set(1.07 + stride*limb.sign*.045,
-      limb.sign*.07,limb.sign*.16);
+      limb.sign*.07,-limb.sign*.55);
     limb.elbow.rotation.x=.32+(fire?.07:0);
-    limb.elbow.rotation.z=limb.sign*.11;
+    limb.elbow.rotation.z=-limb.sign*.12;
   }
   for(const limb of model.legs) {
     limb.hip.rotation.x=stride*limb.sign*.54;
