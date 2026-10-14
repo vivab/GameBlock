@@ -19,3 +19,5 @@ jobs:
         run: |
           test -s dist/models/dragomir_t.glb
           test "$(stat -c%s dist/models/dragomir_t.glb)" -eq 25440976
+          test -s dist/models/swat_ct.glb
+          test "$(stat -c%s dist/models/swat_ct.glb)" -eq 12928304

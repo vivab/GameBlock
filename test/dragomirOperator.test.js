@@ -42,7 +42,7 @@ test('the T agent leaves bind T-pose to hold the gun and moves its actual leg jo
   const gltf={scene:sampleHumanoid(),animations:Array.from({length:120},()=>({duration:0}))};
   const actor=createDragomirOperator(gltf);
   assert.ok(actor,'uploaded humanoid should instantiate');
-  assert.equal(actor.mode,'dragomir');
+  assert.equal(actor.mode,'tactical');
   assert.equal(actor.clipCount,120);
   assert.equal(actor.playableClipCount,0);
   assert.ok(actor.gun.children.length>3,'weapon should be visible');

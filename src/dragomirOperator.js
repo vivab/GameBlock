@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 
-// Imported Dragonmir has a real CS2-like skeleton but its 120 GLB clips are
-// zero-duration preview poses, not walk/fire/reload sequences. Use authored,
-// deterministic animation on the actual armature instead of replaying previews.
+// The user's Dragomir (T) and SAS SWAT (CT) agents use matching CS2-style
+// skinned rigs, but their GLBs contain one-frame preview poses, not locomotion
+// clips. Drive their *actual bones* with the same deterministic IK animation.
+// Each bot has an independent skeleton; the geometry/materials stay shared.
 const E = Math.PI;
 const X = new THREE.Vector3(1,0,0);
 const Z = new THREE.Vector3(0,0,1);
@@ -28,7 +29,36 @@ function fallbackRifle(root) {
   block(root,mats.wood,.12,.12,.24,0,.015,.27);
   block(root,mats.barrel,.035,.035,.31,0,.125,-.23);
 }
-function createRifle(scene) {
+function createSwatCarbine() {
+  // Compact black tactical carbine: muzzle, handguard, upper/lower receiver,
+  // box magazine, stock and iron sights. Looks like CT kit, not a toy AK.
+  const group=new THREE.Group();
+  const dark=material(0x182027),rubber=material(0x303b42);
+  const steel=material(0x434b50);
+  const cylinder=(radius,height,x,y,z,mtl=dark)=>{
+    const obj=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,height,10),mtl);
+    obj.rotation.x=Math.PI/2;obj.position.set(x,y,z);group.add(obj);
+    return obj;
+  };
+  block(group,dark,.13,.135,.40,0,.01,0);
+  block(group,steel,.09,.025,.44,0,.094,-.03);
+  block(group,rubber,.145,.14,.32,0,.035,-.38);
+  cylinder(.035,.37,0,.062,-.67,steel);
+  cylinder(.045,.085,0,.064,-.87,dark);
+  block(group,steel,.07,.08,.105,0,.145,-.15);
+  block(group,dark,.08,.055,.085,0,.19,-.15);
+  block(group,dark,.13,.14,.20,0,.025,.32);
+  cylinder(.034,.25,0,.030,.43,rubber);
+  const mag=block(group,steel,.088,.25,.108,0,-.16,-.04);
+  mag.rotation.x=-.18;
+  const grip=block(group,rubber,.091,.21,.084,0,-.14,.14);
+  grip.rotation.x=-.22;
+  block(group,rubber,.09,.11,.22,0,-.018,-.39);
+  block(group,steel,.075,.028,.17,0,.137,-.39);
+  return group;
+}
+function createRifle(scene,team='t') {
+  if(team==='ct')return createSwatCarbine();
   const root=new THREE.Group();
   if (!scene) {fallbackRifle(root);return root;}
   try {
@@ -97,10 +127,12 @@ function orientAndFit(root,visual,bones) {
   root.updateMatrixWorld(true);
   return true;
 }
-export function createDragomirOperator(gltf, rifleAsset=null) {
+export function createTacticalOperator(gltf, rifleAsset=null, team='t') {
+  if(team!=='ct' && team!=='t')return null;
   if(!gltf?.scene)return null;
   const root=new THREE.Group();
-  root.name='GB / Dragomir / Terrorist';
+  root.name=team==='ct'?'GB / SAS SWAT / Counter-Terrorist'
+    :'GB / Dragomir / Terrorist';
   const visual=new THREE.Group();
   const source=cloneSkinned(gltf.scene);
   visual.add(source);
@@ -121,15 +153,18 @@ export function createDragomirOperator(gltf, rifleAsset=null) {
   const gunPivot=new THREE.Group();
   gunPivot.position.set(.015,1.24,-.41);
   root.add(gunPivot);
-  const gun=createRifle(rifleAsset);
+  const gun=createRifle(rifleAsset,team);
   gunPivot.add(gun);
   const duration=glTFDurationInventory(gltf.animations||[]);
-  const model={root,source,visual,bones,rest,gun,gunPivot,mode:'dragomir',
-    team:'t',clipCount:duration.total,playableClipCount:duration.playable,
+  const model={root,source,visual,bones,rest,gun,gunPivot,mode:'tactical',
+    team,clipCount:duration.total,playableClipCount:duration.playable,
     startVisualY:visual.position.y};
-  animateDragomirOperator(model,{lastShotAt:-10},0,.016,0);
+  animateTacticalOperator(model,{lastShotAt:-10},0,.016,0);
   return model;
 }
+// Backward-compatible name for the Dragomir-specific integration tests.
+export const createDragomirOperator=(gltf,rifleAsset=null)=>
+  createTacticalOperator(gltf,rifleAsset,'t');
 export function glTFDurationInventory(clips) {
   return {total:clips.length,playable:clips.filter(clip=>
     Number.isFinite(clip.duration) && clip.duration>.05).length};
@@ -197,7 +232,7 @@ function aimArm(model,side,grip) {
   model.root.updateWorldMatrix(true,true);
   aimJoint(lower,wrist,goal);
 }
-export function animateDragomirOperator(model,actor,time,dt,movement) {
+export function animateTacticalOperator(model,actor,time,dt,movement) {
   if(!model)return;
   const speed=clamp(movement/3.5,0,1);
   const moving=speed>.06;
@@ -222,3 +257,5 @@ export function animateDragomirOperator(model,actor,time,dt,movement) {
   aimArm(model,'left',new THREE.Vector3(-.12,1.28,-.62));
   model.root.updateWorldMatrix(true,true);
 }
+
+export const animateDragomirOperator=animateTacticalOperator;
