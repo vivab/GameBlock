@@ -17,6 +17,26 @@ export function inspectGlb(file) {
     skins:gltf.skins?.length||0,
     meshes:gltf.meshes?.length||0,
     nodes:gltf.nodes?.length||0,
+    meshNodes:(gltf.nodes||[]).filter(n=>n.mesh!==undefined).map(n=>({
+      name:n.name,mesh:n.mesh,skin:n.skin,translation:n.translation,
+      rotation:n.rotation,scale:n.scale
+    })),
+    sceneRoots:(gltf.scenes||[]).map(s=>s.nodes),
+    rootNodes:(gltf.nodes||[]).slice(0,8).map(n=>({
+      name:n.name,translation:n.translation,rotation:n.rotation,
+      scale:n.scale,children:n.children?.length
+    })),
+    animationSample:(gltf.animations||[]).slice(0,6).map((a,i)=>({
+      id:i,name:a.name,channels:a.channels?.length,
+      targets:(a.channels||[]).slice(0,10).map(ch=>({
+        node:gltf.nodes?.[ch.target?.node]?.name,
+        path:ch.target?.path
+      })),
+      durations:(a.samplers||[]).slice(0,3).map(sm=>{
+        const ac=gltf.accessors?.[sm.input];
+        return ac?{min:ac.min,max:ac.max,count:ac.count}:null;
+      })
+    })),
     animations:(gltf.animations||[]).map(a=>({
       name:a.name||'(unnamed)',
       channels:a.channels?.length||0,
