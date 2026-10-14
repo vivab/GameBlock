@@ -4,7 +4,7 @@ import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildRetroOperator, animateRetroOperator } from './retroOperators.js';
-import { createDragomirOperator, animateDragomirOperator } from './dragomirOperator.js';
+import { createTacticalOperator, animateTacticalOperator } from './dragomirOperator.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
 import { createGameAudio } from './audio.js';
@@ -38,7 +38,7 @@ menuCamera.lookAt(0, .94, 0);
 menuScene.add(new THREE.HemisphereLight(0xfff0d7, 0x404b5d, 2.7));
 const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
 menuLight.position.set(-4, 8, 5);menuScene.add(menuLight);
-const preview=buildRetroOperator('ct');
+let preview=buildRetroOperator('ct');
 preview.root.rotation.y=-.32;
 menuScene.add(preview.root);
 const plinth=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.75,.12,36),
@@ -65,20 +65,29 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// The user's Dragomir CS2 GLB is the new T character, while CT and fallback T
-// stay procedural. The larger character GLB preloads with visible progress.
+// Realistic user-supplied SAS/SWAT on CT, Dragomir on T. The original
+// lightweight operators remain local fallbacks, not visible when GLBs load.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  terrorist:'dragomir_t'
+  swat:'swat_ct', terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
     try {
-      assets[key] = key === 'terrorist' ? result : result.scene;
+      assets[key] = key === 'swat' || key === 'terrorist' ? result : result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-      else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
+      else if (key === 'swat') {
+        // The first impression should show our real tactical SWAT character,
+        // not the provisional procedural soldier.
+        const next=createTacticalOperator(result,null,'ct');
+        if (!next) throw Error('SWAT GLB lacks a compatible humanoid rig');
+        menuScene.remove(preview.root);
+        preview=next;
+        preview.root.rotation.y=-.32;
+        menuScene.add(preview.root);
+      } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
       console.warn('Model setup failed:', key, error);
@@ -101,23 +110,24 @@ function mountKnife(key) {
   views.knife.setModel(assets[key] || null);
 }
 
-// Only T bots use the uploaded skinned Dragomir; CT and fallbacks use our
-// lightweight original low-poly rig, so load failures never block a match.
+// Both teams now have real skinned tactical agents; a fallback keeps gameplay
+// responsive if the larger character GLBs fail on slow mobile connections.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
   let animated = null;
-  if (actor.team === 't' && assets.terrorist) {
+  const gltf=assets[actor.team === 'ct' ? 'swat' : 'terrorist'];
+  if (gltf) {
     try {
-      animated = createDragomirOperator(assets.terrorist, assets.rifle);
-    } catch (error) {
-      console.warn('Could not rig Dragomir; using GameBlock T fallback', error);
+      animated=createTacticalOperator(gltf,assets.rifle,actor.team);
+    } catch(error) {
+      console.warn('Could not rig '+actor.team+' operator; using fallback',error);
     }
   }
   animated ||= buildRetroOperator(actor.team);
   root.add(animated.root);
-  fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
+  fighters.set(actor.id, {root,animated,lastX:actor.x,lastZ:actor.z});
 }
 function matchLoadFraction() {
   const values = Object.values(assetProgress);
@@ -216,7 +226,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Загружаем оружие и модель Dragomir (25 МБ)…';
+    status.textContent = 'Загружаем оружие и реалистичных бойцов (SWAT + Dragomir)…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
@@ -479,8 +489,8 @@ function updateModels(dt) {
     model.root.scale.y = actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if(model.animated?.mode==='dragomir')
-      animateDragomirOperator(model.animated,actor,
+    if(model.animated?.mode==='tactical')
+      animateTacticalOperator(model.animated,actor,
         match.time,dt,dist/Math.max(.01,dt));
     else if(model.animated)
       animateRetroOperator(model.animated,actor,
@@ -569,7 +579,9 @@ function frame(now) {
   if (lobby) {
     for(const model of fighters.values())model.root.visible=false;
     preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
-    animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
+    if(preview.mode==='tactical')animateTacticalOperator(preview,
+      {lastShotAt:-100},now/1000,dt,0);
+    else animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
   }
   effects(now); updateModels(dt);
   if (match.player) {updateHUD(); drawRadar();}
