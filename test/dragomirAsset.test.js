@@ -13,6 +13,13 @@ test('uploaded Dragomir is real GLB with animations and a skinned skeleton',()=>
   console.log('DRAGOMIR_SCENE '+JSON.stringify(glb.sceneRoots));
   console.log('DRAGOMIR_ROOTS '+JSON.stringify(glb.rootNodes));
   console.log('DRAGOMIR_SAMPLE '+JSON.stringify(glb.animationSample));
+  console.log('DRAGOMIR_DURATIONS '+JSON.stringify({
+    zero:glb.animationDurations.filter(x=>x.maxTime<0.001).length,
+    positive:glb.animationDurations.filter(x=>x.maxTime>=0.001).length,
+    largestDuration:Math.max(...glb.animationDurations.map(x=>x.maxTime)),
+    largestFrames:Math.max(...glb.animationDurations.map(x=>x.maxFrames)),
+    positiveNames:glb.animationDurations.filter(x=>x.maxTime>=0.001).map(x=>x.name)
+  }));
   console.log('DRAGOMIR_COUNT '+glb.animations.length);
   console.log('DRAGOMIR_SKINS '+glb.skins);
   console.log('DRAGOMIR_NODES '+JSON.stringify(glb.skeletonNodes.slice(0,140)));
