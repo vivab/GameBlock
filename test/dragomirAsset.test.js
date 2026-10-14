@@ -9,6 +9,10 @@ test('uploaded Dragomir is real GLB with animations and a skinned skeleton',()=>
   assert.ok(glb.animations.length>0, 'character requires clips');
   assert.ok(glb.externalUris.length===0,
     'GLB must have embedded textures/buffers or bundle external resources');
+  console.log('DRAGOMIR_MESHES '+JSON.stringify(glb.meshNodes));
+  console.log('DRAGOMIR_SCENE '+JSON.stringify(glb.sceneRoots));
+  console.log('DRAGOMIR_ROOTS '+JSON.stringify(glb.rootNodes));
+  console.log('DRAGOMIR_SAMPLE '+JSON.stringify(glb.animationSample));
   console.log('DRAGOMIR_COUNT '+glb.animations.length);
   console.log('DRAGOMIR_SKINS '+glb.skins);
   console.log('DRAGOMIR_NODES '+JSON.stringify(glb.skeletonNodes.slice(0,140)));
