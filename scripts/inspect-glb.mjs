@@ -26,6 +26,11 @@ export function inspectGlb(file) {
       name:n.name,translation:n.translation,rotation:n.rotation,
       scale:n.scale,children:n.children?.length
     })),
+    animationDurations:(gltf.animations||[]).map(a=>{
+      const times=(a.samplers||[]).map(sm=>gltf.accessors?.[sm.input]).filter(Boolean);
+      return {name:a.name, maxTime:Math.max(0,...times.map(t=>t.max?.[0]||0)),
+        maxFrames:Math.max(0,...times.map(t=>t.count||0))};
+    }),
     animationSample:(gltf.animations||[]).slice(0,6).map((a,i)=>({
       id:i,name:a.name,channels:a.channels?.length,
       targets:(a.channels||[]).slice(0,10).map(ch=>({
