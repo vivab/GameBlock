@@ -15,3 +15,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Confirm animated character GLB reaches GitHub Pages build
+        run: |
+          test -s dist/models/dragomir_t.glb
+          test "$(stat -c%s dist/models/dragomir_t.glb)" -eq 25440976

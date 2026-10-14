@@ -4,6 +4,7 @@ import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildRetroOperator, animateRetroOperator } from './retroOperators.js';
+import { createDragomirOperator, animateDragomirOperator } from './dragomirOperator.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
 import { createGameAudio } from './audio.js';
@@ -64,17 +65,18 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// Only weapons come from GLB files. The original CT/T operatives and hands
-// are entirely local, deterministic geometry and are ready instantly.
+// The user's Dragomir CS2 GLB is the new T character, while CT and fallback T
+// stay procedural. The larger character GLB preloads with visible progress.
 const assetFiles = {
-  pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t'
+  pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
+  terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
     try {
-      assets[key] = result.scene;
+      assets[key] = key === 'terrorist' ? result : result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
       else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
@@ -99,12 +101,21 @@ function mountKnife(key) {
   views.knife.setModel(assets[key] || null);
 }
 
-// Gameplay skins and rigs are our own low-poly meshes.
+// Only T bots use the uploaded skinned Dragomir; CT and fallbacks use our
+// lightweight original low-poly rig, so load failures never block a match.
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
-  const animated = buildRetroOperator(actor.team);
+  let animated = null;
+  if (actor.team === 't' && assets.terrorist) {
+    try {
+      animated = createDragomirOperator(assets.terrorist, assets.rifle);
+    } catch (error) {
+      console.warn('Could not rig Dragomir; using GameBlock T fallback', error);
+    }
+  }
+  animated ||= buildRetroOperator(actor.team);
   root.add(animated.root);
   fighters.set(actor.id, { root, animated, lastX: actor.x, lastZ: actor.z });
 }
@@ -172,11 +183,14 @@ function start(team) {
   tracers.length = 0;
   for (const mark of marks) scene.remove(mark.mesh);
   marks.length = 0;
+  // A new team choice may reuse bot IDs; discard old actors so T skins never
+  // appear on CT and retired skinned operators do not stay in the scene.
+  for (const fighter of fighters.values()) scene.remove(fighter.root);
+  fighters.clear();
   match.start(team);
   selectWeapon('pistol'); mountKnife(`knife_${team}`);
   for (const view of Object.values(views)) view.setTeam(team);
-  // Models are reused across rounds; the player model is simply hidden.
-  for (const actor of match.actors) if (!fighters.has(actor.id)) createFighter(actor);
+  for (const actor of match.actors) createFighter(actor);
   $('teamMenu').hidden = true; $('resultMenu').hidden = true; $('deathNotice').hidden = true;
   retroMenu.hide();
   $('teamBadge').textContent = TEAMS[team].name;
@@ -202,7 +216,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Подготавливаем оружие и бойцов…';
+    status.textContent = 'Загружаем оружие и модель Dragomir (25 МБ)…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
@@ -465,8 +479,12 @@ function updateModels(dt) {
     model.root.scale.y = actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if(model.animated) animateRetroOperator(model.animated, actor,
-      match.time, dt, dist / Math.max(.01,dt));
+    if(model.animated?.mode==='dragomir')
+      animateDragomirOperator(model.animated,actor,
+        match.time,dt,dist/Math.max(.01,dt));
+    else if(model.animated)
+      animateRetroOperator(model.animated,actor,
+        match.time,dt,dist/Math.max(.01,dt));
   }
 }
 function drawRadar() {
