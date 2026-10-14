@@ -21,6 +21,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Generate original Counter Flame SWAT GLB
+        run: |
+          python -m pip install --disable-pip-version-check 'numpy>=1.26,<3' 'trimesh>=4,<5'
+          python scripts/build_counter_flame_swat.py
       - run: npm ci
       - run: npm test
       - run: npm run build
