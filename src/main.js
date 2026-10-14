@@ -5,6 +5,7 @@ import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildRetroOperator, animateRetroOperator } from './retroOperators.js';
 import { createTacticalOperator, animateTacticalOperator } from './dragomirOperator.js';
+import { createStaticSwatOperator } from './counterFlameSwat.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
 import { createGameAudio } from './audio.js';
@@ -14,7 +15,8 @@ import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
 import { rotateAim } from './aim.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
-const match = new Match();
+// Inspection build: NPCs stand at their spawn points, without movement or AI fire.
+const match = new Match(Math.random, { staticBots: true });
 match.phase = 'home';
 document.body.dataset.phase = 'home';
 const scene = new THREE.Scene();
@@ -69,7 +71,7 @@ const assets = {};
 // lightweight operators remain local fallbacks, not visible when GLBs load.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'swat_ct', terrorist:'dragomir_t'
+  swat:'counter_flame_swat_v1', terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
@@ -81,8 +83,8 @@ const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promi
       else if (key === 'swat') {
         // The first impression should show our real tactical SWAT character,
         // not the provisional procedural soldier.
-        const next=createTacticalOperator(result,null,'ct');
-        if (!next) throw Error('SWAT GLB lacks a compatible humanoid rig');
+        const next=createStaticSwatOperator(result);
+        if (!next) throw Error('Cannot display Counter Flame SWAT GLB');
         menuScene.remove(preview.root);
         preview=next;
         preview.root.rotation.y=-.32;
@@ -120,7 +122,9 @@ function createFighter(actor) {
   const gltf=assets[actor.team === 'ct' ? 'swat' : 'terrorist'];
   if (gltf) {
     try {
-      animated=createTacticalOperator(gltf,assets.rifle,actor.team);
+      animated=actor.team==='ct'
+        ? createStaticSwatOperator(gltf)
+        : createTacticalOperator(gltf,assets.rifle,actor.team);
     } catch(error) {
       console.warn('Could not rig '+actor.team+' operator; using fallback',error);
     }
@@ -226,7 +230,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Загружаем оружие и реалистичных бойцов (SWAT + Dragomir)…';
+    status.textContent = 'Загружаем нашего Counter Flame SWAT и бойцов…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
@@ -492,7 +496,7 @@ function updateModels(dt) {
     if(model.animated?.mode==='tactical')
       animateTacticalOperator(model.animated,actor,
         match.time,dt,dist/Math.max(.01,dt));
-    else if(model.animated)
+    else if(model.animated?.mode==='retro')
       animateRetroOperator(model.animated,actor,
         match.time,dt,dist/Math.max(.01,dt));
   }
@@ -581,7 +585,7 @@ function frame(now) {
     preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
     if(preview.mode==='tactical')animateTacticalOperator(preview,
       {lastShotAt:-100},now/1000,dt,0);
-    else animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
+    else if(preview.mode==='retro')animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
   }
   effects(now); updateModels(dt);
   if (match.player) {updateHUD(); drawRadar();}
