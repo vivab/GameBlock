@@ -147,8 +147,8 @@ export function findPath(start, goal) {
 }
 
 export class Match {
-  constructor(random = Math.random) {
-    this.random = random; this.phase = 'selection'; this.time = 0;
+  constructor(random = Math.random, { staticBots = false } = {}) {
+    this.random = random; this.staticBots = staticBots; this.phase = 'selection'; this.time = 0;
     this.actors = []; this.score = { ct: 0, t: 0 }; this.events = []; this.killfeed = [];
   }
   start(team) {
@@ -356,7 +356,7 @@ export class Match {
     if (this.phase !== 'playing' || !Number.isFinite(dt) || dt <= 0) return;
     this.time = Math.min(MATCH_SECONDS, this.time + dt);
     if (this.time >= MATCH_SECONDS) { this.phase = 'finished'; return; }
-    this.changePlans();
+    if (!this.staticBots) this.changePlans();
     for (const actor of this.actors) {
       if (!actor.alive) { if (this.time >= actor.respawnAt) this.spawn(actor); continue; }
       if (!actor.reloadingUntil && actor.ammo === 0 && actor.reserve > 0 && (!actor.isPlayer || actor.weapon !== 'knife')) this.reload(actor);
@@ -364,7 +364,7 @@ export class Match {
         const count = Math.min(actor.magazine - actor.ammo, actor.reserve);
         actor.ammo += count; actor.reserve -= count; actor.reloadingUntil = 0;
       }
-      if (!actor.isPlayer) this.updateBot(actor, Math.min(dt, 0.05));
+      if (!actor.isPlayer && !this.staticBots) this.updateBot(actor, Math.min(dt, 0.05));
     }
     this.killfeed = this.killfeed.filter(item => this.time - item.time < 5);
   }
