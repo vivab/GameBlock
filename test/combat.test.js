@@ -152,3 +152,16 @@ test('empty gun triggers reload even when the player attempts to fire again', ()
   assert.equal(game.fire(game.player, { x: 0, y: 0, z: -1 }), null);
   assert.ok(game.player.reloadingUntil > game.time);
 });
+
+test('inspection mode freezes NPC positions, facing and attacks', () => {
+  const game = new Match(seeded(), { staticBots: true });
+  game.start('ct');
+  const initial = game.actors.filter(a => !a.isPlayer)
+    .map(a => ({id:a.id,x:a.x,z:a.z,yaw:a.yaw}));
+  for (let i = 0; i < 300; i++) game.step(1/30);
+  const after = game.actors.filter(a => !a.isPlayer)
+    .map(a => ({id:a.id,x:a.x,z:a.z,yaw:a.yaw}));
+  assert.deepEqual(after, initial);
+  assert.ok(game.takeEvents().every(e => e.type !== 'shot'));
+  assert.deepEqual(game.score, {ct:0, t:0});
+});
