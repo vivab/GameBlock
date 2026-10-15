@@ -78,7 +78,15 @@ galleryScene.add(new THREE.HemisphereLight(0xd2d9d1,0x2b3030,2.25));
 const galleryLight = new THREE.DirectionalLight(0xffe8ce,2.8);
 galleryLight.position.set(-3,7,-5);galleryScene.add(galleryLight);
 let galleryModels=[];
+let galleryPlinths=[];
 let swatGallery;
+const galleryPlateMaterial=new THREE.MeshStandardMaterial({color:0x314046,roughness:1,flatShading:true});
+function highlightGallerySelection() {
+  for(const fighter of galleryModels) {
+    const selected=fighter.variant===selectedSwatIndex;
+    fighter.root.scale.setScalar(selected?1.065:1);
+  }
+}
 function updateGalleryCamera(count) {
   galleryCamera.aspect=innerWidth/innerHeight;
   galleryCamera.updateProjectionMatrix();
@@ -93,6 +101,11 @@ function clearGalleryModels() {
     galleryScene.remove(fighter.root);
     fighter.release?.();
   }
+  for(const plate of galleryPlinths){
+    galleryScene.remove(plate);
+    plate.geometry.dispose();
+  }
+  galleryPlinths=[];
   galleryModels=[];
 }
 function showGalleryPage(page,pageSize) {
@@ -115,9 +128,14 @@ function showGalleryPage(page,pageSize) {
       model.root.rotation.y=-.16;
       galleryScene.add(model.root);
       galleryModels.push(model);
+      const plate=new THREE.Mesh(new THREE.CylinderGeometry(.46,.46,.025,8),galleryPlateMaterial);
+      plate.position.set(model.root.position.x,-.019,0);
+      galleryScene.add(plate);
+      galleryPlinths.push(plate);
     }
-    swatGallery?.setStatus('Настоящие 3D-бойцы · '+begin/1+'–'+(end-1)+
-      ' · Нажми на номер, затем ВЫБРАТЬ');
+    highlightGallerySelection();
+    swatGallery?.setStatus('Ряд V6-'+String(begin+1).padStart(2,'0')+
+      ' — V6-'+String(end).padStart(2,'0')+' · Нажми на номер, затем ВЫБРАТЬ');
   } catch(error){
     console.error('Could not build gallery row',error);
     swatGallery?.setStatus('Ошибка 3D-галереи. Обнови страницу.');
@@ -228,6 +246,7 @@ swatGallery=installSwatV6Gallery({
   onChoose:index=>{
     selectedSwatIndex=saveSwatSelection(index);
     refreshSwatPreview();
+    highlightGallerySelection();
   },
 });
 $('openSwatGallery').addEventListener('click',()=>swatGallery.open('selection'));
