@@ -9,7 +9,7 @@ function readProfile() {
     return value && typeof value==='object' ? {...defaults(),...value} : defaults();
   } catch { return defaults(); }
 }
-export function installRetroMenu({onPlay=()=>{},onSound=()=>{}}={}) {
+export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}={}) {
   const profile=readProfile();
   const save=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(profile));}catch{}};
   save();
@@ -43,7 +43,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{}}={}) {
     #retroHome .retroNav button.active,#retroHome .retroNav button:hover {
       background:linear-gradient(90deg,#89613cdd,#142736a8);
       border-left-color:#e9b56d}
-    #retroHome #retroPlay {margin-top:auto;padding:14px 18px;text-align:center;
+    #retroHome #retroGallery{margin-top:auto;padding:11px 14px;text-align:center;
+      background:#263c3a;border:1px solid #b39b72;font-size:12px;border-radius:4px}
+    #retroHome #retroPlay {margin-top:0;padding:14px 18px;text-align:center;
       background:linear-gradient(115deg,#f2c181,#b37b45);border:1px solid #ffe6a8;
       box-shadow:0 5px 22px #0008;color:#17232d;font-size:17px;border-radius:4px}
     #retroHome #retroPlay:active {transform:translateY(2px)}
@@ -103,6 +105,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{}}={}) {
         <button data-tab="friends" type="button"><b>☷</b> ДРУЗЬЯ</button>
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
+      <button id="retroGallery" type="button">◈ SWAT V6 / 20 БОЙЦОВ</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
     </div>
@@ -162,6 +165,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{}}={}) {
   home.querySelectorAll('[data-tab]').forEach(button=>
     button.addEventListener('click',()=>showTab(button.dataset.tab)));
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
+  $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
   refresh();onSound(profile.sound);
   return {
     show(){home.hidden=false;refresh();},
