@@ -151,6 +151,66 @@
     #hud #matchBar {border-color:#bfaa8a6b;background:#0d1c2bea}
     #hud #cross {font:700 28px monospace;color:#fff1d6}
     #hud #radar {border-color:#d3b585aa;background:#1c2a27c8}
+
+    /* Full-screen SWAT V6 gallery: the models are real-time 3D on our existing canvas. */
+    #swatV6Gallery {position:fixed;inset:0;z-index:42;color:#f5ead7;
+      background:linear-gradient(180deg,#09141df4 0%,#10232c50 18%,transparent 36%,
+        transparent 67%,#07141be9 86%,#091219fa 100%);
+      font:700 13px system-ui,Arial,sans-serif;pointer-events:none;
+      user-select:none;-webkit-user-select:none}
+    #swatV6Gallery[hidden]{display:none!important}
+    #swatV6Gallery button{touch-action:manipulation;cursor:pointer;color:#eee1c9;
+      border:1px solid #b2a2878a;background:#162c39df;border-radius:3px;
+      font:800 12px system-ui;min-height:36px}
+    #swatV6Gallery button:disabled{opacity:.28;cursor:default}
+    #swatV6Gallery button:focus-visible{outline:2px solid #f9d292;outline-offset:2px}
+    #swatV6Gallery button[aria-pressed="true"]{border-color:#ffd18b;
+      color:#ffdb9a;background:#655039}
+    #swatV6Gallery .v6top{pointer-events:auto;position:absolute;inset:0 0 auto;
+      padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 12px
+        max(14px,env(safe-area-inset-left));background:#0a1726c9}
+    #swatV6Gallery .v6heading{display:flex;gap:12px;align-items:center;
+      justify-content:space-between}
+    #swatV6Gallery .v6heading strong{display:block;font-size:clamp(16px,3vw,27px);
+      font-weight:1000;letter-spacing:.06em}
+    #swatV6Gallery .v6heading span{color:#c3c6b7;font-size:11px}
+    #swatV6Gallery .v6strip{display:flex;gap:6px;overflow-x:auto;
+      overscroll-behavior:contain;touch-action:pan-x;margin-top:8px;
+      scrollbar-width:thin;padding:3px 2px 6px}
+    #swatV6Gallery .v6strip button{flex:0 0 auto;min-width:64px;
+      padding:5px 8px;font:800 11px monospace}
+    #swatV6Gallery .v6bottom{position:absolute;bottom:0;left:0;right:0;
+      padding:10px max(14px,env(safe-area-inset-right))
+        max(12px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+      background:linear-gradient(180deg,#0c1c2bd7,#07121bfa);
+      pointer-events:auto;border-top:1px solid #bba47e55}
+    #swatV6Gallery .v6choices{display:flex;gap:7px;width:100%;justify-content:center}
+    #swatV6Gallery .v6choices button{flex:1;min-width:0;max-width:220px;
+      text-align:center;padding:8px 3px;font-size:clamp(9px,1.6vw,12px)}
+    #swatV6Gallery .v6choices b{display:block;font-size:clamp(13px,2vw,18px)}
+    #swatV6Gallery .v6choices span{display:block;overflow:hidden;text-overflow:ellipsis;
+      white-space:nowrap;font-size:clamp(9px,1.5vw,12px)}
+    #swatV6Gallery .v6actions{display:flex;gap:8px;align-items:center;
+      justify-content:center;margin-top:9px}
+    #swatV6Gallery .v6actions button{padding:7px 11px}
+    #swatV6Gallery #v6Choose{background:#a77d48;border-color:#ebc38a;color:#14202b}
+    #swatV6Gallery #v6Page{font-size:11px;color:#bcb8ad;white-space:nowrap}
+    #swatV6Gallery #v6Status{color:#e3be7b;font-size:11px;
+      text-align:center;margin:7px 0 0}
+    #openSwatGallery{width:100%;margin:0 0 13px;padding:12px;background:#9a784b;
+      border:1px solid #e4bb84;color:#17202a;letter-spacing:.07em;font-weight:900;
+      border-radius:4px;touch-action:manipulation}
+    @media(max-height:500px){
+      #swatV6Gallery .v6top{padding-top:5px;padding-bottom:3px}
+      #swatV6Gallery .v6heading strong{font-size:16px}
+      #swatV6Gallery .v6strip{margin-top:3px;padding-bottom:2px}
+      #swatV6Gallery .v6strip button{min-height:25px;padding:2px 6px}
+      #swatV6Gallery .v6bottom{padding-top:4px;padding-bottom:5px}
+      #swatV6Gallery .v6choices button{padding:3px 2px;min-height:25px}
+      #swatV6Gallery .v6actions{margin-top:3px}
+      #swatV6Gallery .v6actions button{padding:3px 9px;min-height:27px}
+      #swatV6Gallery #v6Status{margin:3px 0 0}
+    }
   </style>
 </head>
 <body data-phase="home">
@@ -191,8 +251,9 @@
     <div class="menu-card">
       <div class="eyebrow">GAMEBLOCK RETRO / SANDSTONE CROSSING</div>
       <h1 id="menuTitle">Выбери свою сторону</h1>
-      <p>Тактическая перестрелка на пустынной карте. Новый Counter Flame SWAT V5: человеческие пропорции без круглых плеч, форма и разгрузка разных цветов, пустые руки в боевой стойке. Все NPC стоят на месте.</p>
+      <p>Тактическая перестрелка на пустынной карте. SWAT V6.0: 20 оригинальных суровых 3D-бойцов. Разные шлемы, жилеты, маски, карманы и военная палитра. Никакой мультяшности, оружия в руках нет. Все NPC пока неподвижны.</p>
       <div class="rules"><span>5 на 5</span><span>2 минуты</span><span>Убийство = 1 очко</span><span>Возрождение: 3 с</span></div>
+      <button id="openSwatGallery" type="button">◈ СРАВНИТЬ 20 БОЙЦОВ SWAT V6.0</button>
       <div class="teams">
         <button id="chooseCT" class="team-choice" data-team="ct"><div class="team-mark">COUNTER-TERRORISTS</div><b>Спецназ</b><span>Синяя команда</span></button>
         <button id="chooseT" class="team-choice terrorists" data-team="t"><div class="team-mark">TERRORISTS</div><b>Террористы</b><span>Песочная команда</span></button>
