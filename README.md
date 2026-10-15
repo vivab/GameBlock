@@ -8,7 +8,7 @@ Browser tactical FPS inspired by the atmosphere of late-1990s / early-2000s team
 
 - **Sandstone Crossing** — an original desert map with three routes, masonry cover, towers, market stalls and team bases. Geometry lines up with the AI's collision, bullet and vision blockers.
 - **5 vs 5 model inspection** — bots are temporarily frozen at their spawn points and do not move or shoot. Their AI still exists, but is disabled in the game's preview configuration.
-- **Operators** — original **Counter Flame SWAT V5** (CT): a slimmer CS 1.6-inspired operator with reduced rounded shoulder bulk and differentiated gear colors (olive-gray uniform, khaki plate carrier, dark mask and gloves, brown boots and separate kneepads). Hands remain empty in a rifle-ready stance, NPCs remain frozen; Dragomir stays T. V5 is static and not yet rigged.
+- **Operators** — **Counter Flame SWAT V6.0**: **20 original selectable, real-time 3D CT variations** with different rugged helmets, hard-edged plate carriers, masks, pouches, backpacks and muted military color combinations. All 20 variants use the shared original V5 GLB body as a base, with individually remodeled and recolored geometry plus procedural 3D gear. They have empty rifle-ready hands, are static (not rigged), and the NPCs remain frozen. Dragomir stays T.
 - **Original FPS gloves** — procedural palms, 3-joint fingers and sleeves with independent right/left grip calibration.
 - **Weapons** — Glock 18, AK-47 and two default knives. Existing weapon GLBs are retained, with procedural fallback models when loading fails.
 - **Animations** — weapon equip, inspection, recoil, reload poses, knife swing, running/idle and third-person bot shooting.
@@ -18,6 +18,12 @@ Browser tactical FPS inspired by the atmosphere of late-1990s / early-2000s team
 The original detailed SWAT V2 mesh is generated at GitHub Pages build time from `scripts/build_counter_flame_swat_v2.py` (the 200+ separate anatomy and gear pieces are batched for mobile rendering). Next, `scripts/build_counter_flame_swat_v5.py` reshapes and recolors that mesh into `public/models/counter_flame_swat_v5.glb`: more natural shoulders and a slimmer torso with separate body/equipment color regions, keeping **38,412 triangles** and the tactical gear. The right hand retains an empty trigger-grip; the left hand stays out front as if supporting an invisible rifle. **No rifle or other weapon is attached to this CT character.** The old 13-MB `swat_ct.glb` is unused. Dragomir T still uses its separate 25-MB GLB. NPCs remain frozen for inspection.
 
 No online multiplayer, paid market or friends backend is implemented. Those menu panels clearly say that they are unavailable. The arena, procedural sounds and default CT/T fallback characters remain original GameBlock work. Both tactical operators were previously provided by the user. Those GLBs may contain third-party copyrighted game assets, and their distribution or commercial licensing has **not** been independently verified; obtain appropriate permissions before public redistribution or shipping a commercial game.
+
+## SWAT V6.0 character gallery
+
+From the **main lobby**, tap **SWAT V6 / 20 БОЙЦОВ**, or from **team selection** tap **СРАВНИТЬ 20 БОЙЦОВ**. All variants can be selected from one horizontal numbered strip. The view presents **2 operators side by side on narrow phones**, 3 on medium screens or 5 on desktop, with paging controls to view all 20. These are genuine 3D models shown in the game's shared Three.js scene, not concept images or generated screenshots. Choosing one saves its index locally and applies the same variant to the main lobby and CT NPCs next match.
+
+The V6 variants are generated **at runtime**, using `src/swatV6.js` and **one shared** `public/models/counter_flame_swat_v5.glb` as the core anatomical mesh. We deliberately avoid downloading 20 nearly identical multi-megabyte base GLBs. The 20 variants differ in equipment construction, face protection, pouch count, front armor, helmet trim, shoulder shapes, packs, equipment details and color schemes. They are original approximations inspired by the gritty look of classic tactical FPS games, **not direct copies** of copyrighted game characters. They currently use flat-shaded polygon geometry and procedural vertex colors, **not** photorealistic scanned PBR textures or skeletal animation.
 
 ## Play and controls
 
@@ -44,7 +50,9 @@ Uses Vite + Three.js. Tests run on Node; GitHub Actions checks the unit tests an
 
 | File | Description |
 | --- | --- |
-| `src/counterFlameSwat.js` | SWAT V5 static model placement and mobile-friendly clones |
+| `src/counterFlameSwat.js` | Shared V5 3D anatomical model placement and mobile-friendly clones |
+| `src/swatV6.js` | 20 SWAT V6 loadouts, geometry/gear variation, palette and selection persistence |
+| `src/swatV6Gallery.js` | Responsive horizontal picker and side-by-side live 3D lineup |
 | `scripts/build_counter_flame_swat_v2.py` | Generates detailed original anatomy/equipment before slimming |
 | `scripts/build_counter_flame_swat_v3.py` | Older V3 slim variant, kept for reference |
 | `scripts/build_counter_flame_swat_v4.py` | Previous gritty SWAT V4 variant kept for reference |
@@ -62,9 +70,9 @@ Uses Vite + Three.js. Tests run on Node; GitHub Actions checks the unit tests an
 
 Visual positioning and touch behavior must still be checked on real phones — passing unit tests cannot guarantee the appearance of every FPS pose on every display.
 
-### SWAT V5 asset
+### Base SWAT V5 GLB (used by V6)
 
-The CT prototype is not a scanned/photo-identical copy of the provided character art. It is an original medium-poly approximation intended for browser performance and iteration. For local development, generate the asset before running Vite:
+The shared CT geometry is not a scanned/photo-identical copy of the provided character art. It is an original medium-poly approximation intended for browser performance and iteration. For local development, generate the asset before running Vite:
 
 ```sh
 python -m pip install 'numpy>=1.26,<3' 'trimesh>=4,<5'
