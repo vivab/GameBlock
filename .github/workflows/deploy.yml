@@ -24,10 +24,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Generate Counter Flame SWAT V2 (optimized GLB)
+      - name: Generate Counter Flame SWAT V3 (slimmer GLB)
         run: |
           python -m pip install --disable-pip-version-check 'numpy>=1.26,<3' 'trimesh>=4,<5'
           python scripts/build_counter_flame_swat_v2.py
+          python scripts/build_counter_flame_swat_v3.py
       - run: npm ci
       - run: npm test
       - run: npm run build
