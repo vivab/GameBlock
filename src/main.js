@@ -5,7 +5,8 @@ import { InspectTimeline } from './inspectTimeline.js';
 import { decideWeaponButtonAction } from './weaponButton.js';
 import { buildRetroOperator, animateRetroOperator } from './retroOperators.js';
 import { createTacticalOperator, animateTacticalOperator } from './dragomirOperator.js';
-import { createStaticSwatOperator } from './counterFlameSwat.js';
+import {SWAT_V6_VARIANTS, loadSwatSelection, saveSwatSelection, createSwatV6Operator} from './swatV6.js';
+import {installSwatV6Gallery} from './swatV6Gallery.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
 import { createGameAudio } from './audio.js';
@@ -67,8 +68,75 @@ const views = {
 for (const view of Object.values(views)) viewCamera.add(view.root);
 const loader = new GLTFLoader();
 const assets = {};
-// Realistic user-supplied SAS/SWAT on CT, Dragomir on T. The original
-// lightweight operators remain local fallbacks, not visible when GLBs load.
+let selectedSwatIndex = loadSwatSelection();
+// Real-time 3D V6 lineup shares the existing WebGL renderer. Only the current
+// 2/3/5 operators are created, keeping GPU memory bounded on mobile devices.
+const galleryScene = new THREE.Scene();
+galleryScene.background = new THREE.Color(0x111d26);
+const galleryCamera = new THREE.PerspectiveCamera(47,innerWidth/innerHeight,.05,65);
+galleryScene.add(new THREE.HemisphereLight(0xd2d9d1,0x2b3030,2.25));
+const galleryLight = new THREE.DirectionalLight(0xffe8ce,2.8);
+galleryLight.position.set(-3,7,-5);galleryScene.add(galleryLight);
+let galleryModels=[];
+let swatGallery;
+function updateGalleryCamera(count) {
+  galleryCamera.aspect=innerWidth/innerHeight;
+  galleryCamera.updateProjectionMatrix();
+  const targetWidth=count*1.11+.28;
+  const distance=Math.max(4.1,targetWidth/
+    (2*Math.tan(THREE.MathUtils.degToRad(galleryCamera.fov/2))*Math.max(.40,galleryCamera.aspect)));
+  galleryCamera.position.set(0,1.31,-distance);
+  galleryCamera.lookAt(0,.88,0);
+}
+function clearGalleryModels() {
+  for(const fighter of galleryModels) {
+    galleryScene.remove(fighter.root);
+    fighter.release?.();
+  }
+  galleryModels=[];
+}
+function showGalleryPage(page,pageSize) {
+  clearGalleryModels();
+  updateGalleryCamera(pageSize);
+  if(!assets.swat){
+    swatGallery?.setStatus(assetStatus.swat==='failed'
+      ? 'Не удалось загрузить 3D-модель SWAT. Обнови страницу.'
+      : 'Загружаем базовую 3D-модель для всех 20 вариантов…');
+    return;
+  }
+  const begin=page*pageSize;
+  const end=Math.min(begin+pageSize,SWAT_V6_VARIANTS.length);
+  const visible=end-begin;
+  try {
+    for(let i=begin;i<end;i++){
+      const model=createSwatV6Operator(assets.swat,i);
+      if(!model)throw Error('Cannot build V6 fighter '+i);
+      model.root.position.x=(i-begin-(visible-1)/2)*1.10;
+      model.root.rotation.y=-.16;
+      galleryScene.add(model.root);
+      galleryModels.push(model);
+    }
+    swatGallery?.setStatus('Настоящие 3D-бойцы · '+begin/1+'–'+(end-1)+
+      ' · Нажми на номер, затем ВЫБРАТЬ');
+  } catch(error){
+    console.error('Could not build gallery row',error);
+    swatGallery?.setStatus('Ошибка 3D-галереи. Обнови страницу.');
+  }
+}
+function refreshSwatPreview() {
+  if(!assets.swat)return;
+  let next;
+  try {next=createSwatV6Operator(assets.swat,selectedSwatIndex);}
+  catch(error){console.warn('Selected V6 operator failed',error);return;}
+  if(!next)return;
+  menuScene.remove(preview.root);
+  preview.release?.();
+  preview=next;
+  preview.root.rotation.y=-.32;
+  menuScene.add(preview.root);
+}
+// Shared original V5 body GLB is the geometry source for 20 unique V6 CT
+// variations. Variant meshes and gear are generated at runtime in swatV6.js.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
   swat:'counter_flame_swat_v5', terrorist:'dragomir_t'
@@ -81,14 +149,8 @@ const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promi
       assets[key] = key === 'swat' || key === 'terrorist' ? result : result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
       else if (key === 'swat') {
-        // The first impression should show our real tactical SWAT character,
-        // not the provisional procedural soldier.
-        const next=createStaticSwatOperator(result);
-        if (!next) throw Error('Cannot display Counter Flame SWAT GLB');
-        menuScene.remove(preview.root);
-        preview=next;
-        preview.root.rotation.y=-.32;
-        menuScene.add(preview.root);
+        refreshSwatPreview();
+        if(swatGallery?.isOpen)swatGallery.refresh();
       } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
@@ -123,7 +185,7 @@ function createFighter(actor) {
   if (gltf) {
     try {
       animated=actor.team==='ct'
-        ? createStaticSwatOperator(gltf)
+        ? createSwatV6Operator(gltf,selectedSwatIndex)
         : createTacticalOperator(gltf,assets.rifle,actor.team);
     } catch(error) {
       console.warn('Could not rig '+actor.team+' operator; using fallback',error);
@@ -142,6 +204,7 @@ const $ = id => document.getElementById(id);
 const audio = createGameAudio();
 let retroMenu;
 retroMenu = installRetroMenu({
+  onGallery: () => {retroMenu.hide();swatGallery.open('home');},
   onPlay: () => {
     audio.unlock();audio.ui();
     match.phase='selection';
@@ -152,6 +215,22 @@ retroMenu = installRetroMenu({
   onSound: enabled => audio.setEnabled(enabled)
 });
 $('teamMenu').hidden=true;
+swatGallery=installSwatV6Gallery({
+  variants:SWAT_V6_VARIANTS,
+  getSelection:()=>selectedSwatIndex,
+  onOpen:()=>{document.body.dataset.phase='gallery';},
+  onClose:origin=>{
+    clearGalleryModels();
+    document.body.dataset.phase=origin==='selection'?'selection':'home';
+    if(origin==='home')retroMenu.show();
+  },
+  onPage:(page,pageSize)=>showGalleryPage(page,pageSize),
+  onChoose:index=>{
+    selectedSwatIndex=saveSwatSelection(index);
+    refreshSwatPreview();
+  },
+});
+$('openSwatGallery').addEventListener('click',()=>swatGallery.open('selection'));
 setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
@@ -230,7 +309,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Загружаем нашего Counter Flame SWAT и бойцов…';
+    status.textContent = 'Загружаем выбранного SWAT V6 и оружие…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
@@ -419,6 +498,7 @@ addEventListener('blur', resetInputs);
 document.addEventListener('visibilitychange', () => { if (document.hidden) resetInputs(); });
 addEventListener('resize', () => {
   camera.aspect = viewCamera.aspect = menuCamera.aspect = innerWidth / innerHeight;
+  if(swatGallery?.isOpen)updateGalleryCamera(swatGallery.pageSize);
   camera.updateProjectionMatrix();viewCamera.updateProjectionMatrix();
   menuCamera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);
 });
@@ -607,7 +687,8 @@ function frame(now) {
     firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
   });
   renderer.clear();
-  if(lobby) renderer.render(menuScene,menuCamera);
+  if(swatGallery?.isOpen)renderer.render(galleryScene,galleryCamera);
+  else if(lobby) renderer.render(menuScene,menuCamera);
   else {
     renderer.render(scene,camera);
     renderer.clearDepth();
