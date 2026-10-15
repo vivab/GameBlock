@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Counter Flame SWAT V4: original human-proportioned tactical NPC.
+// Counter Flame SWAT V5: original human-proportioned tactical NPC.
 // The source generator creates independent equipment/body pieces, then batches
 // them as one render mesh so multiple SWAT fighters run smoothly on phones.
 // Both hands are empty and shaped as though gripping an invisible rifle.
@@ -8,7 +8,7 @@ import * as THREE from 'three';
 export function createStaticSwatOperator(gltf) {
   if (!gltf?.scene) return null;
   const root = new THREE.Group();
-  root.name = 'Counter Flame / SWAT V4';
+  root.name = 'Counter Flame / SWAT V5';
   const visual = gltf.scene.clone(true);
   root.add(visual);
   root.updateMatrixWorld(true);
@@ -28,5 +28,5 @@ export function createStaticSwatOperator(gltf) {
       node.receiveShadow = true;
     }
   });
-  return {root, visual, mode: 'static-swat', team: 'ct', version: 4};
+  return {root, visual, mode: 'static-swat', team: 'ct', version: 5};
 }
