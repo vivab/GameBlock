@@ -71,7 +71,7 @@ const assets = {};
 // lightweight operators remain local fallbacks, not visible when GLBs load.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'counter_flame_swat_v4', terrorist:'dragomir_t'
+  swat:'counter_flame_swat_v5', terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
