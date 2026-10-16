@@ -105,7 +105,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
         <button data-tab="friends" type="button"><b>☷</b> ДРУЗЬЯ</button>
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
-      <button id="retroGallery" type="button">◈ SWAT V6 / 20 БОЙЦОВ</button>
+      <button id="retroGallery" type="button">◈ SWAT V7 / 20 БОЙЦОВ</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
     </div>
