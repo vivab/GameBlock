@@ -90,3 +90,40 @@ npm run dev
 ```
 
 V8 uses original geometric facial components and region-specific urban vertex colors, not a photorealistic scanned PBR texture set; physically scanned materials, UVs and skeletal skinning are not yet implemented. The soldier is static in this build; adding a skeletal armature and proper walk/fire/reload animations is a future step. GitHub Pages generates the GLB automatically on every deployment.
+
+
+## Game1 full-featured mode (read-only source port)
+
+**Open GAMEBLOCK → "ИГРОВОЙ РЕЖИМ GAME1"** to use the separately
+ported Game1 interface, inventory, market, player profile, hands, controls,
+TDM bots, weapons, aiming and match UI. The mode lives under
+`/game1/menu.html` and launches `/game1/index.html?play=1`; the original
+GameBlock V8 mode continues to be playable from the normal Play button.
+
+- The source `vivab/Game1` was read **only**, pinned to commit
+  `0ca998c64b0c3638152d8bd49f9e3dc0bd8879f1`.
+- Adapted copies of `Game1/menu.html`, `Game1/index.html`,
+  `Game1/game.js`, `Game1/hands.js` and `Game1/GLTFLoader.js` are
+  located in `public/game1/`. Their main mechanics remain Game1's.
+- Original Game1 map `lowpoly__fps__tdm__game__map_by_resoforge.glb`
+  is **excluded**, including the old procedural map from the Game1 scripts.
+  `scripts/build-game1-map.mjs` generates exact wall layout data from
+  `GameBlock/src/combat.js:ARENA_WALLS`. The browser renders those boxes
+  with `public/game1/gameblock-arena.js`. The native GameBlock mode
+  keeps its original Sandstone Crossing arena renderer and physics.
+- Original Game1 `ak-47_low_poly.glb` is **excluded**, and every
+  imported Game1 AK reference instead points to our
+  `public/models/ak47.glb`. The main GameBlock rifle is not changed.
+- Other allowed Game1 weapon GLBs are copied into `public/game1/`.
+  Small models are committed by blob. Large models are fetched at Pages
+  build time from **the pinned, unchanged Game1 commit** by
+  `scripts/sync-game1-assets.sh`; they are packaged into the deployed
+  site, not imported from the forbidden map or AK.
+- The imported mode uses separate Game1 profile/inventory local-storage
+  keys; it does not delete/overwrite GameBlock's existing save data or V8.
+  Game1's menus and systems are prototypes, not real multiplayer,
+  payment/market services or server-backed friends.
+
+This is an **additional playable mode** rather than a destructive overwrite
+of the GameBlock 5v5 + V8 game. If desired, we can later select which
+Game1 mechanics should become the default in the main mode.
