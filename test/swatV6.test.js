@@ -15,7 +15,7 @@ test('SWAT V6 has exactly 20 original, distinct named tactical loadouts',()=>{
   assert.ok(new Set(SWAT_V6_VARIANTS.map(x=>x.armor)).size>=4);
   assert.ok(new Set(SWAT_V6_VARIANTS.map(x=>x.face)).size>=5);
   for(const [i,preset] of SWAT_V6_VARIANTS.entries()){
-    assert.equal(preset.id,'V6-'+String(i+1).padStart(2,'0'));
+    assert.equal(preset.id,i===5?'V7-01':'V6-'+String(i+1).padStart(2,'0'));
     assert.ok(Number.isInteger(preset.cloth));
     assert.ok(Number.isInteger(preset.vest));
     assert.notEqual(preset.cloth,preset.maskColor);
@@ -30,7 +30,7 @@ test('V6 selection persists and safely resets invalid saved numbers',()=>{
     setItem:(key,value)=>data.set(key,value),
   };
   assert.equal(SWAT_V6_KEY,'gameblock:swat-v6-variant');
-  assert.equal(loadSwatSelection(storage),0);
+  assert.equal(loadSwatSelection(storage),5);
   assert.equal(saveSwatSelection(17,storage),17);
   assert.equal(loadSwatSelection(storage),17);
   data.set(SWAT_V6_KEY,'999');
@@ -38,7 +38,7 @@ test('V6 selection persists and safely resets invalid saved numbers',()=>{
   assert.equal(safeVariantIndex(-3),0);
   assert.equal(safeVariantIndex(20),0);
   assert.equal(safeVariantIndex(19),19);
-  assert.equal(loadSwatSelection({getItem(){throw Error('blocked');}}),0);
+  assert.equal(loadSwatSelection({getItem(){throw Error('blocked');}}),5);
 });
 
 test('two V6 variants create different real 3D meshes and empty-handed tactical accessories',()=>{
@@ -53,6 +53,10 @@ test('two V6 variants create different real 3D meshes and empty-handed tactical 
   assert.ok(classic&&heavy);
   assert.equal(classic.version,6);
   assert.equal(heavy.variant,4);
+  const urban=createSwatV6Operator(gltf,5);
+  assert.equal(urban.version,7);
+  assert.equal(urban.variant,5);
+  urban.release();
   const meshesA=[],meshesB=[];
   classic.root.traverse(x=>{if(x.isMesh)meshesA.push(x);});
   heavy.root.traverse(x=>{if(x.isMesh)meshesB.push(x);});
@@ -78,10 +82,11 @@ test('main game has 20-operator live 3D gallery and selected CT NPC variant',()=
   assert.match(main,/showGalleryPage\(page,pageSize\)/);
   assert.match(main,/renderer\.render\(galleryScene,galleryCamera\)/);
   assert.match(main,/staticBots: true/);
-  assert.match(main,/swat:'counter_flame_swat_v5'/);
+  assert.match(main,/swat:'counter_flame_swat_v7'/);
   assert.match(main,/saveSwatSelection\(index\)/);
   assert.match(menu,/retroGallery/);
   assert.match(gallery,/v6Choices/);
   assert.match(gallery,/v6Strip/);
   assert.match(html,/openSwatGallery/);
+  assert.match(html,/SWAT V7\.0/);
 });
