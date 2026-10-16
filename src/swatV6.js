@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import {createStaticSwatOperator} from './counterFlameSwat.js';
 
-// Twenty original CT loadouts. V7-01 is the upgraded Urban SWAT with rebuilt shoulders. They share one
+// Twenty original CT loadouts. V8-01 is the chosen Urban operator with sculpted eyes,
+// layered balaclava, rigid helmet and anatomical shoulders from our new GLB. They share one
 // downloaded base body GLB; each has its own palette, geometry and accessories.
 // No paid assets, no imported CS characters, no weapon held in either hand.
 const v = (name, colors, helmet, armor, face, magazines, pack, detail) =>
@@ -29,7 +30,7 @@ export const SWAT_V6_VARIANTS = Object.freeze([
   v('Штурмовой серый', C(0x70706c,0x474845,0x50534d,0x666863,0x292b29,0x232526,0x45413b,0x484c48), 'classic','heavy','goggles',4,true,'thigh'),
   v('Пограничный', C(0x667759,0x445a43,0x4d624b,0x607150,0x253c30,0x202b28,0x494638,0x455844), 'full','plate','scarf',3,true,'radio'),
   v('Ветеран 1.6', C(0x676f60,0x3b4340,0x4d5750,0x626b60,0x262d2e,0x1b2225,0x453d33,0x515952), 'classic','rig','balaclava',3,false,'reinforced'),
-].map((preset,index)=>Object.freeze({...preset, index, id:index===5?'V7-01':'V6-'+String(index+1).padStart(2,'0')})));
+].map((preset,index)=>Object.freeze({...preset, index, id:index===5?'V8-01':'V6-'+String(index+1).padStart(2,'0')})));
 
 export const SWAT_V6_KEY = 'gameblock:swat-v6-variant';
 export function safeVariantIndex(index) {
@@ -92,7 +93,7 @@ function taperedPlate(parent,name,center,w,h,d,material,taper=.07) {
 function remodelBody(geometry,index) {
   const pos=geometry.getAttribute('position');
   const style=SWAT_V6_VARIANTS[index];
-  // V7 asset already has reconstructed shoulder sleeves; only micro-taper here.
+  // V8 asset already has reconstructed shoulder sleeves; only micro-taper older styles.
   const pull=style.armor==='heavy'?.009:style.armor==='light'?.018:.013;
   const slender=style.armor==='light'?.978:style.armor==='heavy'?1.016:1.0;
   for(let i=0;i<pos.count;i++){
@@ -194,7 +195,8 @@ function outfitParts(visual,v) {
     for(const s of [-1,1]) {
       cube(visual,'V6 reinforced cheek guard',[.052,.137,.078],unit.helm,s*.124,1.737,-.073);
     }
-  } else if(h==='highcut') {
+  } else if(h==='highcut'&&v.index!==5) {
+    // Urban V8 already includes precise rails and NVG mount in its GLB.
     for(const s of [-1,1]) {
       cube(visual,'V6 open helmet rail',[.020,.040,.132],unit.trim,s*.143,1.846,-.002);
       cube(visual,'V6 helmet clip',[.025,.022,.039],unit.metal,s*.155,1.86,-.07);
@@ -216,7 +218,8 @@ function outfitParts(visual,v) {
     cube(visual,'V6 low face veil',[.178,.093,.033],unit.mask,0,1.714,-.151);
     for(const s of [-1,1])strap(visual,'V6 face wrap side',[s*.09,1.74,-.149],
       [s*.137,1.703,-.032],.018,.014,unit.trim);
-  }else{
+  }else if(v.index!==5){
+    // Keep the high-fidelity V8 Urban balaclava and mouth seams unobstructed.
     cube(visual,'V6 mask seam',[.023,.107,.012],unit.trim,0,1.726,-.158);
   }
   for(const s of [-1,1]) {
@@ -272,15 +275,19 @@ export function createSwatV6Operator(gltf,index=0) {
   if(!basic)return null;
   const v=SWAT_V6_VARIANTS[i];
   basic.root.name='Counter Flame '+v.id+' / '+v.name;
-  basic.version=i===5?7:6;
+  basic.version=i===5?8:6;
   basic.variant=i;
   basic.mode='static-swat';
   const materials=[];
   basic.visual.traverse(child=>{
     if(!child.isMesh)return;
     child.geometry=child.geometry.clone();
-    remodelBody(child.geometry,i);
-    recolorBody(child.geometry,v);
+    if(i!==5){
+      remodelBody(child.geometry,i);
+      recolorBody(child.geometry,v);
+    }
+    // On V8 Urban retain the original separate skin/iris/helmet/material
+    // vertex colors from the GLB. Height-based recoloring erased the eyes.
     child.material=new THREE.MeshStandardMaterial({
       color:0xffffff,vertexColors:true,roughness:1,metalness:0,flatShading:true,
     });
