@@ -153,11 +153,11 @@ function refreshSwatPreview() {
   preview.root.rotation.y=-.32;
   menuScene.add(preview.root);
 }
-// Rebuilt V7 Urban anatomy is the shared source GLB for 20 selectable CT loadouts.
-// No spherical shoulder jacket meshes: anatomy is remodeled before GLB export.
+// V8 Urban is the new detailed face + helmet source GLB for 20 tactical loadouts.
+// Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'counter_flame_swat_v7', terrorist:'dragomir_t'
+  swat:'counter_flame_swat_v8', terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
@@ -331,7 +331,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Загружаем SWAT V7 Urban и оружие…';
+    status.textContent = 'Загружаем SWAT V8 Urban и оружие…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
