@@ -20,15 +20,17 @@ test('V5 character mounts safely, centers horizontally and keeps boots on ground
   assert.equal(createStaticSwatOperator({scene: new THREE.Group()}), null);
 });
 
-test('game and GitHub Pages use V5 and keep NPCs static for inspection', () => {
+test('game loads anatomical V7 GLB and GitHub Pages builds it from modular V2', () => {
   const game = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const deploy = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
   const v2 = readFileSync(new URL('../scripts/build_counter_flame_swat_v2.py', import.meta.url), 'utf8');
   const v5 = readFileSync(new URL('../scripts/build_counter_flame_swat_v5.py', import.meta.url), 'utf8');
-  assert.match(game, /swat:'counter_flame_swat_v5'/);
+  const v7 = readFileSync(new URL('../scripts/build_counter_flame_swat_v7.py', import.meta.url), 'utf8');
+  assert.match(game, /swat:'counter_flame_swat_v7'/);
   assert.match(game, /staticBots: true/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v2.py/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v5.py/);
+  assert.match(deploy, /python scripts\/build_counter_flame_swat_v7.py/);
   assert.ok(deploy.indexOf('python scripts/build_counter_flame_swat_v2.py') <
             deploy.indexOf('python scripts/build_counter_flame_swat_v5.py'));
   assert.match(v2, /CF2_optimized_fullbody/);
@@ -42,4 +44,9 @@ test('game and GitHub Pages use V5 and keep NPCs static for inspection', () => {
   assert.match(v5, /CF5_humanized_ct_operator_empty_hands/);
   assert.match(v5, /counter_flame_swat_v5.glb/);
   assert.doesNotMatch(v5, /createRifle|addWeapon|createGun/);
+  assert.match(v7, /counter_flame_swat_v7.glb/);
+  assert.match(v7, /shoulder_jacket/);
+  assert.match(v7, /tapered_sleeve/);
+  assert.match(v7, /CF7_URBAN_anatomical_shoulders_empty_hands/);
+  assert.doesNotMatch(v7, /createRifle|addWeapon|createGun/);
 });
