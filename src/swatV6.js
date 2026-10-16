@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {createStaticSwatOperator} from './counterFlameSwat.js';
 
-// Twenty original, hard-edged Counter Flame CT loadouts. They share one
+// Twenty original CT loadouts. V7-01 is the upgraded Urban SWAT with rebuilt shoulders. They share one
 // downloaded base body GLB; each has its own palette, geometry and accessories.
 // No paid assets, no imported CS characters, no weapon held in either hand.
 const v = (name, colors, helmet, armor, face, magazines, pack, detail) =>
@@ -29,15 +29,18 @@ export const SWAT_V6_VARIANTS = Object.freeze([
   v('Штурмовой серый', C(0x70706c,0x474845,0x50534d,0x666863,0x292b29,0x232526,0x45413b,0x484c48), 'classic','heavy','goggles',4,true,'thigh'),
   v('Пограничный', C(0x667759,0x445a43,0x4d624b,0x607150,0x253c30,0x202b28,0x494638,0x455844), 'full','plate','scarf',3,true,'radio'),
   v('Ветеран 1.6', C(0x676f60,0x3b4340,0x4d5750,0x626b60,0x262d2e,0x1b2225,0x453d33,0x515952), 'classic','rig','balaclava',3,false,'reinforced'),
-].map((preset,index)=>Object.freeze({...preset, index, id:'V6-'+String(index+1).padStart(2,'0')})));
+].map((preset,index)=>Object.freeze({...preset, index, id:index===5?'V7-01':'V6-'+String(index+1).padStart(2,'0')})));
 
 export const SWAT_V6_KEY = 'gameblock:swat-v6-variant';
 export function safeVariantIndex(index) {
   return Number.isInteger(index) && index >= 0 && index < SWAT_V6_VARIANTS.length ? index : 0;
 }
 export function loadSwatSelection(storage = typeof localStorage === 'undefined' ? null : localStorage) {
-  try { return safeVariantIndex(Number(storage?.getItem(SWAT_V6_KEY))); }
-  catch { return 0; }
+  try {
+    const saved=storage?.getItem(SWAT_V6_KEY);
+    if(saved===null||saved===undefined||saved==='')return 5; // V7 Urban default.
+    return safeVariantIndex(Number(saved));
+  } catch { return 5; }
 }
 export function saveSwatSelection(index, storage = typeof localStorage === 'undefined' ? null : localStorage) {
   const safe = safeVariantIndex(index);
@@ -89,7 +92,8 @@ function taperedPlate(parent,name,center,w,h,d,material,taper=.07) {
 function remodelBody(geometry,index) {
   const pos=geometry.getAttribute('position');
   const style=SWAT_V6_VARIANTS[index];
-  const pull=style.armor==='heavy'?.048:style.armor==='light'?.071:.060;
+  // V7 asset already has reconstructed shoulder sleeves; only micro-taper here.
+  const pull=style.armor==='heavy'?.009:style.armor==='light'?.018:.013;
   const slender=style.armor==='light'?.978:style.armor==='heavy'?1.016:1.0;
   for(let i=0;i<pos.count;i++){
     let x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
@@ -162,8 +166,8 @@ function outfitParts(visual,v) {
   for(const s of [-1,1]) {
     strap(visual,'V6 webbing shoulder strap',[s*.187,1.59,-.09],
       [s*.185,1.425,-.268],.038,.025,unit.trim);
-    cube(visual,'V6 shoulder fabric patch',[.105,.056,.028],unit.cloth,s*.299,1.535,-.09,s*.08);
-    cube(visual,'V6 elbow padding',[.082,.058,.033],unit.pads,s*.346,1.31,-.194);
+    cube(visual,'V7 fitted upper arm patch',[.018,.067,.070],unit.cloth,s*.277,1.489,-.084,s*.05);
+    cube(visual,'V7 elbow cloth pad',[.067,.058,.020],unit.pads,s*.31,1.31,-.199);
   }
   const n=v.magazines;
   for(let j=0;j<n;j++){
@@ -225,6 +229,17 @@ function outfitParts(visual,v) {
     // Contrast boot laces and boot cuff
     cube(visual,'V6 boot cuff',[.158,.047,.104],unit.boots,s*.25,.15,.034);
   }
+  if(v.index===5){
+    for(const side of [-1,1]){
+      strap(visual,'V7 Urban chest restraint',
+        [side*.162,1.592,-.166],[side*.102,1.297,-.334],
+        .014,.011,unit.trim);
+      cube(visual,'V7 Urban elbow seam',[.012,.042,.034],unit.stitch,
+        side*.305,1.322,-.212);
+    }
+    cube(visual,'V7 Urban flat radio pouch',[.065,.125,.047],unit.black,
+      -.245,1.506,-.055);
+  }
   if(v.pack){
     taperedPlate(visual,'V6 square radio pack',[-.074,1.402,.24],
       .255,.32,.11,unit.vest,.027);
@@ -257,7 +272,7 @@ export function createSwatV6Operator(gltf,index=0) {
   if(!basic)return null;
   const v=SWAT_V6_VARIANTS[i];
   basic.root.name='Counter Flame '+v.id+' / '+v.name;
-  basic.version=6;
+  basic.version=i===5?7:6;
   basic.variant=i;
   basic.mode='static-swat';
   const materials=[];
