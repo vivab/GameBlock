@@ -13,9 +13,9 @@ export function installSwatV6Gallery({
   root.innerHTML=[
     '<div class="v6top"><div class="v6heading">',
     '<button id="v6Back" type="button">← НАЗАД</button>',
-    '<div><strong>SWAT V6.0 / 20 БОЙЦОВ</strong>',
-    '<span>Настоящие 3D-модели · без мультяшных форм</span></div>',
-    '<span id="v6Selected">V6-01</span></div>',
+    '<div><strong>SWAT V7.0 / 20 БОЙЦОВ</strong>',
+    '<span>V7 Городской спецназ · улучшенные плечи · 20 стилей</span></div>',
+    '<span id="v6Selected">V7-01</span></div>',
     '<div id="v6Strip" class="v6strip" aria-label="Все 20 вариантов"></div></div>',
     '<div class="v6bottom">',
     '<div id="v6Choices" class="v6choices" aria-label="Бойцы на экране"></div>',
