@@ -1,0 +1,38 @@
+name: Copy allowed Game1 weapons into GameBlock repository
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/game1-import.yml'
+      - 'scripts/sync-game1-assets.sh'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: game1-repository-asset-copy
+  cancel-in-progress: false
+jobs:
+  copy-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Copy only allowlisted Game1 weapon GLBs into GameBlock
+        run: bash scripts/sync-game1-assets.sh
+      - name: Commit new Game1 weapons to GameBlock (never Game1)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            public/game1/low-poly_m16a4_acog.glb \
+            public/game1/low-poly_m249_saw.glb \
+            public/game1/low_poly_stylized_karambit_knife.glb \
+            public/game1/rifle__m4a4_weapon_model_cs2.glb \
+            public/game1/knife_default_t__cs2.glb
+          if git diff --cached --quiet; then
+            echo 'All allowed Game1 weapon models already tracked in GameBlock.'
+          else
+            git commit -m 'Copy permitted Game1 weapon assets into GameBlock only'
+            git push origin HEAD:main
+          fi
