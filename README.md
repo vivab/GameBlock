@@ -114,11 +114,13 @@ GameBlock V8 mode continues to be playable from the normal Play button.
 - Original Game1 `ak-47_low_poly.glb` is **excluded**, and every
   imported Game1 AK reference instead points to our
   `public/models/ak47.glb`. The main GameBlock rifle is not changed.
-- Other allowed Game1 weapon GLBs are copied into `public/game1/`.
-  Small models are committed by blob. Large models are fetched at Pages
-  build time from **the pinned, unchanged Game1 commit** by
-  `scripts/sync-game1-assets.sh`; they are packaged into the deployed
-  site, not imported from the forbidden map or AK.
+- **All twelve permitted Game1 weapon GLBs are now physically committed
+  to the GameBlock repository**, including the larger M4A4, M16, M249,
+  karambit and knife. The Game1 import workflow copied them from the
+  pinned Game1 commit without modifying the source repository. The
+  `scripts/sync-game1-assets.sh` script now uses committed files first;
+  only missing models are downloaded as a fallback on Pages builds.
+  Neither the Game1 map nor the Game1 AK is present.
 - The imported mode uses separate Game1 profile/inventory local-storage
   keys; it does not delete/overwrite GameBlock's existing save data or V8.
   Game1's menus and systems are prototypes, not real multiplayer,

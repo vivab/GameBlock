@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,openSync,readSync,closeSync,existsSync,statSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {ARENA_WALLS} from '../src/combat.js';
 const file=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 test('Game1 complete game and menu were copied without overwriting GameBlock',()=>{
@@ -35,4 +36,31 @@ test('Game1 map and AK are strictly excluded from imported game',()=>{
   assert.match(generator,/import \{ARENA_WALLS\} from '\.\.\/src\/combat\.js'/);
   assert.match(importer,/0ca998c64b0c3638152d8bd49f9e3dc0bd8879f1/);
   assert.match(importer,/cp public\/models\/knife_t\.glb/);
+});
+
+test('all permitted Game1 weapons physically exist in GameBlock, with valid GLB headers',()=>{
+  const allowed=[
+    'glock.glb','knife_default_t__cs2.glb','low-poly_desert_eagle.glb',
+    'low-poly_m16a4_acog.glb','low-poly_m249_saw.glb',
+    'low-poly_mossberg_590.glb','low-poly_usp-s.glb','low_poly_awp.glb',
+    'low_poly_shotgun-m870.glb','low_poly_stylized_karambit_knife.glb',
+    'rifle__m4a4_weapon_model_cs2.glb','sig_sauer_p250_low-poly.glb'
+  ];
+  for(const name of allowed){
+    const url=new URL('../public/game1/'+name,import.meta.url);
+    assert.ok(existsSync(url),name+' missing from the GameBlock repository');
+    assert.ok(statSync(url).size>160000,name+' file seems incomplete');
+    const first=Buffer.alloc(4),fd=openSync(url,'r');
+    try{readSync(fd,first,0,4,0);}finally{closeSync(fd);}
+    assert.equal(first.toString('ascii'),'glTF',name+' must be a binary glTF');
+  }
+  for(const banned of [
+    'ak-47_low_poly.glb','lowpoly__fps__tdm__game__map_by_resoforge.glb'
+  ])assert.ok(!existsSync(new URL('../public/game1/'+banned,import.meta.url)));
+});
+test('native GameBlock AK stays byte-for-byte identical to before the import',()=>{
+  const originalAK=readFileSync(new URL('../public/models/ak47.glb',import.meta.url));
+  const objectSha=createHash('sha1')
+    .update('blob '+originalAK.length+'\0').update(originalAK).digest('hex');
+  assert.equal(objectSha,'bbe412e7d7aecc442e3446cefade98f5c2248aa2');
 });

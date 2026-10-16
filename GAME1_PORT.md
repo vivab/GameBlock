@@ -29,9 +29,12 @@ Original Game1 is not edited; all writes target `vivab/GameBlock`.
 
 ## Build details
 
-`scripts/sync-game1-assets.sh` fetches only allowlisted large GLBs
-from the pinned Game1 commit, and copies the already-present identical knife
-from GameBlock. It runs during Pages build, not in local `npm test`.
+All **twelve permitted Game1 GLBs** are now physically present under
+`public/game1/` in the GameBlock git history, including the four large models
+and the knife. `.github/workflows/game1-import.yml` copied them exactly,
+with write operations limited to GameBlock. The `scripts/sync-game1-assets.sh`
+build step uses the checked-in copies, falling back to the pinned Game1
+commit only if a permitted GLB is missing.
 `scripts/build-game1-map.mjs` generates `gameblock-arena-data.js`
 from existing GameBlock collision data so the map cannot silently diverge.
 
