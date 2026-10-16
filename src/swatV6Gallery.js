@@ -9,13 +9,13 @@ export function installSwatV6Gallery({
   const root=document.createElement('section');
   root.id='swatV6Gallery';
   root.hidden=true;
-  root.setAttribute('aria-label','20 трёхмерных бойцов Counter Flame V6');
+  root.setAttribute('aria-label','20 трёхмерных бойцов Counter Flame V8');
   root.innerHTML=[
     '<div class="v6top"><div class="v6heading">',
     '<button id="v6Back" type="button">← НАЗАД</button>',
-    '<div><strong>SWAT V7.0 / 20 БОЙЦОВ</strong>',
-    '<span>V7 Городской спецназ · улучшенные плечи · 20 стилей</span></div>',
-    '<span id="v6Selected">V7-01</span></div>',
+    '<div><strong>SWAT V8.0 / 20 БОЙЦОВ</strong>',
+    '<span>V8 Городской спецназ · лицо, шлем и экипировка · 20 стилей</span></div>',
+    '<span id="v6Selected">V8-01</span></div>',
     '<div id="v6Strip" class="v6strip" aria-label="Все 20 вариантов"></div></div>',
     '<div class="v6bottom">',
     '<div id="v6Choices" class="v6choices" aria-label="Бойцы на экране"></div>',
