@@ -20,17 +20,20 @@ test('V5 character mounts safely, centers horizontally and keeps boots on ground
   assert.equal(createStaticSwatOperator({scene: new THREE.Group()}), null);
 });
 
-test('game loads anatomical V7 GLB and GitHub Pages builds it from modular V2', () => {
+test('game loads detailed V8 face GLB and Pages builds original geometry', () => {
   const game = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
   const deploy = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8');
   const v2 = readFileSync(new URL('../scripts/build_counter_flame_swat_v2.py', import.meta.url), 'utf8');
   const v5 = readFileSync(new URL('../scripts/build_counter_flame_swat_v5.py', import.meta.url), 'utf8');
   const v7 = readFileSync(new URL('../scripts/build_counter_flame_swat_v7.py', import.meta.url), 'utf8');
-  assert.match(game, /swat:'counter_flame_swat_v7'/);
+  const v8 = readFileSync(new URL('../scripts/build_counter_flame_swat_v8.py', import.meta.url), 'utf8');
+  const face = readFileSync(new URL('../scripts/swat_v8_details.py', import.meta.url), 'utf8');
+  assert.match(game, /swat:'counter_flame_swat_v8'/);
   assert.match(game, /staticBots: true/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v2.py/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v5.py/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v7.py/);
+  assert.match(deploy, /python scripts\/build_counter_flame_swat_v8.py/);
   assert.ok(deploy.indexOf('python scripts/build_counter_flame_swat_v2.py') <
             deploy.indexOf('python scripts/build_counter_flame_swat_v5.py'));
   assert.match(v2, /CF2_optimized_fullbody/);
@@ -49,4 +52,13 @@ test('game loads anatomical V7 GLB and GitHub Pages builds it from modular V2', 
   assert.match(v7, /tapered_sleeve/);
   assert.match(v7, /CF7_URBAN_anatomical_shoulders_empty_hands/);
   assert.doesNotMatch(v7, /createRifle|addWeapon|createGun/);
+  assert.match(v8, /counter_flame_swat_v8.glb/);
+  assert.match(v8, /add_v8_head\(add,loft\)/);
+  assert.match(v8, /CF8_URBAN_detailed_face_helmet_empty_hands/);
+  assert.match(face, /CF8_eye_socket/);
+  assert.match(face, /CF8_brow_heavy/);
+  assert.match(face, /CF8_highcut_helmet_shell/);
+  assert.match(face, /CF8_balaclava_nose_cover/);
+  assert.match(face, /CF8_magazine_pouch/);
+  assert.doesNotMatch(v8, /createRifle|addWeapon|createGun/);
 });
