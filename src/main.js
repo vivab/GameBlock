@@ -134,8 +134,8 @@ function showGalleryPage(page,pageSize) {
       galleryPlinths.push(plate);
     }
     highlightGallerySelection();
-    swatGallery?.setStatus('Ряд V6-'+String(begin+1).padStart(2,'0')+
-      ' — V6-'+String(end).padStart(2,'0')+' · Нажми на номер, затем ВЫБРАТЬ');
+    swatGallery?.setStatus('Ряд '+SWAT_V6_VARIANTS[begin].id+
+      ' — '+SWAT_V6_VARIANTS[end-1].id+' · Нажми на номер, затем ВЫБРАТЬ');
   } catch(error){
     console.error('Could not build gallery row',error);
     swatGallery?.setStatus('Ошибка 3D-галереи. Обнови страницу.');
@@ -145,7 +145,7 @@ function refreshSwatPreview() {
   if(!assets.swat)return;
   let next;
   try {next=createSwatV6Operator(assets.swat,selectedSwatIndex);}
-  catch(error){console.warn('Selected V6 operator failed',error);return;}
+  catch(error){console.warn('Selected CT operator failed',error);return;}
   if(!next)return;
   menuScene.remove(preview.root);
   preview.release?.();
@@ -153,11 +153,11 @@ function refreshSwatPreview() {
   preview.root.rotation.y=-.32;
   menuScene.add(preview.root);
 }
-// Shared original V5 body GLB is the geometry source for 20 unique V6 CT
-// variations. Variant meshes and gear are generated at runtime in swatV6.js.
+// Rebuilt V7 Urban anatomy is the shared source GLB for 20 selectable CT loadouts.
+// No spherical shoulder jacket meshes: anatomy is remodeled before GLB export.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'counter_flame_swat_v5', terrorist:'dragomir_t'
+  swat:'counter_flame_swat_v7', terrorist:'dragomir_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
@@ -297,7 +297,10 @@ function start(team) {
   marks.length = 0;
   // A new team choice may reuse bot IDs; discard old actors so T skins never
   // appear on CT and retired skinned operators do not stay in the scene.
-  for (const fighter of fighters.values()) scene.remove(fighter.root);
+  for (const fighter of fighters.values()) {
+    scene.remove(fighter.root);
+    fighter.animated?.release?.();
+  }
   fighters.clear();
   match.start(team);
   selectWeapon('pistol'); mountKnife(`knife_${team}`);
@@ -328,7 +331,7 @@ async function prepareMatch(team) {
     const percent = Math.round(fraction * 100);
     fill.style.width = percent + '%';
     progress.textContent = percent + '%';
-    status.textContent = 'Загружаем выбранного SWAT V6 и оружие…';
+    status.textContent = 'Загружаем SWAT V7 Urban и оружие…';
     if (fraction < 1) requestAnimationFrame(tick);
   };
   tick();
