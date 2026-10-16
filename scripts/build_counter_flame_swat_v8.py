@@ -284,7 +284,11 @@ def main():
         raise ValueError("Invalid vertex coordinates")
     if not 1.80 < (merged.bounds[1,1]-merged.bounds[0,1]) < 2.10:
         raise ValueError("Wrong soldier height")
-    if len(merged.faces)<20000:
+    print(f"V8 mesh verification: {len(merged.faces)} real triangles; "
+          f"{len(removed)} discarded legacy parts; {len(kept.geometry)} preserved/rebuilt parts")
+    # The old high-subdivision spherical head and bulging pouches are removed.
+    # Triangle count is expected to decrease, not stay at the V7 baseline.
+    if len(merged.faces)<11000 or len(kept.geometry)<120:
         raise ValueError("Incomplete V8 geometry")
     output=trimesh.Scene()
     output.add_geometry(merged,geom_name="CF8_URBAN_detailed_face_helmet_empty_hands")
