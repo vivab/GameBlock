@@ -60,4 +60,6 @@ jobs:
           print('CONFIRMED 30 genuine unique rigged GLBs, bytes=',sum(m['bytes'] for m in x['models']))
           PY
           git commit -m 'Add 30 distinct Quaternius CC0 rigged GLB humanoids for live tactical casting'
+          git fetch origin main
+          git rebase origin/main
           git push origin HEAD:main
