@@ -1,0 +1,38 @@
+name: Import Soldier Candidate
+on:
+  push:
+    paths:
+      - '.github/workflows/import-soldier-candidate.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download original animated Soldier GLB
+        run: |
+          mkdir -p public/casting/candidates
+          curl --fail --location --retry 3 --output public/casting/candidates/soldier.glb https://raw.githubusercontent.com/Mugen87/dive/master/app/models/soldier.glb
+          python3 - <<'PY'
+          import json, struct
+          path='public/casting/candidates/soldier.glb'
+          with open(path,'rb') as f:
+              head=f.read(20)
+              magic, version, size, length, typ=struct.unpack('<5I',head)
+              assert magic==0x46546C67 and version==2 and size>100000, 'Invalid GLB'
+              assert typ==0x4E4F534A
+              gltf=json.loads(f.read(length))
+              print('Meshes:',len(gltf.get('meshes',[])),'Skins:',len(gltf.get('skins',[])),'Animations:',len(gltf.get('animations',[])))
+              assert gltf.get('meshes') and gltf.get('skins')
+          PY
+      - name: Commit model to repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/casting/candidates/soldier.glb
+          if ! git diff --cached --quiet; then
+            git commit -m "Import animated soldier candidate GLB"
+            git push
+          fi
