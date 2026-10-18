@@ -19,7 +19,7 @@ jobs:
           key="${GITHUB_RUN_ID}"
           curl -fLsS --retry 7 --retry-delay 3 "$url/terrorists-five.html?check=$key" -o /tmp/elite.html
           grep -q 'НОВАЯ ПЯТЁРКА' /tmp/elite.html
-          grep -q 'eliteCasting' /tmp/elite.html
+          grep -q 'type="module"' /tmp/elite.html
           curl -fLsS --retry 7 --retry-delay 3 "$url/casting/elite/manifest.json?check=$key" -o /tmp/elite.json
           python3 - <<'PY'
           import json
