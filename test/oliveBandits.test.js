@@ -23,13 +23,14 @@ test('olive T-02/T-05 edits are repeatable, stored as GLBs with untouched source
   assert.match(script,/body\["baseColorFactor"\] = \[1\., 1\., 1\., 1\.\]/);
   assert.match(file('.github/workflows/recolor-olive-terrorists.yml'),/validate_olive_terrorists\.py/);
   assert.match(file('src/casting.js'),/light-olive-v4/);
-  assert.match(script,/"shadow": \(144, 153, 109\)/);
-  assert.match(script,/"shadow": \(154, 147, 107\)/);
-  assert.match(script,/outfitVersion"\] = 3/);
+  assert.match(script,/"shadow": \(192, 199, 145\)/);
+  assert.match(script,/"shadow": \(191, 190, 147\)/);
+  assert.match(script,/outfitVersion"\] = 4/);
+  assert.match(script,/mats\[index\]\["emissiveFactor"\] = list\(palette\["emissive"\]\)/);
 });
 test('once exported, T-02 and T-05 contain body-specific olive photo textures and original head and masks',()=>{
   const manifest=JSON.parse(file('public/casting/masked/manifest.json'));
-  if(manifest.models[1].outfitVersion!==3||manifest.models[4].outfitVersion!==3){
+  if(manifest.models[1].outfitVersion!==4||manifest.models[4].outfitVersion!==4){
     // Olive-color GLB creation is performed by a separate GitHub Actions
     // workflow. The initial source-code commit is intentionally testable.
     return;
@@ -44,6 +45,9 @@ test('once exported, T-02 and T-05 contain body-specific olive photo textures an
     assert.ok(glb.materials.some(m=>m.name?.includes('olive_bandit_body')));
     const body=glb.materials.find(m=>m.name.includes('olive_bandit_body'));
     assert.deepEqual(body.pbrMetallicRoughness.baseColorFactor,[1,1,1,1]);
+    assert.ok(body.emissiveFactor[0]>=.14,'Body olive brightness fill missing');
+    const stats=manifest.models[n-1].measuredBodyRGB;
+    assert.ok(stats[0]>=210&&stats[1]>=210,'Olive photo is still too dark');
     assert.ok(glb.materials.some(m=>m.name?.includes('real_balaclava')));
     assert.ok(glb.materials.some(m=>m.name?.includes('_head')));
     assert.equal(manifest.models[n-1].masked,true);
