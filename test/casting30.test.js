@@ -127,3 +127,14 @@ test('all ten masks are attached to actual skin-weighted human meshes, not hover
     )),'balaclava floats instead of being skinned: '+person.name);
   }
 });
+
+test('bright olive gallery fallback does not tint black balaclavas or heads',()=>{
+  const js=file('src/casting.js');
+  assert.match(js,/bright-olive-v6/);
+  assert.match(js,/entry\.number===2 \|\| entry\.number===5/);
+  assert.match(js,/name\.includes\('_body'\)/);
+  assert.match(js,/material\.map=null/);
+  assert.match(js,/0xb8c987/);
+  assert.match(js,/0xd3cca0/);
+  assert.match(js,/const cloth=/);
+});
