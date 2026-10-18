@@ -5,5 +5,6 @@ export default defineConfig({
   build:{rollupOptions:{input:{
     main:resolve(import.meta.dirname,'index.html'),
     casting:resolve(import.meta.dirname,'casting.html'),
+    showroom:resolve(import.meta.dirname,'showroom.html'),
   }}},
 });
