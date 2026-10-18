@@ -32,6 +32,13 @@ jobs:
           python scripts/build_counter_flame_swat_v7.py
           python scripts/build_counter_flame_swat_v8.py
       - run: npm ci
+      - name: Download open-source skinned Soldier for 30-model showroom
+        run: |
+          mkdir -p public/showroom
+          curl --fail --location --retry 3 --silent --show-error --max-time 120 \
+            https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/Soldier.glb \
+            --output public/showroom/Soldier.glb
+          test "$(head -c 4 public/showroom/Soldier.glb)" = glTF
       - name: Copy Game1 models (read-only, allowlist, no map or AK)
         run: bash scripts/sync-game1-assets.sh
       - name: Build Game1-mode map from original GameBlock layout
