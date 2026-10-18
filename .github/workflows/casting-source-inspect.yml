@@ -28,7 +28,7 @@ jobs:
           for name,url in packs.items():
             print('PACK_BEGIN',name,flush=True)
             try:
-              result=gdown.download_folder(url=url,quiet=True,remaining_ok=True,skip_download=True, use_cookies=False)
+              result=gdown.download_folder(url=url,quiet=True,skip_download=True, use_cookies=False)
               print('PACK_FILES',name,len(result or []),flush=True)
               for i,x in enumerate(result or []):
                 print('FILE',name,i,str(x)[:290],flush=True)
