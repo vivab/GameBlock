@@ -48,6 +48,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     #retroHome #retroGame1 {padding:10px 12px;text-align:center;
       background:#263742;border:1px solid #758f92;color:#e2ebdf;
       border-radius:3px;font-size:11px}
+    #retroHome #retroCasting{padding:11px 12px;text-align:center;
+      background:#46554c;border:1px solid #afc0af;color:#f7f4e9;border-radius:3px;
+      font-size:12px}
     #retroHome #retroPlay {margin-top:0;padding:14px 18px;text-align:center;
       background:linear-gradient(115deg,#f2c181,#b37b45);border:1px solid #ffe6a8;
       box-shadow:0 5px 22px #0008;color:#17232d;font-size:17px;border-radius:4px}
@@ -109,6 +112,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
       <button id="retroGallery" type="button">◈ SWAT V8 / 20 БОЙЦОВ</button>
+      <button id="retroCasting" type="button">◈ ПОЛИГОН: 30 БОЙЦОВ</button>
       <button id="retroGame1" type="button">⬢ ИГРОВОЙ РЕЖИМ GAME1</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
@@ -172,6 +176,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
   $('retroGame1').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'game1/menu.html');
+  });
+  $('retroCasting').addEventListener('click',()=>{
+    window.location.assign(import.meta.env.BASE_URL+'casting.html');
   });
   refresh();onSound(profile.sound);
   return {
