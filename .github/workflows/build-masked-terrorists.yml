@@ -1,0 +1,61 @@
+name: Build ten masked male T candidates
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-masked-terrorists.yml'
+      - 'scripts/build_masked_terrorists.py'
+      - 'scripts/validate_masked_terrorists.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: gameblock-real-masked-T-import
+  cancel-in-progress: false
+jobs:
+  masks:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Blender for true anatomical masked rig conversion
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq blender python3-numpy
+      - name: Generate 10 different skinned fitted masks from licensed male characters
+        run: |
+          set -euo pipefail
+          mkdir -p public/casting/masked
+          sources=(
+            "public/casting/realistic/01.glb"
+            "public/casting/realistic/02.glb"
+            "public/casting/realistic/03.glb"
+            "public/casting/realistic/04.glb"
+            "public/casting/realistic/05.glb"
+            "public/casting/realistic/06.glb"
+            "public/casting/realistic/07.glb"
+            "public/casting/realistic/09.glb"
+            "public/casting/realistic/10.glb"
+            "public/casting/terrorists/10.glb"
+          )
+          for k in "${!sources[@]}"; do
+            n=$(printf '%02d' "$((k+1))")
+            blender --background --factory-startup --python scripts/build_masked_terrorists.py -- \
+              "${sources[$k]}" "public/casting/masked/$n.glb" "$((k+1))" \
+              >"/tmp/mask-$n.log" 2>&1 || { tail -100 "/tmp/mask-$n.log"; exit 1; }
+            grep -E 'MASK FIT|MASK HOLE|MASK GEOMETRY VALIDATED|SUCCESS MASKED' "/tmp/mask-$n.log" || true
+          done
+      - name: Validate true skinned masks and all ten source identities
+        run: python3 scripts/validate_masked_terrorists.py
+      - name: Commit the completed masked GLBs and manifest to GameBlock
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/casting/masked/
+          if git diff --cached --quiet; then
+            echo "Ten fitted masked character GLBs are already stored."
+          else
+            git commit -m 'Publish ten realistic male skinned characters with fitted face-covering balaclavas'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
