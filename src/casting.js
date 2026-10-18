@@ -1,312 +1,270 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 
-const $=id=>document.getElementById(id);
+// Ten DIFFERENT source rigged/textured Rocketbox adult MALE military/police
+// characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
+// repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
+const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x919da0);
-scene.fog=new THREE.Fog(0x919da0,38,100);
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,150);
+scene.background=new THREE.Color(0x919ba0);
+scene.fog=new THREE.Fog(0x919ba0,32,76);
+const camera=new THREE.PerspectiveCamera(71,innerWidth/innerHeight,.06,110);
 camera.rotation.order='YXZ';
-camera.position.set(0,1.73,21);
-const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+camera.position.set(0,1.71,12.8);
+const renderer=new THREE.WebGLRenderer({
+  antialias:false,alpha:false,powerPreference:'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35));
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.45));
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.42;
+renderer.toneMappingExposure=1.12;
 document.body.insertBefore(renderer.domElement,$('hud'));
-const ambient=new THREE.HemisphereLight(0xeef5f5,0x4a5359,2.25);
-scene.add(ambient);
-const sun=new THREE.DirectionalLight(0xfff2db,3.1);
-sun.position.set(-8,15,8);scene.add(sun);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(120,120),
-  new THREE.MeshStandardMaterial({color:0x656c6e,roughness:1,metalness:0,side:THREE.DoubleSide}));
-floor.rotation.x=-Math.PI/2;floor.position.y=-.045;scene.add(floor);
 
-const models=[],labels=[], mixers=[];
-const material=(color,roughness=1)=>new THREE.MeshStandardMaterial({
-  color,roughness,metalness:0,flatShading:true
-});
-const labelTexture=(number,name)=>{
-  const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
-  const c=canvas.getContext('2d');c.fillStyle='#14242bd9';c.fillRect(0,0,512,128);
-  c.fillStyle='#dfc8a1';c.font='900 60px system-ui';c.fillText(String(number).padStart(2,'0'),17,82);
-  c.fillStyle='#f0f0ec';c.font='600 24px system-ui';
-  c.fillText(name.replaceAll('_',' ').slice(0,27),110,78);
-  const t=new THREE.CanvasTexture(canvas);
-  t.colorSpace=THREE.SRGBColorSpace;return t;
-};
-function addName(stand,entry){
-  const tex=labelTexture(entry.number,entry.name);
-  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
-  sprite.position.set(0,2.40,0);
-  sprite.scale.set(2.15,.54,1);stand.add(sprite);
-  labels.push(sprite);
-}
-const makeBox=(w,h,d,mat,x,y,z,parent)=>{
-  const obj=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
-  obj.position.set(x,y,z);parent.add(obj);return obj;
-};
-function addTacticalGear(stand,index){
-  // These are removable preview-only protective accessories. The 30 underlying
-  // human meshes have 30 genuinely different skeletons and source geometry.
-  // Attach functional gear to bones when a final model is selected.
-  const cloth=[0x394c56,0x484f47,0x44535c,0x616150,0x44474c,0x4d5042];
-  const vest=[0x253137,0x343c39,0x343d48,0x3c3e35,0x2d343c];
-  const base=material(cloth[index%cloth.length]);
-  const armor=material(vest[index%vest.length]);
-  const edge=material(0x232b30);
-  const accent=material([0x737167,0x505c57,0x787566,0x47545a][index%4]);
-  const gear=new THREE.Group();
-  gear.name='Removable tactical gear / test fit';stand.add(gear);
-  // no weapons. Uncovered fingers can be inspected on the real imported mesh.
-  const torso=makeBox(.46,.41,.27,armor,0,1.35,0,gear);
-  torso.rotation.x=.035;
-  makeBox(.49,.085,.28,accent,0,1.525,0,gear);
-  for(const side of [-1,1]){
-    makeBox(.09,.27,.22,base,side*.245,1.36,0,gear);
-    const pouch=makeBox(.125,.15,.095,accent,side*.16,1.212,.184,gear);
-    pouch.rotation.y=side*.11;
-    makeBox(.125,.025,.101,edge,side*.16,1.278,.239,gear);
-    makeBox(.13,.12,.04,armor,side*.115,.58,.17,gear);
-    makeBox(.11,.025,.045,accent,side*.115,.63,.196,gear);
-  }
-  for(const y of [1.29,1.365,1.425]){
-    makeBox(.41,.013,.018,edge,0,y,.144,gear);
-  }
-  const helmets=[
-    new THREE.CylinderGeometry(.118,.145,.17,10),
-    new THREE.CylinderGeometry(.130,.147,.15,8),
-    new THREE.CylinderGeometry(.117,.140,.20,12),
-    new THREE.CylinderGeometry(.13,.145,.16,9),
-  ];
-  const helmet=new THREE.Mesh(helmets[index%helmets.length],armor);
-  helmet.position.set(0,1.8,0);gear.add(helmet);
-  makeBox(.27,.034,.075,armor,0,1.748,.088,gear);
-  if(index%3===0)makeBox(.065,.051,.035,edge,0,1.786,.159,gear);
-  if(index%4===0){
-    makeBox(.25,.046,.042,edge,0,1.73,.10,gear);
-    makeBox(.175,.031,.018,material(0x657676,.42),0,1.728,.132,gear);
-  }
-  // low-profile backpack is varied but never round or toy-like.
-  if(index%3!==1)makeBox(.25,.32,.10,armor,0,1.39,-.18,gear);
-  for(let i=0;i<2+(index%3);i++){
-    makeBox(.077,.082,.067,accent,(-.135+i*.093),1.10,.15,gear);
-  }
-  return gear;
-}
-function gridPosition(index){
-  const col=index%6,row=Math.floor(index/6);
-  return {x:(col-2.5)*3.45,z:11-row*5.05};
-}
-function animatedAimSetup(root){
-  const bones=[];root.traverse(o=>{if(o.isBone)bones.push(o)});
-  const isArm=s=>/upperarm|shoulder|forearm|lowerarm/i.test(s);
-  const pose=[];
-  for(const bone of bones){
-    const name=bone.name.replace(/mixamorig[:_]?/ig,'').replace(/\d+/g,'');
-    if(!isArm(name))continue;
-    const left=/left|_l$|\.l$/i.test(name);
-    const right=/right|_r$|\.r$/i.test(name);
-    if(!left&&!right)continue;
-    const forearm=/forearm|lowerarm/i.test(name);
-    const angle=new THREE.Euler(forearm?-.18:-.21,
-      forearm?(left?-.14:.14):(left?-.11:.11),
-      forearm?0:(left?.12:-.12));
-    const offset=new THREE.Quaternion().setFromEuler(angle);
-    pose.push({bone,offset,neutral:bone.quaternion.clone()});
-  }
-  return {bones:bones.length,pose};
-}
-const showProgress=(n,total)=>{
-  $('counter').textContent=n+'/'+total+' разных 3D-моделей · свободный осмотр';
-  $('loadbar').firstElementChild.style.width=(n/total*100)+'%';
-  if(n===total) $('loading').hidden=true;
-};
-function spawn(entry,gltf){
-  const index=entry.number-1;
-  const stand=new THREE.Group();
-  stand.name='Кандидат '+entry.number+' / '+entry.name;
-  const {x,z}=gridPosition(index);stand.position.set(x,0,z);
-  scene.add(stand);
-  const rigRoot=gltf.scene;
-  rigRoot.updateMatrixWorld(true);
-  const bb0=new THREE.Box3().setFromObject(rigRoot);
-  const h=bb0.getSize(new THREE.Vector3()).y;
-  if(!Number.isFinite(h)||h<.02)throw Error('Invalid GLB character height');
-  rigRoot.scale.multiplyScalar(1.83/h);
-  rigRoot.updateMatrixWorld(true);
-  const bb=new THREE.Box3().setFromObject(rigRoot);
-  const ctr=bb.getCenter(new THREE.Vector3());
-  rigRoot.position.x-=ctr.x;
-  rigRoot.position.z-=ctr.z;
-  rigRoot.position.y-=bb.min.y;
-  rigRoot.rotation.y=Math.PI;
-  stand.add(rigRoot);
-  const actualSkins=[];
-  rigRoot.traverse(o=>{
-    if(!o.isMesh)return;
-    o.frustumCulled=false;
-    if(o.isSkinnedMesh)actualSkins.push(o);
-    // Restore a muted tactical palette while preserving source silhouette
-    // and the skinning attributes. No source bone structure is deleted.
-    const pal=[0x57676b,0x4d5d54,0x6f746a,0x4b555d,0x6d6c5f,0x596762];
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    o.material=mats.map(m=>{
-      const copy=m.clone();
-      copy.roughness=Math.max(.82,copy.roughness??.85);
-      copy.metalness=0;
-      if(copy.color)copy.color.multiply(new THREE.Color(pal[index%pal.length]));
-      return copy;
-    });
-    if(!Array.isArray(mats === o.material)){} // base compatibility
-    if(o.material.length===1)o.material=o.material[0];
-  });
-  const posing=animatedAimSetup(rigRoot);
-  const possible=/aim|rifle|combat|hold|idle|stand|ready/i;
-  const clip=gltf.animations?.find(c=>possible.test(c.name))||gltf.animations?.[0];
-  let mixer=null;
-  if(clip){
-    mixer=new THREE.AnimationMixer(rigRoot);
-    const action=mixer.clipAction(clip);
-    action.play();action.timeScale=0;
-    mixer.update(0);
-    mixers.push(mixer);
-  }
-  const poseBones=animatedAimSetup(rigRoot).pose;
-  const visual=addTacticalGear(stand,index);
-  addName(stand,entry);
-  models.push({entry,stand,visual,rigRoot,mixer,poseBones,
-    bones:posing.bones,skins:actualSkins.length,animations:gltf.animations?.length||0});
-  // Index for click to inspect. Originals are still all on the same map.
-  stand.traverse(o=>{if(o.isMesh)o.userData.candidate=entry.number});
-}
-function showSelection(i){
-  const item=models.find(m=>m.entry.number===i);if(!item)return;
-  const d=$('selected');d.style.display='block';
-  d.replaceChildren();
-  const a=document.createElement('b');a.textContent=String(i).padStart(2,'0')+' / '+item.entry.name.replaceAll('_',' ');
-  const b=document.createElement('div');
-  b.textContent=item.skins+' skinned meshes · '+item.bones+' костей · '+item.animations+' анимаций';
-  d.append(a,b);
-  setTimeout(()=>{if(d.firstChild===a)d.style.display='none'},6000);
-}
+scene.add(new THREE.HemisphereLight(0xe9eef1,0x45494b,2.0));
+const sunlight=new THREE.DirectionalLight(0xffe8c9,2.35);
+sunlight.position.set(-7,14,9);scene.add(sunlight);
+const fill=new THREE.DirectionalLight(0xb2c9d3,.85);
+fill.position.set(8,8,-9);scene.add(fill);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(55,55),
+  new THREE.MeshStandardMaterial({color:0x8f918c,roughness:1}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.025;
+ground.receiveShadow=true;scene.add(ground);
+
+const operators=[];
+const raycaster=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
 const loader=new GLTFLoader();
-async function loadAll(){
+let missing=0;
+
+function makeLabel(number,name){
+  const canvas=document.createElement('canvas');
+  canvas.width=512;canvas.height=112;
+  const g=canvas.getContext('2d');
+  g.fillStyle='#15252ceb';g.fillRect(0,0,512,112);
+  g.fillStyle='#d9bea0';g.fillRect(0,0,6,112);
+  g.fillStyle='#f4e2bf';g.font='900 57px system-ui';
+  g.fillText(String(number).padStart(2,'0'),20,77);
+  g.fillStyle='#eaf0f0';g.font='600 26px system-ui';
+  g.fillText(name.slice(0,23),119,71);
+  const texture=new THREE.CanvasTexture(canvas);
+  texture.colorSpace=THREE.SRGBColorSpace;
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:texture,transparent:true,depthWrite:false
+  }));
+  sprite.scale.set(1.88,.41,1);
+  sprite.position.set(0,2.31,0);
+  return sprite;
+}
+function gridPosition(i){
+  return {x:(i%5-2)*3.55,z:3.15-Math.floor(i/5)*5.15};
+}
+
+function placeOperator(entry,gltf){
+  const i=entry.number-1;
+  const stand=new THREE.Group();
+  stand.name=entry.name;
+  const pos=gridPosition(i);
+  stand.position.set(pos.x,0,pos.z);
+  scene.add(stand);
+  const body=gltf.scene;
+  // Source-authentic physique and surface textures: do NOT recolor skin,
+  // mask, uniform, or make an animated soldier look like a Lego character.
+  body.updateMatrixWorld(true);
+  const bbox=new THREE.Box3().setFromObject(body);
+  const size=bbox.getSize(new THREE.Vector3());
+  if(!Number.isFinite(size.y)||size.y<.02)throw Error('Invalid model bounds: '+entry.name);
+  body.scale.multiplyScalar(1.82/size.y);
+  body.updateMatrixWorld(true);
+  const scaled=new THREE.Box3().setFromObject(body);
+  const center=scaled.getCenter(new THREE.Vector3());
+  body.position.x-=center.x;
+  body.position.z-=center.z;
+  body.position.y-=scaled.min.y;
+  body.rotation.y=Math.PI; // Characters face the walking gallery.
+  let bones=0,skinMeshes=0,textured=0;
+  body.traverse(node=>{
+    if(node.isBone)bones++;
+    if(!node.isMesh)return;
+    node.frustumCulled=false;
+    if(node.isSkinnedMesh)skinMeshes++;
+    // Retain the ORIGINAL photographs/textures, skin color, geometry and
+    // weighted vertices. No fake box helmets or floating square pouches.
+    const original=Array.isArray(node.material)?node.material:[node.material];
+    const mats=original.map(m=>{
+      if(!m)return m;
+      const material=m.clone();
+      if(material.map)textured++;
+      if('roughness' in material)material.roughness=Math.max(.65,material.roughness??.8);
+      if('metalness' in material)material.metalness=Math.min(.22,material.metalness??0);
+      return material;
+    });
+    node.material=Array.isArray(node.material)?mats:mats[0];
+    node.userData.operator=entry.number;
+  });
+  if(bones<14 || skinMeshes<1)throw Error('Missing rig/skin: '+entry.name);
+  stand.add(body);
+  const name=entry.kind==='military'?'Военный':'Полицейский';
+  stand.add(makeLabel(entry.number,name+' '+String(entry.number).padStart(2,'0')));
+  operators.push({entry,stand,body,bones,skinMeshes,textured});
+}
+
+function progress(done,total){
+  $('counter').textContent=done+' / '+total+' · настоящие мужские модели с костями';
+  $('loadbar').firstElementChild.style.width=(100*done/total)+'%';
+}
+
+async function loadModels(){
   let entries;
-  try {
-    const response=await fetch(BASE+'casting/manifest.json',{cache:'no-cache'});
-    if(!response.ok)throw new Error('Missing exported GLB manifest');
-    const json=await response.json();entries=json.models;
-    if(!Array.isArray(entries)||entries.length!==30)throw new Error('Requires exactly 30 imported GLB characters');
-  }catch(err){
-    $('loading').textContent='Модели ещё загружаются в GitHub. Повтори позже.';
-    console.error(err);return;
+  try{
+    const response=await fetch(BASE+'casting/realistic/manifest.json',{cache:'no-store'});
+    if(!response.ok)throw Error('Cannot read ten-model manifest: '+response.status);
+    const source=await response.json();
+    entries=source.models;
+    if(source.total!==10 || !Array.isArray(entries)||entries.length!==10)
+      throw Error('Expected 10 different adult male source characters');
+    if(new Set(entries.map(e=>e.name)).size!==10)
+      throw Error('Models must have distinct source identities');
+    if(entries.some(e=>!e.male||!e.hasSkeleton))
+      throw Error('Only skinned male operators allowed');
+  }catch(error){
+    console.error(error);
+    $('loading').textContent='Не удалось получить 10 настоящих бойцов. Обнови страницу.';
+    return;
   }
-  const limit=3;let current=0,loaded=0,errors=0;
-  async function work(){
-    while(current<entries.length){
-      const entry=entries[current++];
+  let next=0,finished=0;
+  async function worker(){
+    while(next<entries.length){
+      const entry=entries[next++];
       try{
         const gltf=await loader.loadAsync(BASE+entry.path);
-        spawn(entry,gltf);loaded++;
-      }catch(e){
-        errors++;console.error('Rigged GLB failed',entry.number,e);
+        placeOperator(entry,gltf);
+      }catch(error){
+        console.error('Cannot load soldier '+entry.number,error);missing++;
       }
-      showProgress(loaded+errors,entries.length);
+      finished++;progress(finished,entries.length);
     }
   }
-  await Promise.all(Array.from({length:limit},work));
-  if(errors){
-    $('loading').hidden=false;
-    $('loading').textContent='Загружено '+loaded+'/30. '+errors+' файлов не открылись.';
+  await Promise.all(Array.from({length:3},worker));
+  $('loading').hidden=missing===0;
+  if(missing){
+    $('loading').textContent='Загрузились '+(10-missing)+'/10 моделей. Проверь интернет и обнови страницу.';
   }
-  $('counter').textContent=loaded+' разных моделей · с костями и возможностью осмотра';
+  $('counter').textContent=(10-missing)+' / 10 · мужчины · армия / полиция · скелеты готовы';
 }
-loadAll();
+loadModels();
 
-let yaw=0,pitch=0,velocityY=0,walk=0;
-const keys=new Set(),joy={x:0,y:0},look={id:null,x:0,y:0},joyState={id:null,x:0,y:0};
-const down=e=>{
-  if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;
+function showInfo(operator){
+  const d=$('selected');if(!d)return;
+  const source=operator.entry;
+  d.hidden=false;
+  d.replaceChildren();
+  const title=document.createElement('b');
+  title.textContent=String(source.number).padStart(2,'0')+' · '+source.name;
+  const meta=document.createElement('div');
+  meta.textContent=operator.bones+' костей · '+operator.skinMeshes+
+    ' skinned meshes · '+operator.textured+' текстурированных материалов';
+  const sourceLine=document.createElement('small');
+  sourceLine.textContent='Источник: Microsoft Rocketbox (MIT)';
+  d.append(title,meta,sourceLine);
+}
+
+function pick(clientX,clientY){
+  mouse.set(clientX/innerWidth*2-1,-clientY/innerHeight*2+1);
+  raycaster.setFromCamera(mouse,camera);
+  const hits=raycaster.intersectObjects(operators.map(o=>o.body),true);
+  for(const hit of hits){
+    let node=hit.object;
+    while(node){
+      const number=node.userData?.operator;
+      if(number){
+        const found=operators.find(o=>o.entry.number===number);
+        if(found){showInfo(found);return;}
+      }
+      node=node.parent;
+    }
+  }
+}
+
+let yaw=0,pitch=0,walk=0;
+const keys=new Set();
+const move={x:0,y:0},look={id:null,x:0,y:0,moved:0},joy={id:null,x:0,y:0};
+window.addEventListener('keydown',e=>{
   keys.add(e.code);
-};
-window.addEventListener('keydown',down);
+  if(e.code.startsWith('Arrow'))e.preventDefault();
+});
 window.addEventListener('keyup',e=>keys.delete(e.code));
-window.addEventListener('blur',()=>{keys.clear();joy.x=joy.y=0});
+window.addEventListener('blur',()=>{keys.clear();move.x=move.y=0});
 const canvas=renderer.domElement;
-canvas.addEventListener('click',()=>{
+canvas.addEventListener('click',e=>{
   if(matchMedia('(pointer:fine)').matches && document.pointerLockElement!==canvas)
     canvas.requestPointerLock?.();
+  pick(e.clientX,e.clientY);
 });
 window.addEventListener('mousemove',e=>{
-  if(document.pointerLockElement===canvas){
-    yaw-=e.movementX*.0028;
-    pitch=THREE.MathUtils.clamp(pitch-e.movementY*.0025,-1.26,1.26);
-  }
+  if(document.pointerLockElement!==canvas)return;
+  yaw-=e.movementX*.0028;
+  pitch=THREE.MathUtils.clamp(pitch-e.movementY*.0025,-1.25,1.25);
 });
-const joyPad=$('joy'),thumb=$('stick');
-const joyReset=()=>{
-  joyState.id=null;joy.x=joy.y=0;thumb.style.transform='';
-};
-joyPad.addEventListener('pointerdown',e=>{
-  if(joyState.id!==null)return;
-  joyState.id=e.pointerId;joyPad.setPointerCapture(e.pointerId);
-  const r=joyPad.getBoundingClientRect();
-  joyState.x=r.left+r.width/2;joyState.y=r.top+r.height/2;
-  updateJoystick(e);
+const pad=$('joy'),thumb=$('stick');
+const resetJoy=()=>{joy.id=null;move.x=move.y=0;thumb.style.transform=''};
+pad.addEventListener('pointerdown',e=>{
+  if(joy.id!==null)return;
+  joy.id=e.pointerId;pad.setPointerCapture(e.pointerId);
+  const r=pad.getBoundingClientRect();
+  joy.x=r.left+r.width/2;joy.y=r.top+r.height/2;setJoy(e);
 });
-function updateJoystick(e){
-  const dx=e.clientX-joyState.x,dy=e.clientY-joyState.y;
-  const radius=42,len=Math.max(1,Math.hypot(dx,dy));
-  joy.x=dx/radius*Math.min(1,radius/len);
-  joy.y=dy/radius*Math.min(1,radius/len);
-  thumb.style.transform='translate('+(joy.x*radius)+'px,'+(joy.y*radius)+'px)';
+function setJoy(e){
+  const dx=e.clientX-joy.x,dy=e.clientY-joy.y;
+  const radius=42,n=Math.hypot(dx,dy),amount=Math.min(1,n/radius);
+  move.x=n>1?dx/n*amount:0;move.y=n>1?dy/n*amount:0;
+  thumb.style.transform='translate('+move.x*radius+'px,'+move.y*radius+'px)';
 }
-joyPad.addEventListener('pointermove',e=>{if(e.pointerId===joyState.id)updateJoystick(e)});
-for(const type of ['pointerup','pointercancel','lostpointercapture'])
-  joyPad.addEventListener(type,e=>{if(e.pointerId===joyState.id)joyReset()});
-const lookArea=$('look');
-lookArea.addEventListener('pointerdown',e=>{
+pad.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)setJoy(e)});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])
+  pad.addEventListener(event,e=>{if(e.pointerId===joy.id)resetJoy()});
+const area=$('look');
+area.addEventListener('pointerdown',e=>{
   if(look.id!==null)return;
   look.id=e.pointerId;look.x=e.clientX;look.y=e.clientY;
-  lookArea.setPointerCapture(e.pointerId);
+  look.moved=0;area.setPointerCapture(e.pointerId);
 });
-lookArea.addEventListener('pointermove',e=>{
+area.addEventListener('pointermove',e=>{
   if(e.pointerId!==look.id)return;
-  yaw-=(e.clientX-look.x)*.005;
-  pitch=THREE.MathUtils.clamp(pitch-(e.clientY-look.y)*.005,-1.25,1.25);
+  const dx=e.clientX-look.x,dy=e.clientY-look.y;
+  look.moved+=Math.hypot(dx,dy);
+  yaw-=dx*.0045;
+  pitch=THREE.MathUtils.clamp(pitch-dy*.0045,-1.2,1.2);
   look.x=e.clientX;look.y=e.clientY;
 });
-for(const type of ['pointerup','pointercancel','lostpointercapture'])
-  lookArea.addEventListener(type,e=>{if(look.id===e.pointerId)look.id=null});
+for(const event of ['pointerup','pointercancel','lostpointercapture'])
+  area.addEventListener(event,e=>{
+    if(e.pointerId!==look.id)return;
+    if(event==='pointerup'&&look.moved<13)pick(e.clientX,e.clientY);
+    look.id=null;
+  });
 const clock=new THREE.Clock();
-const forward=new THREE.Vector3(),right=new THREE.Vector3();
 function draw(){
   requestAnimationFrame(draw);
   const dt=Math.min(.06,clock.getDelta());
-  const vx=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+joy.x;
-  const vz=(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0)+joy.y;
-  let x=vx,z=vz;const len=Math.hypot(x,z);
-  if(len>1){x/=len;z/=len}
-  const speed=(keys.has('ShiftLeft')?6.5:3.9)*dt;
+  const x=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+move.x;
+  const z=(keys.has('KeyS')?1:0)-(keys.has('KeyW')?1:0)+move.y;
+  const n=Math.max(1,Math.hypot(x,z));
+  const speed=(keys.has('ShiftLeft')?6:3.7)*dt/n;
   camera.position.x+=(Math.cos(yaw)*x+Math.sin(yaw)*z)*speed;
   camera.position.z+=(-Math.sin(yaw)*x+Math.cos(yaw)*z)*speed;
-  camera.position.x=THREE.MathUtils.clamp(camera.position.x,-13.2,13.2);
-  camera.position.z=THREE.MathUtils.clamp(camera.position.z,-18.5,20);
-  if(len>.02)walk+=dt*13;
-  camera.position.y=1.73+(len>.02?Math.sin(walk)*.018:0);
+  camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12,12);
+  camera.position.z=THREE.MathUtils.clamp(camera.position.z,-7.5,13.2);
+  if(Math.hypot(x,z)>.05)walk+=dt*13;
+  camera.position.y=1.71+(Math.hypot(x,z)>.05?Math.sin(walk)*.013:0);
   camera.rotation.set(pitch,yaw,0,'YXZ');
-  for(const m of models){
-    // Small deterministic combat-ready shoulder bend. Rig remains preserved.
-    // No copied arm animations can damage another model's skeleton.
-    for(const b of m.poseBones)b.bone.quaternion.copy(b.neutral).multiply(b.offset);
-  }
   renderer.render(scene,camera);
 }
 draw();
 window.addEventListener('resize',()=>{
-  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.45));
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.35));
 });
