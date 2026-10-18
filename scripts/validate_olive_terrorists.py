@@ -16,7 +16,7 @@ for no in (2,5):
     dyed,dyed_bin=read_glb(ROOT/f"{no:02}.glb")
     entry=manifest["models"][no-1]
     assert entry["number"]==no and entry["masked"] is True
-    assert entry["outfitVersion"]==3 and "olive" in entry["outfitPalette"]
+    assert entry["outfitVersion"]==4 and "olive" in entry["outfitPalette"]
     assert original["skins"]==dyed["skins"],"Skin skeleton changed!"
     assert original["nodes"]==dyed["nodes"],"Node hierarchy changed!"
     assert original["accessors"]==dyed["accessors"],"Skinned vertex weights changed!"
@@ -32,7 +32,9 @@ for no in (2,5):
     compressed=dyed_bin[v["byteOffset"]:v["byteOffset"]+v["byteLength"]]
     assert len(compressed)>10000
     stats=ImageStat.Stat(Image.open(BytesIO(compressed)).convert("RGB")).mean
-    assert min(stats[:2])>=166 and stats[0]>=stats[2]*1.12,stats
+    assert min(stats[:2])>=198 and stats[0]>=stats[2]*1.08,stats
+    assert all(m.get("emissiveFactor",[0])[0]>=0.12 for m in body),(
+        "Clothing has no light olive fill and may render black on mobile")
     head_mats=[m.get("name","") for m in dyed["materials"] if "_head" in m.get("name","")]
     assert head_mats,"Original eyes and face missing!"
     print(f"PASS OLIVE T-{no:02}: {len(dyed['skins'][0]['joints'])} bones, "

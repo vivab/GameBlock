@@ -19,20 +19,22 @@ from PIL import Image, ImageOps, ImageStat
 ROOT = Path(__file__).resolve().parents[1] / "public/casting/masked"
 PALETTES = {
     2: {
-        "name": "Light olive raider",
-        "name_ru": "СВЕТЛО-ОЛИВКОВЫЙ налётчик · полевая куртка",
+        "name": "Very light olive raider V4",
+        "name_ru": "T-02 · ПОЧТИ СВЕТЛАЯ ОЛИВА · бандитская куртка",
         # Cloth creases stay green, not black, on a mobile screen.
-        "shadow": (144, 153, 109),
-        "mid": (197, 205, 147),
-        "light": (231, 234, 176),
+        "shadow": (192, 199, 145),
+        "mid": (222, 228, 176),
+        "light": (246, 245, 204),
+        "emissive": (0.14, 0.17, 0.095),
         "label": "T-02 · СВЕТЛАЯ ОЛИВА",
     },
     5: {
-        "name": "Light khaki bandit",
-        "name_ru": "СВЕТЛЫЙ ХАКИ · поношенная бандитская форма",
-        "shadow": (154, 147, 107),
-        "mid": (207, 198, 151),
-        "light": (236, 224, 178),
+        "name": "Pale khaki olive bandit V4",
+        "name_ru": "T-05 · СВЕТЛЫЙ ХАКИ-ОЛИВА · бандитская форма",
+        "shadow": (191, 190, 147),
+        "mid": (226, 221, 176),
+        "light": (248, 241, 205),
+        "emissive": (0.16, 0.15, 0.10),
         "label": "T-05 · СВЕТЛЫЙ ХАКИ",
     },
 }
@@ -95,8 +97,8 @@ def olive_photo_texture(blob, palette):
     dyed.save(stream, format="JPEG", quality=92, subsampling=0, optimize=True)
     stats = tuple(round(s, 1) for s in ImageStat.Stat(dyed).mean)
     # Reject black result: user must see real olive clothing on mobile.
-    assert min(stats[:2]) >= 166 and stats[0] > stats[2] * 1.12, stats
-    assert min(palette["shadow"][:2]) >= 140, "Too-dark clothing shadows"
+    assert min(stats[:2]) >= 198 and stats[0] > stats[2] * 1.08, stats
+    assert min(palette["shadow"][:2]) >= 190, "Too-dark clothing shadows"
     return stream.getvalue(), stats, original.size
 
 
@@ -146,13 +148,19 @@ def dye_one(number, palette):
         # White PBR factor lets the newly dyed olive PHOTO texture appear.
         body["baseColorFactor"] = [1., 1., 1., 1.]
         mats[index]["name"] = f"T{number:02}_olive_bandit_body_{palette['name'].replace(' ', '_')}"
-        body["roughnessFactor"] = .96
+        body["roughnessFactor"] = .98
         body["metallicFactor"] = 0.
+        # A very subtle woven-fabric fill keeps these clothes readable on
+        # mobile screens even when physically based scene lighting is dim.
+        # Mask and head are separate materials and remain completely dark.
+        mats[index]["emissiveFactor"] = list(palette["emissive"])
     model["buffers"][0]["byteLength"] = new_offset + len(changed_image)
     model.setdefault("extras", {})["gameblockOliveBandit"] = {
         "variant": number, "name": palette["name"],
         "bodyTexture": "re-dyed original photo texture",
         "maskPreserved": True, "skeletonPreserved": True,
+        "outfitVersion": 4,
+        "rendering": "bright-photo-plus-subtle-olive-emissive",
         "generatedBy": "scripts/recolor_olive_terrorists.py",
     }
     assert tuple(model["skins"]) == originals
@@ -180,20 +188,20 @@ def main():
         entry["bytes"] = size
         entry["label"] = palette["name_ru"]
         entry["outfitPalette"] = "olive" if number == 2 else "khaki-olive"
-        entry["outfitVersion"] = 3
+        entry["outfitVersion"] = 4
         entry["outfitDescription"] = (
-            "High-key light olive/khaki baked into original 3D body photo "
+            "VERY LIGHT olive/khaki baked into original 3D body photo "
             "texture, including brighter folds. Black mask, head, weights "
             "and original 80-bone skeleton remain unchanged."
         )
         entry["measuredBodyRGB"] = list(mean)
     manifest["description"] = (
         "Ten individual skinned adult male models with fitted balaclavas; "
-        "T-02 is BRIGHT LIGHT OLIVE and T-05 is LIGHT KHAKI (v3). "
+        "T-02 is VERY PALE LIGHT OLIVE and T-05 is LIGHT KHAKI OLIVE (v4). "
         "These are genuine edited GLB body textures, not concept renders."
     )
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
-    print("FINISHED: T-02 and T-05 BRIGHT olive/khaki v3 GLBs + manifest.", flush=True)
+    print("FINISHED: T-02 and T-05 PALE OLIVE V4 game GLBs + manifest.", flush=True)
 
 
 if __name__ == "__main__":

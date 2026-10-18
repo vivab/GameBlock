@@ -30,8 +30,8 @@ jobs:
           assert manifest['total']==10 and manifest['maskedOnly'],manifest
           for number in (2,5):
               entry=manifest['models'][number-1]
-              assert entry['outfitVersion']==3 and 'olive' in entry['outfitPalette'],entry
-              assert min(entry['measuredBodyRGB'][:2])>=166,entry
+              assert entry['outfitVersion']==4 and 'olive' in entry['outfitPalette'],entry
+              assert min(entry['measuredBodyRGB'][:2])>=198,entry
               raw=Path('/tmp/olive-%02d.glb'%number).read_bytes()
               assert raw[:4]==b'glTF' and len(raw)>750000
               length=struct.unpack_from('<I',raw,12)[0]
@@ -40,6 +40,7 @@ jobs:
               assert any('real_balaclava' in m.get('name','') for m in j['materials'])
               body=[m for m in j['materials'] if 'olive_bandit_body' in m.get('name','')]
               assert body and body[0]['pbrMetallicRoughness']['baseColorFactor']==[1,1,1,1]
+              assert body[0]['emissiveFactor'][0]>=0.12, 'Garment may display black on mobile'
               assert j.get('extras',{}).get('gameblockOliveBandit',{}).get('maskPreserved') is True
               print('PASS LIVE: T-%02d olive GLB: %d bytes, %d bones; black mask preserved.'%
                     (number,len(raw),len(j['skins'][0]['joints'])))
