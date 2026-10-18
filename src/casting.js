@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-pale-olive-v5';
+const CACHE_VERSION='20261018-bright-olive-v6';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
@@ -100,6 +100,23 @@ function placeOperator(entry,gltf){
     const mats=original.map(m=>{
       if(!m)return m;
       const material=m.clone();
+      // Mobile visibility fix: the source GLB still contains several
+      // separate nearly-black cloth materials. Brighten the actual
+      // clothing material in the renderer, never the fitted balaclava,
+      // head, eyes, hair or skin. This is independent of texture caching.
+      if(forT && (entry.number===2 || entry.number===5)){
+        const name=(material.name||'').toLowerCase();
+        const cloth=name.includes('_body') || name.includes('olive_bandit_body');
+        if(cloth){
+          const light=entry.number===2?0xb8c987:0xd3cca0;
+          material.color.setHex(light);
+          material.map=null; // prevent the source dark map multiplying the olive
+          material.emissive?.setHex(entry.number===2?0x1b2110:0x242012);
+          material.emissiveIntensity=.65;
+          material.roughness=.97;
+          material.metalness=0;
+        }
+      }
       if(material.map)textured++;
       if('roughness' in material)material.roughness=Math.max(.65,material.roughness??.8);
       if('metalness' in material)material.metalness=Math.min(.22,material.metalness??0);
