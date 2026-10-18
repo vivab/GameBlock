@@ -1,0 +1,37 @@
+name: Research 30 rigged character sources
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/casting-source-inspect.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Inspect downloadable rigged CC0 pack folders
+        run: |
+          pip -q install gdown
+          python - <<'PY'
+          import gdown, os
+          packs={
+             'MODULAR_11':'https://drive.google.com/drive/folders/1USAAquX2JJWuA2m6zol0KUkFe3UkZ8zX',
+             'TOON_SHOOTER':'https://drive.google.com/drive/folders/1-BDs_EIyd6uiF2XuoyiZEcqnMQIJrE0C',
+             'ANIMATED_52':'https://drive.google.com/drive/folders/1sNi1AfenfPRrvRt5yfaj5QMMd6KKcUJ5'
+          }
+          for name,url in packs.items():
+            print('PACK_BEGIN',name,flush=True)
+            try:
+              result=gdown.download_folder(url=url,quiet=True,remaining_ok=True,skip_download=True, use_cookies=False)
+              print('PACK_FILES',name,len(result or []),flush=True)
+              for i,x in enumerate(result or []):
+                print('FILE',name,i,str(x)[:290],flush=True)
+            except Exception as error:
+              print('PACK_ERROR',name,type(error).__name__,str(error)[:350],flush=True)
+          PY
