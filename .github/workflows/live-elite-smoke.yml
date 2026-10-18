@@ -1,0 +1,51 @@
+name: Smoke Test Live Five Masked T Candidates
+on:
+  workflow_run:
+    workflows: ["Deploy GameBlock"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-live-gallery:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check published five masked GLBs and gallery
+        run: |
+          set -euo pipefail
+          url="https://vivab.github.io/GameBlock"
+          key="${GITHUB_RUN_ID}"
+          curl -fLsS --retry 7 --retry-delay 3 "$url/terrorists-five.html?check=$key" -o /tmp/elite.html
+          grep -q 'НОВАЯ ПЯТЁРКА' /tmp/elite.html
+          grep -q 'eliteCasting' /tmp/elite.html
+          curl -fLsS --retry 7 --retry-delay 3 "$url/casting/elite/manifest.json?check=$key" -o /tmp/elite.json
+          python3 - <<'PY'
+          import json
+          info=json.load(open('/tmp/elite.json'))
+          assert info['total']==5
+          assert info['maskedOnly'] and info['readyForRiggedAnimation']
+          assert len(info['models'])==5
+          assert all(m['male'] and m['masked'] and m['boneCount']>=45 for m in info['models'])
+          assert len({m['path'] for m in info['models']})==5
+          assert info['models'][4]['derivative'] is True
+          print('PASS: five distinct masked 3D outfits, all rigged; fifth derivative')
+          PY
+          for n in 01 02 03 04 05; do
+            curl -fLsS --retry 5 --retry-delay 2 --max-time 60 \
+              "$url/casting/elite/$n.glb?check=$key" -o "/tmp/t-$n.glb"
+            python3 - "$n" <<'PY'
+          import sys,struct,json
+          from pathlib import Path
+          n=sys.argv[1];data=Path('/tmp/t-'+n+'.glb').read_bytes()
+          assert data[:4]==b'glTF' and struct.unpack_from('<I',data,8)[0]==len(data)
+          obj=json.loads(data[20:20+struct.unpack_from('<I',data,12)[0]])
+          assert any(len(x['joints'])>=45 for x in obj['skins'])
+          assert obj.get('images') and obj.get('materials')
+          assert any('JOINTS_0' in p['attributes'] and 'WEIGHTS_0' in p['attributes']
+             for m in obj['meshes'] for p in m['primitives'])
+          print('PASS LIVE T-'+n+':',len(data),'bytes, rigged')
+          PY
+          done
+          echo "PASS: Five new T operator GLBs and gallery published."
