@@ -1,7 +1,7 @@
 {
   "total": 10,
   "category": "masked-terrorist-candidates",
-  "description": "Ten individual skinned adult male models with fitted balaclavas; T-02 is olive raider and T-05 dusty khaki bandit. These are genuine edited GLB body textures, not concept renders.",
+  "description": "Ten individual skinned adult male models with fitted balaclavas; T-02 is BRIGHT LIGHT OLIVE and T-05 is LIGHT KHAKI (v3). These are genuine edited GLB body textures, not concept renders.",
   "maskedOnly": true,
   "models": [
     {
@@ -27,7 +27,7 @@
       "number": 2,
       "name": "Masked T-02 · Military Male 02",
       "sourceId": "Military_Male_02",
-      "label": "Оливковый налётчик · полевая куртка",
+      "label": "СВЕТЛО-ОЛИВКОВЫЙ налётчик · полевая куртка",
       "kind": "masked-terrorist-candidate",
       "path": "casting/masked/02.glb",
       "sourcePath": "casting/realistic/02.glb",
@@ -38,16 +38,16 @@
       "masked": true,
       "hasSkeleton": true,
       "boneCount": 80,
-      "bytes": 1006048,
+      "bytes": 990004,
       "maskMaterial": "T02_real_balaclava_Charcoal",
       "note": "Unique real anatomical rigged original male body, mask is an in-project fitted anatomical addition, not a separately downloaded masked character.",
       "outfitPalette": "olive",
-      "outfitVersion": 2,
-      "outfitDescription": "Olive/khaki dye on actual original body photo texture; black balaclava untouched",
+      "outfitVersion": 3,
+      "outfitDescription": "High-key light olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
       "measuredBodyRGB": [
-        125.8,
-        133.7,
-        90.0
+        197.7,
+        204.6,
+        148.7
       ]
     },
     {
@@ -92,7 +92,7 @@
       "number": 5,
       "name": "Masked T-05 · Military Male 05",
       "sourceId": "Military_Male_05",
-      "label": "Бандитский хаки · поношенная форма",
+      "label": "СВЕТЛЫЙ ХАКИ · поношенная бандитская форма",
       "kind": "masked-terrorist-candidate",
       "path": "casting/masked/05.glb",
       "sourcePath": "casting/realistic/05.glb",
@@ -103,16 +103,16 @@
       "masked": true,
       "hasSkeleton": true,
       "boneCount": 80,
-      "bytes": 932996,
+      "bytes": 907196,
       "maskMaterial": "T05_real_balaclava_Blackout",
       "note": "Unique real anatomical rigged original male body, mask is an in-project fitted anatomical addition, not a separately downloaded masked character.",
       "outfitPalette": "khaki-olive",
-      "outfitVersion": 2,
-      "outfitDescription": "Olive/khaki dye on actual original body photo texture; black balaclava untouched",
+      "outfitVersion": 3,
+      "outfitDescription": "High-key light olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
       "measuredBodyRGB": [
-        140.3,
-        131.3,
-        88.6
+        206.4,
+        196.9,
+        151.3
       ]
     },
     {
