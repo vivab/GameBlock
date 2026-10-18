@@ -1,76 +1,50 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {clone} from 'three/addons/utils/SkeletonUtils.js';
-// Thirty different tactical loadout studies from one licensed skinned
-// Soldier source. They are NOT thirty separately sourced base meshes.
+import {createSwatV6Operator} from './swatV6.js';
+// SWAT inspection: ten original human-proportioned urban tactical operators.
+// No cartoon Soldier model, doctors, ninjas or fantasy character assets.
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x87959b);
-scene.fog=new THREE.Fog(0x87959b,22,70);
+scene.background=new THREE.Color(0x8a969c);
+scene.fog=new THREE.Fog(0x8a969c,24,85);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.07,120);
-camera.rotation.order='YXZ';camera.position.set(0,1.65,13);
-const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
+camera.rotation.order='YXZ';camera.position.set(0,1.65,12);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
 renderer.setSize(innerWidth,innerHeight);document.body.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xffffff,0x54616d,2.4));
-const sun=new THREE.DirectionalLight(0xffe4c0,2.8);sun.position.set(-10,20,8);scene.add(sun);
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(75,75),new THREE.MeshStandardMaterial({color:0x858078,roughness:1}));
+scene.add(new THREE.HemisphereLight(0xffffff,0x465260,2.25));
+const sun=new THREE.DirectionalLight(0xffe8ce,2.8);sun.position.set(-9,16,8);scene.add(sun);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(70,70),new THREE.MeshStandardMaterial({color:0x898b87,roughness:1}));
 floor.rotation.x=-Math.PI/2;scene.add(floor);
-const labelTexture=(n)=>{const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;const ctx=canvas.getContext('2d');ctx.fillStyle='#152027';ctx.fillRect(0,0,256,96);ctx.strokeStyle='#cfb885';ctx.lineWidth=4;ctx.strokeRect(3,3,250,90);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='bold 42px system-ui';ctx.fillText(String(n).padStart(2,'0'),128,62);return new THREE.CanvasTexture(canvas)};
-const cloth=[0x323e3a,0x47513e,0x515047,0x283b45,0x44463f,0x5a5949,0x303c31,0x3f444b,0x635d4d,0x283f3b];
-const armor=[0x171d1f,0x252c27,0x30322c,0x182e34,0x383a33,0x1e2425];
-const rigs=[];const mixers=[];
+const variants=[5,7,1,4,0,12,17,14,9,18];
+const names=['ГОРОДСКОЙ SWAT','ЧЁРНЫЙ ШТУРМ','НОЧНОЙ РЕЙД','ТЯЖЁЛЫЙ ЩИТ','КЛАССИКА CT','РАЗВЕДКА','СЕРЫЙ ШТУРМ','ТЁМНЫЙ ОТРЯД','САПЁР','ПОГРАНИЧНЫЙ'];
 const load=document.querySelector('#load');
-const url=import.meta.env.BASE_URL+'showroom/Soldier.glb';
-new GLTFLoader().load(url,gltf=>{
- const bounds=new THREE.Box3().setFromObject(gltf.scene),size=bounds.getSize(new THREE.Vector3());
- const scale=1.82/Math.max(.1,size.y);
- for(let i=0;i<30;i++){
-  const root=new THREE.Group(),character=clone(gltf.scene);
-  const x=((i%10)-4.5)*2.35,z=(Math.floor(i/10)-1)*4.5;
-  root.position.set(x,0,z);character.scale.setScalar(scale);
-  const box=new THREE.Box3().setFromObject(character);
-  character.position.y=-box.min.y;
-  character.rotation.y=Math.PI+(i%5-2)*.09;
-  const uniform=new THREE.Color(cloth[i%cloth.length]);
-  const vest=new THREE.Color(armor[Math.floor(i/5)%armor.length]);
-  let m=0;
-  character.traverse(obj=>{
-   if(!obj.isMesh)return;
-   obj.castShadow=false;
-   obj.material=obj.material.clone();
-   if(obj.material.color){
-    const c=obj.material.color;
-    const l=(c.r+c.g+c.b)/3;
-    c.copy(l<.25?vest:uniform).multiplyScalar(l<.25?1.0:Math.max(.65,Math.min(1.4,l*1.5)));
-   }
-   m++;
-  });
-  root.add(character);
-  // Gear is attached to the character's skeleton root; loadouts vary
-  // helmet, pouches, backpack, shoulder guards and vest.
-  const gear=new THREE.Group();character.add(gear);
-  const mk=(w,h,d,x,y,z,c)=>{
-   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:c,roughness:.95}));
-   mesh.position.set(x,y,z);gear.add(mesh);
-  };
-  // Source Soldier is 1.82 m after normalization. Gear coordinates are in source units.
-  const k=1/scale;gear.scale.setScalar(k);
-  const vestColor=armor[Math.floor(i/5)%armor.length];
-  mk(.42,.47,.18,0,1.18,.10,vestColor);
-  for(let j=0;j<2+i%4;j++)mk(.11,.19,.10,-.16+j*.11,1.08,.22,0x202622);
-  if(i%3!==0)mk(.44,.46,.15,0,1.2,-.22,vestColor);
-  if(i%2===0)mk(.24,.10,.25,0,1.70,0,vestColor);
-  if(i%4===0)mk(.18,.19,.12,.34,1.06,0,0x33382c);
-  const plate=new THREE.Mesh(new THREE.PlaneGeometry(.75,.29),new THREE.MeshBasicMaterial({map:labelTexture(i+1),transparent:true,side:THREE.DoubleSide}));
-  plate.rotation.x=-Math.PI/2;plate.position.set(x,.016,z-1.15);scene.add(plate);
-  scene.add(root);rigs.push(root);
-  // Soldier has native idle/walk/run rig clips; keep a stable armed-ish idle.
-  const idle=gltf.animations.find(a=>/idle/i.test(a.name));
-  if(idle){const mixer=new THREE.AnimationMixer(character);mixer.clipAction(idle).play();mixers.push(mixer)}
- }
- load.hidden=true;
- document.querySelector('#count').textContent='30 тактических вариантов · одна скелетная основа';
-},undefined,error=>{console.error(error);load.textContent='Не удалось загрузить Soldier.glb. Проверь сборку GitHub Pages.'});
+const base=import.meta.env.BASE_URL+'models/counter_flame_swat_v8.glb';
+const labels=[];
+function makeLabel(number,name,x,z){
+ const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='#162127';ctx.fillRect(0,0,512,128);
+ ctx.strokeStyle='#b9a47a';ctx.lineWidth=5;ctx.strokeRect(4,4,504,120);
+ ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.font='bold 46px sans-serif';
+ ctx.fillText(String(number).padStart(2,'0')+'  '+name,256,79);
+ const texture=new THREE.CanvasTexture(canvas);
+ const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,transparent:true}));
+ label.position.set(x,2.3,z);label.scale.set(1.85,.47,1);scene.add(label);labels.push(label);
+}
+new GLTFLoader().load(base,gltf=>{
+ try{
+  for(let i=0;i<10;i++){
+   const model=createSwatV6Operator(gltf,variants[i]);
+   if(!model)throw Error('SWAT V8 model missing '+i);
+   const x=(i%5-2)*3.45,z=Math.floor(i/5)*-6.2;
+   model.root.position.set(x,0,z);
+   model.root.rotation.y=0;
+   scene.add(model.root);
+   makeLabel(i+1,names[i],x,z);
+  }
+  load.hidden=true;
+  document.querySelector('#count').textContent='10 взрослых бойцов SWAT · городские тактические комплекты';
+ }catch(error){console.error(error);load.textContent='Ошибка при создании бойцов: '+error.message}
+},undefined,error=>{console.error(error);load.textContent='Не загрузилась модель SWAT V8. Проверь GitHub Pages.'});
 const joy=document.querySelector('#joy'),knob=document.querySelector('#knob');
 let joystick={x:0,y:0},joyId=null,lookId=null,last={x:0,y:0},yaw=0,pitch=0;
 const keys=new Set();
@@ -88,7 +62,7 @@ const clock=new THREE.Clock();
 function frame(){
  requestAnimationFrame(frame);
  const dt=Math.min(.05,clock.getDelta());
- for(const m of mixers)m.update(dt);
+
  const forward=Number(keys.has('KeyW')||keys.has('ArrowUp'))-Number(keys.has('KeyS')||keys.has('ArrowDown'))-joystick.y;
  const right=Number(keys.has('KeyD')||keys.has('ArrowRight'))-Number(keys.has('KeyA')||keys.has('ArrowLeft'))+joystick.x;
  const norm=Math.max(1,Math.hypot(forward,right)),speed=5*dt/norm;
