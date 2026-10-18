@@ -25,8 +25,9 @@ jobs:
       - name: Install Blender FBX converter and texture tools
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq blender
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq blender python3-numpy
           python -m pip install --disable-pip-version-check 'Pillow>=10,<12'
+          /usr/bin/python3 -c 'import numpy; print("Blender system NumPy", numpy.__version__)'
       - name: Download ten independent male soldier and police avatars (Microsoft MIT)
         run: python scripts/fetch_rocketbox.py
       - name: Convert FBX skeletal meshes to textured GLB and retain bones
