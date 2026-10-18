@@ -26,7 +26,7 @@ test('ten imported male soldier models are shown in an unarmed first-person walk
   assert.doesNotMatch(js,/new Match\(|import .*combat\.js|arena\.js|AK-47|rifle\.glb/);
   assert.match(vite,/casting:resolve/);
   assert.match(menu,/retroCasting/);
-  assert.match(menu,/10 РЕАЛИСТИЧНЫХ БОЙЦОВ/);
+  assert.match(menu,/НАШ СПЕЦНАЗ №08/);
   assert.doesNotMatch(js,/addTacticalGear|new THREE\.BoxGeometry|createSwatV6Operator/);
   assert.match(js,/casting\/realistic\/manifest\.json/);
   assert.match(file('showroom.html'),/location\.replace\('\.\/casting\.html'\)/);
