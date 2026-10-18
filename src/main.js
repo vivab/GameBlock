@@ -171,7 +171,7 @@ const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
   const modelPath=filename.endsWith('.glb')?filename:'models/'+filename+'.glb';
-  loader.load(import.meta.env.BASE_URL+modelPath, result => {
+  loader.load(import.meta.env.BASE_URL+modelPath+(key==='chosenT'?'?v=20261018-pale-olive-v5':''), result => {
     try {
       assets[key] = ['swat','terrorist','chosenCT','chosenT'].includes(key)
         ? result : result.scene;

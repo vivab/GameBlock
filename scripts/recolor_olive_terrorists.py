@@ -19,22 +19,22 @@ from PIL import Image, ImageOps, ImageStat
 ROOT = Path(__file__).resolve().parents[1] / "public/casting/masked"
 PALETTES = {
     2: {
-        "name": "Very light olive raider V4",
-        "name_ru": "T-02 · ПОЧТИ СВЕТЛАЯ ОЛИВА · бандитская куртка",
+        "name": "Fresh light olive raider V5",
+        "name_ru": "T-02 · СВЕТЛО-ОЛИВКОВАЯ КУРТКА · бандитский стиль",
         # Cloth creases stay green, not black, on a mobile screen.
-        "shadow": (192, 199, 145),
-        "mid": (222, 228, 176),
-        "light": (246, 245, 204),
-        "emissive": (0.14, 0.17, 0.095),
+        "shadow": (198, 216, 153),
+        "mid": (225, 236, 178),
+        "light": (248, 250, 210),
+        "emissive": (0.19, 0.22, 0.12),
         "label": "T-02 · СВЕТЛАЯ ОЛИВА",
     },
     5: {
-        "name": "Pale khaki olive bandit V4",
+        "name": "Pale khaki olive bandit V5",
         "name_ru": "T-05 · СВЕТЛЫЙ ХАКИ-ОЛИВА · бандитская форма",
-        "shadow": (191, 190, 147),
-        "mid": (226, 221, 176),
-        "light": (248, 241, 205),
-        "emissive": (0.16, 0.15, 0.10),
+        "shadow": (200, 207, 152),
+        "mid": (229, 229, 181),
+        "light": (250, 246, 214),
+        "emissive": (0.19, 0.19, 0.12),
         "label": "T-05 · СВЕТЛЫЙ ХАКИ",
     },
 }
@@ -97,8 +97,8 @@ def olive_photo_texture(blob, palette):
     dyed.save(stream, format="JPEG", quality=92, subsampling=0, optimize=True)
     stats = tuple(round(s, 1) for s in ImageStat.Stat(dyed).mean)
     # Reject black result: user must see real olive clothing on mobile.
-    assert min(stats[:2]) >= 198 and stats[0] > stats[2] * 1.08, stats
-    assert min(palette["shadow"][:2]) >= 190, "Too-dark clothing shadows"
+    assert min(stats[:2]) >= 208 and stats[1] > stats[2] * 1.14, stats
+    assert min(palette["shadow"][:2]) >= 198, "Too-dark clothing shadows"
     return stream.getvalue(), stats, original.size
 
 
@@ -159,7 +159,7 @@ def dye_one(number, palette):
         "variant": number, "name": palette["name"],
         "bodyTexture": "re-dyed original photo texture",
         "maskPreserved": True, "skeletonPreserved": True,
-        "outfitVersion": 4,
+        "outfitVersion": 5,
         "rendering": "bright-photo-plus-subtle-olive-emissive",
         "generatedBy": "scripts/recolor_olive_terrorists.py",
     }
@@ -188,20 +188,20 @@ def main():
         entry["bytes"] = size
         entry["label"] = palette["name_ru"]
         entry["outfitPalette"] = "olive" if number == 2 else "khaki-olive"
-        entry["outfitVersion"] = 4
+        entry["outfitVersion"] = 5
         entry["outfitDescription"] = (
-            "VERY LIGHT olive/khaki baked into original 3D body photo "
+             "LIGHT OLIVE/khaki baked into original 3D body photo "
             "texture, including brighter folds. Black mask, head, weights "
             "and original 80-bone skeleton remain unchanged."
         )
         entry["measuredBodyRGB"] = list(mean)
     manifest["description"] = (
         "Ten individual skinned adult male models with fitted balaclavas; "
-        "T-02 is VERY PALE LIGHT OLIVE and T-05 is LIGHT KHAKI OLIVE (v4). "
+        "T-02 is BRIGHT LIGHT OLIVE and T-05 is PALE KHAKI OLIVE (v5). "
         "These are genuine edited GLB body textures, not concept renders."
     )
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
-    print("FINISHED: T-02 and T-05 PALE OLIVE V4 game GLBs + manifest.", flush=True)
+    print("FINISHED: T-02 and T-05 LIGHT OLIVE V5 game GLBs + manifest.", flush=True)
 
 
 if __name__ == "__main__":

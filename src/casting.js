@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-very-light-olive-v4';
+const CACHE_VERSION='20261018-pale-olive-v5';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
