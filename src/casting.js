@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {validateCastingManifest} from './castingManifest.js';
 
 // Ten DIFFERENT source rigged/textured Rocketbox adult MALE military/police
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
@@ -124,15 +125,8 @@ async function loadModels(){
     const response=await fetch(BASE+(forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json'),{cache:'no-store'});
     if(!response.ok)throw Error('Cannot load character manifest (HTTP '+response.status+')');
     const source=await response.json();
-    entries=source.models;
     const count=forT?15:10;
-    if(source.total!==count || !Array.isArray(entries)||entries.length!==count)
-      throw Error('Expected '+count+' different adult male source characters');
-    if(new Set(entries.map(e=>e.name)).size!==count)
-      throw Error('Expected '+count+' unique source models, got '+
-        new Set(entries.map(e=>e.name)).size);
-    if(entries.some(e=>!e.male||!e.hasSkeleton))
-      throw Error('Only skinned male operators allowed');
+    entries=validateCastingManifest(source,count);
   }catch(error){
     console.error(error);
     $('loading').textContent='Ошибка списка моделей: '+error.message;
