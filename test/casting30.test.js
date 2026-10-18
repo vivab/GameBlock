@@ -138,3 +138,18 @@ test('bright olive gallery fallback does not tint black balaclavas or heads',()=
   assert.match(js,/0xd3cca0/);
   assert.match(js,/const cloth=/);
 });
+
+test('light olive T-02/T-05 outfits recolor jacket trousers and boots, never masks',()=>{
+  const gallery=file('src/casting.js');
+  const inMatch=file('src/rocketboxOperator.js');
+  for(const code of [gallery,inMatch]){
+    assert.match(code,/balaclava\|_head/);
+    assert.match(code,/pant\|trouser/);
+    assert.match(code,/boot\|shoe/);
+    assert.match(code,/0xc1ce95/);
+    assert.match(code,/0xd8d0a9/);
+    assert.match(code,/material\.map=null|c\.map=null/);
+  }
+  assert.match(gallery,/full-outfit-olive-v7/);
+  assert.match(file('src/main.js'),/full-outfit-olive-v7/);
+});
