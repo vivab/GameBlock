@@ -6,6 +6,7 @@ import {validateCastingManifest} from './castingManifest.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
+const CACHE_VERSION='20261018-t-gallery-fix-2';
 const forT=document.body.dataset.role==='terrorists';
 const T_KEY='gameblock:selected-terrorist';
 const $=id=>document.getElementById(id);
@@ -122,25 +123,28 @@ function progress(done,total){
 async function loadModels(){
   let entries;
   try{
-    const response=await fetch(BASE+(forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json'),{cache:'no-store'});
+    const manifestPath=forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json';
+    const response=await fetch(BASE+manifestPath+'?v='+CACHE_VERSION,{cache:'no-store'});
     if(!response.ok)throw Error('Cannot load character manifest (HTTP '+response.status+')');
     const source=await response.json();
     const count=forT?15:10;
     entries=validateCastingManifest(source,count);
   }catch(error){
     console.error(error);
-    $('loading').textContent='Ошибка списка моделей: '+error.message;
+    $('loading').textContent='Не загружен список персонажей: '+error.message+' · проверь URL '+BASE;
     return;
   }
   let next=0,finished=0;
+  const failed=[];
   async function worker(){
     while(next<entries.length){
       const entry=entries[next++];
       try{
-        const gltf=await loader.loadAsync(BASE+entry.path);
+        const gltf=await loader.loadAsync(BASE+entry.path+'?v='+CACHE_VERSION);
         placeOperator(entry,gltf);
       }catch(error){
-        console.error('Cannot load soldier '+entry.number,error);missing++;
+        console.error('Cannot load character '+entry.number,error);missing++;
+        failed.push(String(entry.number).padStart(2,'0')+': '+(error?.message||String(error)));
       }
       finished++;progress(finished,entries.length);
     }
@@ -149,7 +153,7 @@ async function loadModels(){
   const count=forT?15:10;
   $('loading').hidden=missing===0;
   if(missing){
-    $('loading').textContent='Загрузились '+(count-missing)+'/'+count+' моделей. Проверь интернет и обнови страницу.';
+    $('loading').textContent='Загружено '+(count-missing)+'/'+count+' · ошибки: '+failed.slice(0,3).join(' | ');
   }
   $('counter').textContent=(count-missing)+' / '+count+
     (forT?' · отдельные кандидаты в команду T':' · военные / полиция · скелеты готовы');
