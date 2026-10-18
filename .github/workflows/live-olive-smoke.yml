@@ -1,0 +1,46 @@
+name: Smoke Test Live Olive T-02 T-05
+on:
+  workflow_run:
+    workflows: ["Deploy GameBlock"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  olive-live:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify published olive GLBs, preserved balaclavas and all rig bones
+        run: |
+          set -euo pipefail
+          base="https://vivab.github.io/GameBlock/casting/masked"
+          ver="${GITHUB_RUN_ID}"
+          curl --fail --location --retry 8 --retry-delay 4 \
+            --silent --show-error "$base/manifest.json?smoke=$ver" -o /tmp/olive-manifest.json
+          for n in 02 05; do
+            curl --fail --location --retry 8 --retry-delay 4 \
+              --silent --show-error "$base/$n.glb?smoke=$ver" -o "/tmp/olive-$n.glb"
+          done
+          python3 - <<'PY'
+          import json, struct
+          from pathlib import Path
+          manifest=json.loads(Path('/tmp/olive-manifest.json').read_text())
+          assert manifest['total']==10 and manifest['maskedOnly'],manifest
+          for number in (2,5):
+              entry=manifest['models'][number-1]
+              assert entry['outfitVersion']==2 and 'olive' in entry['outfitPalette'],entry
+              raw=Path('/tmp/olive-%02d.glb'%number).read_bytes()
+              assert raw[:4]==b'glTF' and len(raw)>750000
+              length=struct.unpack_from('<I',raw,12)[0]
+              j=json.loads(raw[20:20+length])
+              assert j['skins'][0]['joints'] and len(j['skins'][0]['joints'])>=70
+              assert any('real_balaclava' in m.get('name','') for m in j['materials'])
+              body=[m for m in j['materials'] if 'olive_bandit_body' in m.get('name','')]
+              assert body and body[0]['pbrMetallicRoughness']['baseColorFactor']==[1,1,1,1]
+              assert j.get('extras',{}).get('gameblockOliveBandit',{}).get('maskPreserved') is True
+              print('PASS LIVE: T-%02d olive GLB: %d bytes, %d bones; black mask preserved.'%
+                    (number,len(raw),len(j['skins'][0]['joints'])))
+          print('PASS: both real recolored T-models published on GameBlock Pages!')
+          PY
