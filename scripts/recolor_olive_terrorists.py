@@ -19,20 +19,21 @@ from PIL import Image, ImageOps, ImageStat
 ROOT = Path(__file__).resolve().parents[1] / "public/casting/masked"
 PALETTES = {
     2: {
-        "name": "Olive raider",
-        "name_ru": "Оливковый налётчик · полевая куртка",
-        "shadow": (55, 61, 42),
-        "mid": (122, 132, 87),
-        "light": (176, 180, 125),
-        "label": "T-02 · ОЛИВА",
+        "name": "Light olive raider",
+        "name_ru": "СВЕТЛО-ОЛИВКОВЫЙ налётчик · полевая куртка",
+        # Cloth creases stay green, not black, on a mobile screen.
+        "shadow": (144, 153, 109),
+        "mid": (197, 205, 147),
+        "light": (231, 234, 176),
+        "label": "T-02 · СВЕТЛАЯ ОЛИВА",
     },
     5: {
-        "name": "Dusty khaki bandit",
-        "name_ru": "Бандитский хаки · поношенная форма",
-        "shadow": (64, 59, 41),
-        "mid": (138, 131, 86),
-        "light": (190, 174, 122),
-        "label": "T-05 · ХАКИ",
+        "name": "Light khaki bandit",
+        "name_ru": "СВЕТЛЫЙ ХАКИ · поношенная бандитская форма",
+        "shadow": (154, 147, 107),
+        "mid": (207, 198, 151),
+        "light": (236, 224, 178),
+        "label": "T-05 · СВЕТЛЫЙ ХАКИ",
     },
 }
 
@@ -94,7 +95,8 @@ def olive_photo_texture(blob, palette):
     dyed.save(stream, format="JPEG", quality=92, subsampling=0, optimize=True)
     stats = tuple(round(s, 1) for s in ImageStat.Stat(dyed).mean)
     # Reject black result: user must see real olive clothing on mobile.
-    assert min(stats[:2]) >= 75 and stats[0] > stats[2] * 1.16, stats
+    assert min(stats[:2]) >= 166 and stats[0] > stats[2] * 1.12, stats
+    assert min(palette["shadow"][:2]) >= 140, "Too-dark clothing shadows"
     return stream.getvalue(), stats, original.size
 
 
@@ -178,16 +180,20 @@ def main():
         entry["bytes"] = size
         entry["label"] = palette["name_ru"]
         entry["outfitPalette"] = "olive" if number == 2 else "khaki-olive"
-        entry["outfitVersion"] = 2
-        entry["outfitDescription"] = "Olive/khaki dye on actual original body photo texture; black balaclava untouched"
+        entry["outfitVersion"] = 3
+        entry["outfitDescription"] = (
+            "High-key light olive/khaki baked into original 3D body photo "
+            "texture, including brighter folds. Black mask, head, weights "
+            "and original 80-bone skeleton remain unchanged."
+        )
         entry["measuredBodyRGB"] = list(mean)
     manifest["description"] = (
         "Ten individual skinned adult male models with fitted balaclavas; "
-        "T-02 is olive raider and T-05 dusty khaki bandit. "
+        "T-02 is BRIGHT LIGHT OLIVE and T-05 is LIGHT KHAKI (v3). "
         "These are genuine edited GLB body textures, not concept renders."
     )
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
-    print("FINISHED: T-02 and T-05 genuine olive/khaki GLBs + manifest.", flush=True)
+    print("FINISHED: T-02 and T-05 BRIGHT olive/khaki v3 GLBs + manifest.", flush=True)
 
 
 if __name__ == "__main__":
