@@ -1,0 +1,38 @@
+<!doctype html><html lang="ru"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#111b20">
+<title>GameBlock — полигон 30 бойцов</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111d24;color:#edf2f0;font-family:system-ui,Arial;touch-action:none;user-select:none}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+#top{position:absolute;top:max(9px,env(safe-area-inset-top));left:max(9px,env(safe-area-inset-left));right:max(9px,env(safe-area-inset-right));display:flex;align-items:start;justify-content:space-between;gap:8px}
+#title{background:#12252ae9;border-left:3px solid #d2c293;padding:10px 13px;max-width:71vw;font-size:12px}
+#title b{display:block;font-size:15px;letter-spacing:.07em}
+#title small{display:block;color:#c9d0ce;font-size:11px;margin-top:4px}
+#back{pointer-events:auto;text-decoration:none;color:#e8e9e2;background:#20363de0;border:1px solid #7b9691;padding:9px 11px;font-size:12px;font-weight:800;white-space:nowrap}
+#loading{position:absolute;top:88px;left:50%;transform:translateX(-50%);background:#14282dec;border:1px solid #67817e;padding:12px 16px;min-width:230px;max-width:85vw;text-align:center;font-size:12px}
+#loadbar{margin-top:8px;height:5px;background:#3a5056}#loadbar i{display:block;width:0%;height:100%;background:#dfc38d;transition:width .25s}
+#tip{position:absolute;bottom:max(9px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);padding:7px 12px;background:#0e2027d9;color:#e0e5e2;text-align:center;font-size:11px;white-space:nowrap}
+#cross{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:23px;font-weight:900;color:#f2f4f2ba;text-shadow:0 1px 5px #000}
+#selected{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);min-width:190px;max-width:85vw;background:#13252cee;border:1px solid #779096;padding:8px 13px;text-align:center;font-size:11px;display:none}
+#selected b{display:block;font-size:15px;color:#ecd29d}
+#joy{position:absolute;bottom:max(41px,env(safe-area-inset-bottom));left:7%;width:118px;height:118px;border:2px solid #cbdcd78e;background:#a8bbb02b;border-radius:50%;display:none;pointer-events:auto}
+#stick{position:absolute;top:calc(50% - 23px);left:calc(50% - 23px);width:46px;height:46px;border-radius:50%;background:#e5eee29e;pointer-events:none}
+#look{position:absolute;inset:25% 0 0 auto;width:57%;pointer-events:auto;touch-action:none}
+#look small{position:absolute;bottom:20px;right:14px;color:#ebefe990}
+@media(pointer:coarse){#joy{display:block}#tip{font-size:10px;bottom:max(5px,env(safe-area-inset-bottom))}}
+@media(max-height:510px){#joy{width:92px;height:92px;bottom:18px}#tip{padding:4px 8px}#title{padding:6px 9px}#title b{font-size:12px}#back{padding:6px 9px}}
+</style></head>
+<body><div id="hud">
+<div id="top"><div id="title"><b>ПОЛИГОН / 30 БОЙЦОВ</b><small id="counter">Подготовка скелетных моделей…</small></div><a id="back" href="./">← В ИГРУ</a></div>
+<div id="cross">+</div>
+<div id="loading">Загружаем 30 настоящих моделей…<div id="loadbar"><i></i></div></div>
+<div id="selected"></div>
+<div id="tip">WASD — ходить · мышь / экран — осматривать</div>
+<div id="look"><small>↔ КАМЕРА</small></div>
+<div id="joy"><div id="stick"></div></div>
+</div>
+<script type="module" src="./src/casting.js"></script></body></html>
