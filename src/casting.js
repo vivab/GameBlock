@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {validateCastingManifest} from './castingManifest.js';
+import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 
 // Ten DIFFERENT source rigged/textured Rocketbox adult MALE military/police
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-t-gallery-fix-2';
+const CACHE_VERSION='20261018-masked-ten-v2';
 const forT=document.body.dataset.role==='terrorists';
-const T_KEY='gameblock:selected-terrorist';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x919ba0);
 scene.fog=new THREE.Fog(0x919ba0,32,76);
 const camera=new THREE.PerspectiveCamera(71,innerWidth/innerHeight,.06,110);
 camera.rotation.order='YXZ';
-camera.position.set(0,1.71,forT?17.2:12.8);
+camera.position.set(0,1.71,forT?13.9:12.8);
 const renderer=new THREE.WebGLRenderer({
   antialias:false,alpha:false,powerPreference:'high-performance'
 });
@@ -63,7 +63,7 @@ function makeLabel(number,name){
 }
 function gridPosition(i){
   return {x:(i%5-2)*3.55,
-    z:forT?6.6-Math.floor(i/5)*5.20:3.15-Math.floor(i/5)*5.15};
+    z:forT?3.7-Math.floor(i/5)*5.40:3.15-Math.floor(i/5)*5.15};
 }
 
 function placeOperator(entry,gltf){
@@ -110,7 +110,7 @@ function placeOperator(entry,gltf){
   });
   if(bones<14 || skinMeshes<1)throw Error('Missing rig/skin: '+entry.name);
   stand.add(body);
-  const label=forT?'КАНДИДАТ T':entry.kind==='military'?'Военный':'Полицейский';
+  const label=forT?'T · МАСКА':entry.kind==='military'?'Военный':'Полицейский';
   stand.add(makeLabel(entry.number,label+' '+String(entry.number).padStart(2,'0')));
   operators.push({entry,stand,body,bones,skinMeshes,textured});
 }
@@ -123,12 +123,13 @@ function progress(done,total){
 async function loadModels(){
   let entries;
   try{
-    const manifestPath=forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json';
+    const manifestPath=forT?'casting/masked/manifest.json':'casting/realistic/manifest.json';
     const response=await fetch(BASE+manifestPath+'?v='+CACHE_VERSION,{cache:'no-store'});
     if(!response.ok)throw Error('Cannot load character manifest (HTTP '+response.status+')');
     const source=await response.json();
-    const count=forT?15:10;
+    const count=forT?T_COUNT:10;
     entries=validateCastingManifest(source,count);
+    if(forT && !source.maskedOnly)throw Error('Need 10 face-covered characters, not civilians');
   }catch(error){
     console.error(error);
     $('loading').textContent='Не загружен список персонажей: '+error.message+' · проверь URL '+BASE;
@@ -150,13 +151,13 @@ async function loadModels(){
     }
   }
   await Promise.all(Array.from({length:3},worker));
-  const count=forT?15:10;
+  const count=forT?T_COUNT:10;
   $('loading').hidden=missing===0;
   if(missing){
     $('loading').textContent='Загружено '+(count-missing)+'/'+count+' · ошибки: '+failed.slice(0,3).join(' | ');
   }
   $('counter').textContent=(count-missing)+' / '+count+
-    (forT?' · отдельные кандидаты в команду T':' · военные / полиция · скелеты готовы');
+    (forT?' · все с балаклавами · скелеты готовы':' · военные / полиция · скелеты готовы');
 }
 loadModels();
 
@@ -172,7 +173,7 @@ function showInfo(operator){
     ' skinned meshes · '+operator.textured+' текстурированных материалов';
   const sourceLine=document.createElement('small');
   sourceLine.textContent=forT
-    ?'Исходная одежда: '+(source.originalOutfit||'civilian')+' · Microsoft Rocketbox (MIT)'
+    ?(source.label||'Балаклава')+' · маска подогнана под форму головы'
     :'Источник: Microsoft Rocketbox (MIT)';
   d.append(title,meta,sourceLine);
   if(forT){
@@ -180,11 +181,11 @@ function showInfo(operator){
     b.type='button';b.id='chooseT';
     let selected=0;
     try{selected=Number(localStorage.getItem(T_KEY)||0)}catch{}
-    b.textContent=selected===source.number?'✓ ВЫБРАН T-'+String(source.number).padStart(2,'0')
-      :'ВЫБРАТЬ ТЕРРОРИСТА №'+String(source.number).padStart(2,'0');
+    b.textContent=selected===source.number?'✓ ВЫБРАН В МАСКЕ T-'+String(source.number).padStart(2,'0')
+      :'ВЫБРАТЬ БОЙЦА T-'+String(source.number).padStart(2,'0');
     b.addEventListener('click',()=>{
-      try{localStorage.setItem(T_KEY,String(source.number));}catch(e){console.warn('Selection not saved',e)}
-      b.textContent='✓ ВЫБРАН T-'+String(source.number).padStart(2,'0');
+      try{saveTChoice(source.number);}catch(e){console.warn('Selection not saved',e)}
+      b.textContent='✓ ВЫБРАН В МАСКЕ T-'+String(source.number).padStart(2,'0');
       const badge=$('selectionText');
       if(badge)badge.textContent='Выбран T-'+String(source.number).padStart(2,'0');
     });
