@@ -1,0 +1,63 @@
+name: Import 30 real rigged CC0 characters
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/casting-import.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: casting-models-import
+  cancel-in-progress: false
+jobs:
+  download-and-convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install open-source FBX conversion tooling
+        run: |
+          pip -q install 'gdown>=5,<6'
+          sudo apt-get update -qq
+          sudo apt-get install -y blender
+      - name: Download 30 distinct CC0 rigged FBX models from the original Quaternius pack
+        run: |
+          mkdir -p casting/downloads
+          python - <<'PY'
+          import gdown,json,pathlib,time
+          entries=json.loads(pathlib.Path('casting/sources.json').read_text())['characters']
+          for entry in entries:
+            target=pathlib.Path('casting/downloads')/(entry['name']+'.fbx')
+            if target.exists() and target.stat().st_size>100000: continue
+            try:
+              file=gdown.download(id=entry['googleDriveFileId'],output=str(target),quiet=True,use_cookies=False,fuzzy=True)
+              if not file or target.stat().st_size<25000:
+                raise ValueError('FBX file missing or too small')
+              print('SOURCE_OK',entry['number'],entry['name'],target.stat().st_size,flush=True)
+            except Exception as error:
+              print('SOURCE_FAILED',entry['number'],entry['name'],str(error)[:160],flush=True)
+            time.sleep(0.3)
+          PY
+      - name: Convert 30 distinct sources to animation-ready GLB
+        run: blender --background --python scripts/convert_casters_blender.py
+      - name: Commit ALL 30 rigged GLBs only to GameBlock
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/casting/models public/casting/manifest.json
+          python - <<'PY'
+          import json,pathlib
+          x=json.loads(pathlib.Path('public/casting/manifest.json').read_text())
+          assert x['total']==30
+          assert len({m['sourceRig'] for m in x['models']})==30
+          assert all(m['hasSkeleton'] and m['boneCount']>0 for m in x['models'])
+          print('CONFIRMED 30 genuine unique rigged GLBs, bytes=',sum(m['bytes'] for m in x['models']))
+          PY
+          git commit -m 'Add 30 distinct Quaternius CC0 rigged GLB humanoids for live tactical casting'
+          git push origin HEAD:main
