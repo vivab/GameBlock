@@ -4,8 +4,8 @@ This is the **actual playable, rigged .glb model edit** for GameBlock.
 The previous black clothes seen on iPhone came from a strong
 (0.29, 0.25, 0.24) PBR body tint over the photograph.
 
-- T-02: **olive-drab field uniform**, dark webbing and black balaclava.
-- T-05: **worn khaki/olive bandit uniform**, black balaclava.
+- T-02: **near-light olive field uniform**, black balaclava.
+- T-05: **bright sandy-khaki bandit uniform**, black balaclava.
 - Original dark uniforms are archived as
   `public/casting/masked/original/02.glb` and `05.glb`.
 - New `public/casting/masked/02.glb` and `05.glb` contain **different embedded
@@ -24,3 +24,5 @@ These are recolored editions of our existing two skinned character models.
 They are NOT 3D conversions of a 2D generated concept illustration or new
 independently authored soldier geometry. Gear silhouette still comes from
 the underlying licensed source models.
+
+Version 3 is significantly brighter than v2: real baked clothing pixel means must exceed 166/255 in red and green. The darkest folds are now colored olive/khaki, not almost black. The camera lighting cannot substitute for this texture edit.
