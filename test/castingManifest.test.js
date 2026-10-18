@@ -9,6 +9,12 @@ test('CT ten and T fifteen real rigged GLB manifests both load without a hardcod
   assert.equal(validateCastingManifest(ct,10).length,10);
   assert.equal(validateCastingManifest(t,15).length,15);
   assert.equal(new Set(t.models.map(x=>x.sourceId)).size,15);
+  const masked=read('public/casting/masked/manifest.json');
+  assert.equal(validateCastingManifest(masked,10).length,10);
+  assert.ok(masked.models.every(x=>x.masked));
+  const invalid=structuredClone(masked);
+  invalid.models[0].masked=false;
+  assert.throws(()=>validateCastingManifest(invalid,10),/mask/i);
 });
 test('a 15-model gallery rejects duplicate sources without rejecting correct fifteen',()=>{
   const real=read('public/casting/terrorists/manifest.json');
@@ -17,9 +23,9 @@ test('a 15-model gallery rejects duplicate sources without rejecting correct fif
   assert.throws(()=>validateCastingManifest(duplicate,15),/unique/);
   assert.throws(()=>validateCastingManifest(real,10),/Expected 10/);
 });
-test('both casting galleries call the same tested validator with dynamic 10 or 15',()=>{
+test('both live galleries validate model counts using shared CT and masked T rules',()=>{
   const js=readFileSync(new URL('../src/casting.js',import.meta.url),'utf8');
-  assert.match(js,/const count=forT\?15:10/);
+  assert.match(js,/const count=forT\?T_COUNT:10/);
   assert.match(js,/validateCastingManifest\(source,count\)/);
   assert.doesNotMatch(js,/new Set\(entries.map\(e=>e.name\)\).size!==10/);
 });

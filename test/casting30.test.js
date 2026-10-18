@@ -87,17 +87,43 @@ test('ten genuinely different male military and police FBX imports preserve skin
   }
 });
 
-test('T casting has exactly fifteen skinned male candidates and its own web page',()=>{
+test('T gallery is now ten skinned MALE characters with fitting face masks',()=>{
   const html=file('terrorists.html'),js=file('src/casting.js');
   const config=file('src/operatorChoices.js'),vite=file('vite.config.js');
   assert.match(html,/data-role="terrorists"/);
-  assert.match(html,/ПОЛИГОН \/ 15 ТЕРРОРИСТОВ/);
-  assert.match(js,/forT\?15:10/);
-  assert.match(js,/casting\/terrorists\/manifest\.json/);
-  assert.match(js,/gameblock:selected-terrorist/);
+  assert.match(html,/10 БОЙЦОВ В МАСКАХ/);
+  assert.match(js,/forT\?T_COUNT:10/);
+  assert.match(js,/casting\/masked\/manifest\.json/);
+  assert.match(config,/gameblock:selected-masked-terrorist/);
+  assert.match(config,/casting\/masked\//);
   assert.match(vite,/terrorists:resolve/);
-  assert.match(file('src/menu.js'),/15 ТЕРРОРИСТОВ · ВЫБРАТЬ/);
+  assert.match(file('src/menu.js'),/10 БОЙЦОВ T · В МАСКАХ/);
   assert.match(config,/Police Male 02/);
   assert.match(config,/casting\/realistic\/08\.glb/);
   assert.match(file('src/main.js'),/createRocketboxOperator\(preferred,actor\.team\)/);
+});
+test('all ten masks are attached to actual skin-weighted human meshes, not hovering boxes',()=>{
+  const m=JSON.parse(file('public/casting/masked/manifest.json'));
+  assert.equal(m.total,10);
+  assert.equal(m.maskedOnly,true);
+  assert.equal(m.models.length,10);
+  assert.equal(new Set(m.models.map(e=>e.sourceId)).size,10);
+  for(const person of m.models){
+    assert.equal(person.male,true);
+    assert.equal(person.masked,true);
+    assert.ok(person.boneCount>=70);
+    const f=new URL('public/'+person.path,root);
+    assert.ok(existsSync(f),person.path+' missing from git');
+    const raw=readFileSync(f);
+    assert.ok(raw.length>120000);
+    assert.equal(raw.toString('ascii',0,4),'glTF');
+    const len=raw.readUInt32LE(12);
+    const gltf=JSON.parse(raw.subarray(20,20+len).toString('utf8'));
+    assert.ok(gltf.skins.some(s=>s.joints.length>=70));
+    const masks=new Set(gltf.materials.map((x,i)=>x.name?.includes('real_balaclava')?i:-1).filter(i=>i>=0));
+    assert.ok(masks.size>=1,'missing mask material: '+person.name);
+    assert.ok(gltf.meshes.some(mesh=>mesh.primitives.some(p=>
+      masks.has(p.material) && 'JOINTS_0' in p.attributes && 'WEIGHTS_0' in p.attributes
+    )),'balaclava floats instead of being skinned: '+person.name);
+  }
 });
