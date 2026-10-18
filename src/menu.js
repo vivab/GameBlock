@@ -116,7 +116,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
       </nav>
       <button id="retroGallery" type="button">◈ SWAT V8 / 20 БОЙЦОВ</button>
       <button id="retroCasting" type="button">✓ НАШ СПЕЦНАЗ №08</button>
-      <button id="retroTChoice" type="button">◈ 15 ТЕРРОРИСТОВ · ВЫБРАТЬ</button>
+      <button id="retroTChoice" type="button">◈ 10 БОЙЦОВ T · В МАСКАХ</button>
       <button id="retroGame1" type="button">⬢ ИГРОВОЙ РЕЖИМ GAME1</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
