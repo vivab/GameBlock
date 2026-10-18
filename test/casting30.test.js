@@ -44,5 +44,13 @@ test('every published character is a real valid, rigged downloaded GLB (after co
     const h=Buffer.alloc(4),fd=openSync(url,'r');
     try{readSync(fd,h,0,4,0)}finally{closeSync(fd)}
     assert.equal(h.toString('ascii'),'glTF',m.path+' not a GLB');
+    const bytes=readFileSync(url);
+    const headerSize=bytes.readUInt32LE(12),chunkType=bytes.toString('ascii',16,20);
+    assert.equal(chunkType,'JSON',m.path+' has no glTF JSON chunk');
+    const gltf=JSON.parse(bytes.subarray(20,20+headerSize).toString('utf8'));
+    assert.ok(Array.isArray(gltf.skins)&&gltf.skins.length>0,m.path+' lost its skeleton');
+    assert.ok(gltf.skins.some(x=>x.joints.length>=20),m.path+' has too few bones');
+    assert.ok(Array.isArray(gltf.animations)&&gltf.animations.length>0,m.path+' lost its FBX clips');
+    assert.ok(Array.isArray(gltf.meshes)&&gltf.meshes.length>0,m.path+' has no mesh');
   }
 });
