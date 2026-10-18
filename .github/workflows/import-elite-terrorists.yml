@@ -1,0 +1,60 @@
+name: Import five masked elite T operators
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-elite-terrorists.yml'
+      - 'scripts/import_elite_terrorists.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: gameblock-elite-t-import
+  cancel-in-progress: false
+jobs:
+  import-elite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Pillow for realistic color textures
+        run: python -m pip install --disable-pip-version-check 'Pillow>=10,<12'
+      - name: Fetch four licensed masked models and build olive fifth
+        run: python scripts/import_elite_terrorists.py
+      - name: Validate all five skinned GLB files
+        run: |
+          python - <<'PY'
+          import json,struct
+          from pathlib import Path
+          base=Path("public/casting/elite")
+          manifest=json.loads((base/"manifest.json").read_text())
+          assert manifest['total']==5 and manifest['maskedOnly']
+          assert len(manifest['models'])==5
+          assert all(m['male'] and m['masked'] and m['hasSkeleton'] for m in manifest['models'])
+          for m in manifest['models']:
+              raw=(base/("%02d.glb"%m['number'])).read_bytes()
+              assert raw[:4]==b'glTF' and struct.unpack_from('<I',raw,8)[0]==len(raw)
+              gltf=json.loads(raw[20:20+struct.unpack_from('<I',raw,12)[0]])
+              assert any(len(s['joints'])>=45 for s in gltf['skins'])
+              assert gltf.get('images') and gltf.get('materials')
+              assert any('JOINTS_0' in p['attributes'] and 'WEIGHTS_0' in p['attributes']
+                  for mesh in gltf['meshes'] for p in mesh['primitives'])
+              print('PASS',m['number'],m['name'],len(raw),'bytes',flush=True)
+          PY
+      - name: Commit permitted masked GLBs to GameBlock only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- public/casting/elite/
+          if git diff --cached --quiet; then
+            echo "Five operators already committed."
+          else
+            git commit -m 'Import five licensed masked T outfits and skinned GLB gallery'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
