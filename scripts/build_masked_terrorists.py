@@ -50,7 +50,7 @@ left_eye=arm.matrix_world @ leye.head_local
 right_eye=arm.matrix_world @ reye.head_local
 eye_mid=(left_eye+right_eye)*.5
 side=(left_eye-right_eye).normalized()
-up=Vector((0,1,0))
+up=Vector((0,0,1))  # Blender world is Z-up after glTF import; Y is face depth.
 eye_sep=(left_eye-right_eye).length
 # Rocketbox eye bones are at the corneas; both eyes set the cutout scale.
 assert .030<eye_sep<.150,("Unexpected eye separation, unit mismatch",eye_sep)

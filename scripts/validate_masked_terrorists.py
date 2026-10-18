@@ -37,8 +37,15 @@ for index,(source,name,description) in enumerate(SOURCE_CHOICES,1):
     masks=[x for x in mats if "real_balaclava" in x]
     assert len(masks)>=1,(name,"mask material missing")
     assert obj.get("textures"),(name,"real garment texture absent")
-    assert any("mask" in x.get("name","").lower() or "balaclava" in x.get("name","").lower()
-      for x in obj.get("meshes",[])),(name,"mask geometry absent")
+    # Blender may export the mask as a merged mesh named for the character.
+    # Verify the mask MATERIAL is on real WEIGHTED geometry, not a floating prop.
+    mask_index={j for j,m in enumerate(obj.get("materials",[]))
+                if "real_balaclava" in m.get("name","")}
+    assert any(p.get("material") in mask_index and
+       "JOINTS_0" in p.get("attributes",{}) and
+       "WEIGHTS_0" in p.get("attributes",{})
+       for mesh in obj.get("meshes",[])
+       for p in mesh.get("primitives",[])),(name,"mask has no skinned geometry")
     assert any("JOINTS_0" in p.get("attributes",{}) and "WEIGHTS_0" in p.get("attributes",{})
       for m in obj.get("meshes",[]) for p in m.get("primitives",[])),(name,"skin weights missing")
     entry=dict(number=index,name=f"Masked T-{index:02} · {name}",sourceId=name.replace(" ","_"),
