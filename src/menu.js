@@ -45,6 +45,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
       border-left-color:#e9b56d}
     #retroHome #retroGallery{margin-top:auto;padding:11px 14px;text-align:center;
       background:#263c3a;border:1px solid #b39b72;font-size:12px;border-radius:4px}
+    #retroHome #retroTChoice{padding:10px 12px;text-align:center;
+      background:#5b352a;border:1px solid #c4967e;color:#fff0d9;
+      border-radius:3px;font-size:12px}
     #retroHome #retroGame1 {padding:10px 12px;text-align:center;
       background:#263742;border:1px solid #758f92;color:#e2ebdf;
       border-radius:3px;font-size:11px}
@@ -112,7 +115,8 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
       <button id="retroGallery" type="button">◈ SWAT V8 / 20 БОЙЦОВ</button>
-      <button id="retroCasting" type="button">◈ 10 РЕАЛИСТИЧНЫХ БОЙЦОВ</button>
+      <button id="retroCasting" type="button">✓ НАШ СПЕЦНАЗ №08</button>
+      <button id="retroTChoice" type="button">◈ 15 ТЕРРОРИСТОВ · ВЫБРАТЬ</button>
       <button id="retroGame1" type="button">⬢ ИГРОВОЙ РЕЖИМ GAME1</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
@@ -174,6 +178,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     button.addEventListener('click',()=>showTab(button.dataset.tab)));
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
+  $('retroTChoice').addEventListener('click',()=>{
+    window.location.assign(import.meta.env.BASE_URL+'terrorists.html');
+  });
   $('retroGame1').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'game1/menu.html');
   });

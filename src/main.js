@@ -9,6 +9,8 @@ import {SWAT_V6_VARIANTS, loadSwatSelection, saveSwatSelection, createSwatV6Oper
 import {installSwatV6Gallery} from './swatV6Gallery.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
+import {createRocketboxOperator} from './rocketboxOperator.js';
+import {CHOSEN_CT,readTChoice,terroristAssetPath} from './operatorChoices.js';
 import { createGameAudio } from './audio.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
@@ -142,10 +144,13 @@ function showGalleryPage(page,pageSize) {
   }
 }
 function refreshSwatPreview() {
-  if(!assets.swat)return;
+  if(!assets.chosenCT&&!assets.swat)return;
   let next;
-  try {next=createSwatV6Operator(assets.swat,selectedSwatIndex);}
-  catch(error){console.warn('Selected CT operator failed',error);return;}
+  try {
+    next=assets.chosenCT
+      ?createRocketboxOperator(assets.chosenCT,'ct')
+      :createSwatV6Operator(assets.swat,selectedSwatIndex);
+  }catch(error){console.warn('Selected CT operator failed',error);return;}
   if(!next)return;
   menuScene.remove(preview.root);
   preview.release?.();
@@ -157,16 +162,23 @@ function refreshSwatPreview() {
 // Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
 const assetFiles = {
   pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'counter_flame_swat_v8', terrorist:'dragomir_t'
+  swat:'counter_flame_swat_v8', terrorist:'dragomir_t',
+  chosenCT:CHOSEN_CT.path
 };
+const storedTChoice=readTChoice();
+if(storedTChoice)assetFiles.chosenT=terroristAssetPath(storedTChoice);
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
-  loader.load(import.meta.env.BASE_URL + 'models/' + filename + '.glb', result => {
+  const modelPath=filename.endsWith('.glb')?filename:'models/'+filename+'.glb';
+  loader.load(import.meta.env.BASE_URL+modelPath, result => {
     try {
-      assets[key] = key === 'swat' || key === 'terrorist' ? result : result.scene;
+      assets[key] = ['swat','terrorist','chosenCT','chosenT'].includes(key)
+        ? result : result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-      else if (key === 'swat') {
+      else if (key === 'chosenCT') {
+        refreshSwatPreview();
+      } else if (key === 'swat') {
         refreshSwatPreview();
         if(swatGallery?.isOpen)swatGallery.refresh();
       } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
@@ -199,12 +211,14 @@ function createFighter(actor) {
   if (actor.isPlayer) return;
   const root = new THREE.Group(); scene.add(root);
   let animated = null;
-  const gltf=assets[actor.team === 'ct' ? 'swat' : 'terrorist'];
+  const preferred=actor.team==='ct'?assets.chosenCT:assets.chosenT;
+  const gltf=preferred||assets[actor.team === 'ct' ? 'swat' : 'terrorist'];
   if (gltf) {
     try {
-      animated=actor.team==='ct'
-        ? createSwatV6Operator(gltf,selectedSwatIndex)
-        : createTacticalOperator(gltf,assets.rifle,actor.team);
+      animated=preferred?createRocketboxOperator(preferred,actor.team)
+        :actor.team==='ct'
+          ?createSwatV6Operator(gltf,selectedSwatIndex)
+          :createTacticalOperator(gltf,assets.rifle,actor.team);
     } catch(error) {
       console.warn('Could not rig '+actor.team+' operator; using fallback',error);
     }

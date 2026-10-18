@@ -1,0 +1,10 @@
+{
+  "team": "ct",
+  "number": 8,
+  "sourceId": "Police_Male_02",
+  "model": "casting/realistic/08.glb",
+  "selected": true,
+  "source": "Microsoft Rocketbox",
+  "license": "MIT",
+  "note": "Chosen by player; rigged male black tactical police model."
+}

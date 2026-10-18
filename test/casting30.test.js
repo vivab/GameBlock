@@ -86,3 +86,18 @@ test('ten genuinely different male military and police FBX imports preserve skin
     )),m.name+' geometry not skinned');
   }
 });
+
+test('T casting has exactly fifteen skinned male candidates and its own web page',()=>{
+  const html=file('terrorists.html'),js=file('src/casting.js');
+  const config=file('src/operatorChoices.js'),vite=file('vite.config.js');
+  assert.match(html,/data-role="terrorists"/);
+  assert.match(html,/ПОЛИГОН \/ 15 ТЕРРОРИСТОВ/);
+  assert.match(js,/forT\?15:10/);
+  assert.match(js,/casting\/terrorists\/manifest\.json/);
+  assert.match(js,/gameblock:selected-terrorist/);
+  assert.match(vite,/terrorists:resolve/);
+  assert.match(file('src/menu.js'),/15 ТЕРРОРИСТОВ · ВЫБРАТЬ/);
+  assert.match(config,/Police Male 02/);
+  assert.match(config,/casting\/realistic\/08\.glb/);
+  assert.match(file('src/main.js'),/createRocketboxOperator\(preferred,actor\.team\)/);
+});
