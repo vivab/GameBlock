@@ -5,13 +5,15 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
+const forT=document.body.dataset.role==='terrorists';
+const T_KEY='gameblock:selected-terrorist';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x919ba0);
 scene.fog=new THREE.Fog(0x919ba0,32,76);
 const camera=new THREE.PerspectiveCamera(71,innerWidth/innerHeight,.06,110);
 camera.rotation.order='YXZ';
-camera.position.set(0,1.71,12.8);
+camera.position.set(0,1.71,forT?17.2:12.8);
 const renderer=new THREE.WebGLRenderer({
   antialias:false,alpha:false,powerPreference:'high-performance'
 });
@@ -58,7 +60,8 @@ function makeLabel(number,name){
   return sprite;
 }
 function gridPosition(i){
-  return {x:(i%5-2)*3.55,z:3.15-Math.floor(i/5)*5.15};
+  return {x:(i%5-2)*3.55,
+    z:forT?6.6-Math.floor(i/5)*5.20:3.15-Math.floor(i/5)*5.15};
 }
 
 function placeOperator(entry,gltf){
@@ -105,32 +108,33 @@ function placeOperator(entry,gltf){
   });
   if(bones<14 || skinMeshes<1)throw Error('Missing rig/skin: '+entry.name);
   stand.add(body);
-  const name=entry.kind==='military'?'Военный':'Полицейский';
-  stand.add(makeLabel(entry.number,name+' '+String(entry.number).padStart(2,'0')));
+  const label=forT?'КАНДИДАТ T':entry.kind==='military'?'Военный':'Полицейский';
+  stand.add(makeLabel(entry.number,label+' '+String(entry.number).padStart(2,'0')));
   operators.push({entry,stand,body,bones,skinMeshes,textured});
 }
 
 function progress(done,total){
-  $('counter').textContent=done+' / '+total+' · настоящие мужские модели с костями';
+  $('counter').textContent=done+' / '+total+' · реальные мужские модели с костями';
   $('loadbar').firstElementChild.style.width=(100*done/total)+'%';
 }
 
 async function loadModels(){
   let entries;
   try{
-    const response=await fetch(BASE+'casting/realistic/manifest.json',{cache:'no-store'});
+    const response=await fetch(BASE+(forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json'),{cache:'no-store'});
     if(!response.ok)throw Error('Cannot read ten-model manifest: '+response.status);
     const source=await response.json();
     entries=source.models;
-    if(source.total!==10 || !Array.isArray(entries)||entries.length!==10)
-      throw Error('Expected 10 different adult male source characters');
+    const count=forT?15:10;
+    if(source.total!==count || !Array.isArray(entries)||entries.length!==count)
+      throw Error('Expected '+count+' different adult male source characters');
     if(new Set(entries.map(e=>e.name)).size!==10)
       throw Error('Models must have distinct source identities');
     if(entries.some(e=>!e.male||!e.hasSkeleton))
       throw Error('Only skinned male operators allowed');
   }catch(error){
     console.error(error);
-    $('loading').textContent='Не удалось получить 10 настоящих бойцов. Обнови страницу.';
+    $('loading').textContent='Не удалось получить реальные 3D-модели. Обнови страницу.';
     return;
   }
   let next=0,finished=0;
@@ -147,11 +151,13 @@ async function loadModels(){
     }
   }
   await Promise.all(Array.from({length:3},worker));
+  const count=forT?15:10;
   $('loading').hidden=missing===0;
   if(missing){
-    $('loading').textContent='Загрузились '+(10-missing)+'/10 моделей. Проверь интернет и обнови страницу.';
+    $('loading').textContent='Загрузились '+(count-missing)+'/'+count+' моделей. Проверь интернет и обнови страницу.';
   }
-  $('counter').textContent=(10-missing)+' / 10 · мужчины · армия / полиция · скелеты готовы';
+  $('counter').textContent=(count-missing)+' / '+count+
+    (forT?' · отдельные кандидаты в команду T':' · военные / полиция · скелеты готовы');
 }
 loadModels();
 
@@ -166,8 +172,25 @@ function showInfo(operator){
   meta.textContent=operator.bones+' костей · '+operator.skinMeshes+
     ' skinned meshes · '+operator.textured+' текстурированных материалов';
   const sourceLine=document.createElement('small');
-  sourceLine.textContent='Источник: Microsoft Rocketbox (MIT)';
+  sourceLine.textContent=forT
+    ?'Исходная одежда: '+(source.originalOutfit||'civilian')+' · Microsoft Rocketbox (MIT)'
+    :'Источник: Microsoft Rocketbox (MIT)';
   d.append(title,meta,sourceLine);
+  if(forT){
+    const b=document.createElement('button');
+    b.type='button';b.id='chooseT';
+    let selected=0;
+    try{selected=Number(localStorage.getItem(T_KEY)||0)}catch{}
+    b.textContent=selected===source.number?'✓ ВЫБРАН T-'+String(source.number).padStart(2,'0')
+      :'ВЫБРАТЬ ТЕРРОРИСТА №'+String(source.number).padStart(2,'0');
+    b.addEventListener('click',()=>{
+      try{localStorage.setItem(T_KEY,String(source.number));}catch(e){console.warn('Selection not saved',e)}
+      b.textContent='✓ ВЫБРАН T-'+String(source.number).padStart(2,'0');
+      const badge=$('selectionText');
+      if(badge)badge.textContent='Выбран T-'+String(source.number).padStart(2,'0');
+    });
+    d.append(b);
+  }
 }
 
 function pick(clientX,clientY){
@@ -255,7 +278,7 @@ function draw(){
   camera.position.x+=(Math.cos(yaw)*x+Math.sin(yaw)*z)*speed;
   camera.position.z+=(-Math.sin(yaw)*x+Math.cos(yaw)*z)*speed;
   camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12,12);
-  camera.position.z=THREE.MathUtils.clamp(camera.position.z,-7.5,13.2);
+  camera.position.z=THREE.MathUtils.clamp(camera.position.z,forT?-9:-7.5,forT?18:13.2);
   if(Math.hypot(x,z)>.05)walk+=dt*13;
   camera.position.y=1.71+(Math.hypot(x,z)>.05?Math.sin(walk)*.013:0);
   camera.rotation.set(pitch,yaw,0,'YXZ');
