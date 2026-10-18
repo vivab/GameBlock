@@ -16,7 +16,7 @@ test('ten imported male soldier models are shown in an unarmed first-person walk
   assert.match(html,/ПОЛИГОН \/ 10 РЕАЛИСТИЧНЫХ БОЙЦОВ/);
   assert.match(html,/id="joy"/);
   assert.match(html,/id="look"/);
-  assert.match(js,/new THREE\.PlaneGeometry\(120,120\)/);
+  assert.match(js,/new THREE\.PlaneGeometry\(55,55\)/);
   assert.match(js,/gridPosition\(i\)/);
   assert.match(js,/const loader=new GLTFLoader/);
   assert.match(js,/body\.scale\.multiplyScalar/);
