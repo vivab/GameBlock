@@ -122,19 +122,20 @@ async function loadModels(){
   let entries;
   try{
     const response=await fetch(BASE+(forT?'casting/terrorists/manifest.json':'casting/realistic/manifest.json'),{cache:'no-store'});
-    if(!response.ok)throw Error('Cannot read ten-model manifest: '+response.status);
+    if(!response.ok)throw Error('Cannot load character manifest (HTTP '+response.status+')');
     const source=await response.json();
     entries=source.models;
     const count=forT?15:10;
     if(source.total!==count || !Array.isArray(entries)||entries.length!==count)
       throw Error('Expected '+count+' different adult male source characters');
-    if(new Set(entries.map(e=>e.name)).size!==10)
-      throw Error('Models must have distinct source identities');
+    if(new Set(entries.map(e=>e.name)).size!==count)
+      throw Error('Expected '+count+' unique source models, got '+
+        new Set(entries.map(e=>e.name)).size);
     if(entries.some(e=>!e.male||!e.hasSkeleton))
       throw Error('Only skinned male operators allowed');
   }catch(error){
     console.error(error);
-    $('loading').textContent='Не удалось получить реальные 3D-модели. Обнови страницу.';
+    $('loading').textContent='Ошибка списка моделей: '+error.message;
     return;
   }
   let next=0,finished=0;
