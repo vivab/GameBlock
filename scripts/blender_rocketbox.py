@@ -12,6 +12,19 @@ SOURCE,DEST=map(Path,args[:2])
 assert SOURCE.is_file(),SOURCE
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
+
+# Ubuntu Blender 3.0 sometimes has only 'Linear' and 'sRGB' color profiles.
+# The FBX loader calls node_shader_utils with 'Non-Color' for specular maps,
+# which raises before meshes/bones import. Map that missing choice to Linear.
+import bpy_extras.node_shader_utils as ns
+original_image_setter=ns.ShaderImageTextureWrapper.image.fset
+def safe_image_set(self,image):
+    if self.colorspace_name == "Non-Color":
+        self.colorspace_name = "Linear"
+    return original_image_setter(self,image)
+ns.ShaderImageTextureWrapper.image=property(
+    ns.ShaderImageTextureWrapper.image.fget,safe_image_set)
+
 bpy.ops.import_scene.fbx(filepath=str(SOURCE),use_anim=False,
                          use_custom_normals=True,automatic_bone_orientation=False)
 from mathutils import Vector
