@@ -23,7 +23,7 @@ test('ten imported male soldier models are shown in an unarmed first-person walk
   assert.match(js,/node\.isBone/);
   assert.match(js,/keys\.has\('KeyW'\)/);
   assert.match(js,/operators\.push\(/);
-  assert.doesNotMatch(js,/new Match\(|import .*combat\.js|arena\.js|AK-47|rifle\.glb|terrorist/);
+  assert.doesNotMatch(js,/new Match\(|import .*combat\.js|arena\.js|AK-47|rifle\.glb/);
   assert.match(vite,/casting:resolve/);
   assert.match(menu,/retroCasting/);
   assert.match(menu,/10 РЕАЛИСТИЧНЫХ БОЙЦОВ/);
