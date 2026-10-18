@@ -22,7 +22,7 @@ test('olive T-02/T-05 edits are repeatable, stored as GLBs with untouched source
   assert.match(script,/ImageOps\.autocontrast/);
   assert.match(script,/body\["baseColorFactor"\] = \[1\., 1\., 1\., 1\.\]/);
   assert.match(file('.github/workflows/recolor-olive-terrorists.yml'),/validate_olive_terrorists\.py/);
-  assert.match(file('src/casting.js'),/pale-olive-v5/);
+  assert.match(file('src/casting.js'),/bright-olive-v6/);
   assert.match(script,/"shadow": \(198, 216, 153\)/);
   assert.match(script,/"shadow": \(200, 207, 152\)/);
   assert.match(script,/outfitVersion"\] = 5/);
