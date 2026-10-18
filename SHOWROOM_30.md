@@ -1,14 +1,36 @@
-# SWAT V8 inspection ground — 10 adult tactical fighters
+# Полигон: 10 разных мужских бойцов (не V8-клоны)
 
-Ten adult male-styled SWAT operators stand on a bare floor in two rows of five.
-All are variants of GameBlock's original human-proportioned V8 urban SWAT mesh.
-No cartoon Soldier.glb, doctors, ninjas or civilian character models are used.
-No terrorists, guns, fighting or bots; touch joystick + swipe, or WASD + mouse.
+В GameBlock открой меню → **10 РЕАЛИСТИЧНЫХ БОЙЦОВ**.
+Прямая ссылка: https://vivab.github.io/GameBlock/casting.html
 
-**Asset truth:** These are ten distinct tactical equipment/color loadouts of ONE
-static source V8 mesh, not ten separately downloaded rigged characters. V8 is
-not skinned or independently animatable yet. The posed hands are modeled in a
-static rifle-ready stance. Do not describe these as ten independent rigged models.
-The original game remains unchanged; showroom is a separate page.
+В этой версии показаны **10 независимых скачанных мужских моделей**:
+Military Male 01–06 и Police Male 01–04 из открытой библиотеки
+[Microsoft Rocketbox](https://github.com/microsoft/Microsoft-Rocketbox)
+(лицензия MIT). Каждая из десяти моделей отдельно сконвертирована
+из собственного FBX в свой текстурированный GLB, с собственным
+скелетом (80 костей), skin weights и исходными материалами.
+Смотреть source/название можно на полигоне, коснувшись персонажа.
 
-The previous Three.js Soldier.glb download has been removed from the build.
+Движение по ровному полу: левый джойстик телефона / WASD.
+Свайп справа / мышь поворачивает камеру. Боты не стреляют,
+террористов и оружия здесь нет. Два ряда по пять персонажей.
+
+**ВАЖНО:** мы больше НЕ добавляем поверх этих персонажей фальшивые
+квадратные бронежилеты, псевдошлемы и не меняем их текстуры.
+Никакие ниндзя, врачи, дети, женские модели и мультяшные
+V8-перекраски не используются в этом полигоне.
+
+Это **кандидаты** на замену нашего бойца. V8 в главном боевом
+режиме сохранён, пока пользователь не выберет лучшую модель.
+FBX-скелет позволяет впоследствии делать осмотр, бег и прыжки,
+но отдельно подготовленных анимаций для них в этом показе пока нет.
+Отдельную боевую стойку необходимо поставить/ретаргетировать.
+
+Исходники:
+- `public/casting/realistic/01.glb`–`10.glb`
+- `public/casting/realistic/manifest.json`
+- `scripts/fetch_rocketbox.py`
+- `scripts/blender_rocketbox.py`
+- `scripts/validate_rocketbox.py`
+
+Ни один репозиторий Game1 и никакие игровые карты не затронуты.
