@@ -129,3 +129,26 @@ GameBlock V8 mode continues to be playable from the normal Play button.
 This is an **additional playable mode** rather than a destructive overwrite
 of the GameBlock 5v5 + V8 game. If desired, we can later select which
 Game1 mechanics should become the default in the main mode.
+
+
+## New five realistic masked T outfit candidates
+
+GameBlock's **5 НОВЫХ ТЕРРОРИСТОВ** button opens
+`/GameBlock/terrorists-five.html`. The lightweight bare-floor 3D gallery
+shows all five masked character **outfits simultaneously** with walking
+controls, touch-look and numbered selection, optimized for iPhone.
+
+These are **four different professionally dressed/rigged outfit variants**
+from StarKnightt/counter-strike-in-browser (MIT, original procedural Blender
+humanoid, third-party Three.js Soldier armature) plus a fifth recolored
+derivative of the cap variant. The user can select one to use for the T team
+on the next game start. CT Police Male 02 / №08 remains unchanged.
+
+**Do not misrepresent these as five independently sourced human characters.**
+The four source outfits share one original humanoid design/armature. The
+fifth is a color-modified original. They are not copied Valve/CS assets.
+Licensing and attribution: `public/casting/elite/SOURCE_LICENSE.md`.
+The older ten masked T candidates remain at `terrorists.html` for rollback.
+
+Source SHA: `92f3e6ddee40c6b531c0788c2cf3db4c56853a37`.
+Downloaded and validated by `.github/workflows/import-elite-terrorists.yml`.

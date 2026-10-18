@@ -45,6 +45,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
       border-left-color:#e9b56d}
     #retroHome #retroGallery{margin-top:auto;padding:11px 14px;text-align:center;
       background:#263c3a;border:1px solid #b39b72;font-size:12px;border-radius:4px}
+    #retroHome #retroEliteT{padding:11px 12px;text-align:center;
+      background:#665039;border:1px solid #d4b887;color:#fff4d7;
+      border-radius:3px;font-size:12px;font-weight:800}
     #retroHome #retroTChoice{padding:10px 12px;text-align:center;
       background:#5b352a;border:1px solid #c4967e;color:#fff0d9;
       border-radius:3px;font-size:12px}
@@ -116,6 +119,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
       </nav>
       <button id="retroGallery" type="button">◈ SWAT V8 / 20 БОЙЦОВ</button>
       <button id="retroCasting" type="button">✓ НАШ СПЕЦНАЗ №08</button>
+      <button id="retroEliteT" type="button">◆ 5 НОВЫХ ТЕРРОРИСТОВ · ВЫБРАТЬ</button>
       <button id="retroTChoice" type="button">◈ 10 БОЙЦОВ T · В МАСКАХ</button>
       <button id="retroGame1" type="button">⬢ ИГРОВОЙ РЕЖИМ GAME1</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
@@ -178,6 +182,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     button.addEventListener('click',()=>showTab(button.dataset.tab)));
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
+  $('retroEliteT').addEventListener('click',()=>{
+    window.location.assign(import.meta.env.BASE_URL+'terrorists-five.html');
+  });
   $('retroTChoice').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'terrorists.html');
   });

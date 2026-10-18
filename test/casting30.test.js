@@ -128,17 +128,15 @@ test('all ten masks are attached to actual skin-weighted human meshes, not hover
   }
 });
 
-test('bright olive gallery fallback does not tint black balaclavas or heads',()=>{
+test('current olive gallery protects dark balaclavas and keeps garments visible',()=>{
   const js=file('src/casting.js');
-  assert.match(js,/bright-olive-v6/);
+  assert.match(js,/full-outfit-olive-v7/);
   assert.match(js,/entry\.number===2 \|\| entry\.number===5/);
-  assert.match(js,/name\.includes\('_body'\)/);
+  assert.match(js,/balaclava\|_head/);
   assert.match(js,/material\.map=null/);
-  assert.match(js,/0xb8c987/);
-  assert.match(js,/0xd3cca0/);
-  assert.match(js,/const cloth=/);
+  assert.match(js,/0xc1ce95/);
+  assert.match(js,/0xd8d0a9/);
 });
-
 test('light olive T-02/T-05 outfits recolor jacket trousers and boots, never masks',()=>{
   const gallery=file('src/casting.js');
   const inMatch=file('src/rocketboxOperator.js');

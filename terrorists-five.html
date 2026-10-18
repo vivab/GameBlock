@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#172528">
+<title>GameBlock · 5 новых реалистичных бойцов T</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#172528;color:#f1eee4;font:600 13px system-ui;touch-action:none}
+[hidden]{display:none!important}
+canvas{display:block}
+#hud{position:fixed;inset:0;pointer-events:none}
+#head{position:absolute;top:max(7px,env(safe-area-inset-top));left:8px;right:8px;display:flex;align-items:start;justify-content:space-between;gap:7px}
+#title{background:#15262ae9;padding:9px 12px;border-left:4px solid #c3aa7e;max-width:62%;font-size:11px;letter-spacing:.025em}
+#title strong{display:block;font-size:14px;letter-spacing:.08em}
+#status{display:block;font-weight:400;color:#bfcac7;margin-top:4px}
+#head a{pointer-events:auto;display:inline-block;text-decoration:none;color:#ecefe9;background:#263b3f;border:1px solid #749390;padding:9px 8px;font-weight:800;font-size:11px;white-space:nowrap}
+#head a#ct{background:#1e4346;border-color:#80aaa8}
+#loading{position:absolute;left:50%;top:37%;transform:translate(-50%,-50%);background:#13272ce9;border:1px solid #ac9166;padding:18px;min-width:min(84vw,310px);text-align:center}
+#progress{margin-top:13px;height:5px;background:#536263}#progressBar{display:block;height:100%;width:0%;background:#ddbc80}
+#cross{position:absolute;left:50%;top:51%;transform:translate(-50%,-50%);font-size:22px;opacity:.58}
+#joystick{position:absolute;bottom:max(38px,env(safe-area-inset-bottom));left:6%;width:112px;height:112px;border-radius:50%;border:2px solid #e9eee080;background:#dee5d520;pointer-events:auto}
+#thumb{position:absolute;left:calc(50% - 22px);top:calc(50% - 22px);width:44px;height:44px;border-radius:50%;background:#e5e8d8ab}
+#drag{pointer-events:auto;position:absolute;right:0;top:25%;height:75%;width:60%;touch-action:none}
+#detail{pointer-events:auto;position:absolute;right:max(8px,env(safe-area-inset-right));top:75px;max-width:min(330px,55vw);padding:11px;background:#1c2b31ec;border:1px solid #d0b88d}
+#modelName{font-size:13px;color:#efd49b}
+#modelInfo,#selectedStatus{display:block;color:#cfd8d5;font-size:11px;margin-top:8px;font-weight:500}
+#detail button{background:#d8b986;border:0;width:100%;padding:10px 6px;color:#18272a;font-weight:900;margin-top:10px;font-size:11px}
+#hint{position:absolute;bottom:max(8px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#16282bdc;padding:6px 9px;white-space:nowrap;font-size:10px}
+@media(max-width:620px){#head a{font-size:9px;padding:8px 5px}#title{padding:8px}#title strong{font-size:12px}#detail{top:66px;max-width:52vw}#hint{font-size:9px}}
+</style></head>
+<body><div id="hud">
+<div id="head">
+<div id="title"><strong>НОВАЯ ПЯТЁРКА · T</strong><span id="status">5 кандидатов · закрытые лица</span></div>
+<a id="ct" href="./casting.html">✓ CT №08</a>
+<a href="./">← МЕНЮ</a></div>
+<div id="cross">+</div>
+<div id="loading">Загружаем пятерых бойцов…
+<div id="progress"><i id="progressBar"></i></div></div>
+<div id="detail" hidden><strong id="modelName"></strong>
+<small id="modelInfo"></small><small id="selectedStatus"></small></div>
+<div id="joystick"><div id="thumb"></div></div>
+<div id="drag"></div>
+<div id="hint">Джойстик — ходить · свайп — смотреть · нажми на бойца</div>
+</div>
+<script type="module" src="./src/eliteCasting.js"></script>
+</body></html>
