@@ -1,0 +1,43 @@
+name: Smoke Test Live Terrorist Gallery
+on:
+  workflow_run:
+    workflows: ["Deploy GameBlock"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-gallery:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Verify live GameBlock Pages, manifest and all fifteen GLB characters
+        run: |
+          set -euo pipefail
+          base="https://vivab.github.io/GameBlock"
+          cache="smoke-${GITHUB_RUN_ID}"
+          echo "Checking live URL $base/terrorists.html"
+          curl -fLsS --retry 8 --retry-delay 3 --max-time 40 \
+            "$base/terrorists.html?check=$cache" -o /tmp/terrorists.html
+          grep -q 'ПОЛИГОН / 15 ТЕРРОРИСТОВ' /tmp/terrorists.html
+          echo 'Live 15-model HTML exists.'
+          curl -fLsS --retry 8 --retry-delay 3 --max-time 40 \
+            "$base/casting/terrorists/manifest.json?check=$cache" -o /tmp/terrorists-manifest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path('/tmp/terrorists-manifest.json').read_text())
+          assert j['total']==15,len(j.get('models',[]))
+          assert len(j['models'])==15
+          assert len({m['sourceId'] for m in j['models']})==15
+          assert all(m['hasSkeleton'] and m['male'] for m in j['models'])
+          print('Live manifest: 15 unique male skinned characters.')
+          PY
+          for n in $(seq -w 1 15); do
+            curl -fLsS --retry 4 --retry-delay 2 --max-time 40 \
+              "$base/casting/terrorists/$n.glb?check=$cache" -o "/tmp/terrorist-$n.glb"
+            test "$(head -c 4 "/tmp/terrorist-$n.glb")" = "glTF"
+            echo "Model T-$n loaded from live Pages: $(stat -c %s "/tmp/terrorist-$n.glb") bytes"
+          done
+          echo "PASS: All 15 real GLBs and the manifest are publicly accessible."
