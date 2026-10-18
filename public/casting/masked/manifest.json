@@ -1,7 +1,7 @@
 {
   "total": 10,
   "category": "masked-terrorist-candidates",
-  "description": "Ten individual skinned adult male models with fitted balaclavas; T-02 is BRIGHT LIGHT OLIVE and T-05 is LIGHT KHAKI (v3). These are genuine edited GLB body textures, not concept renders.",
+  "description": "Ten individual skinned adult male models with fitted balaclavas; T-02 is VERY PALE LIGHT OLIVE and T-05 is LIGHT KHAKI OLIVE (v4). These are genuine edited GLB body textures, not concept renders.",
   "maskedOnly": true,
   "models": [
     {
@@ -27,7 +27,7 @@
       "number": 2,
       "name": "Masked T-02 · Military Male 02",
       "sourceId": "Military_Male_02",
-      "label": "СВЕТЛО-ОЛИВКОВЫЙ налётчик · полевая куртка",
+      "label": "T-02 · ПОЧТИ СВЕТЛАЯ ОЛИВА · бандитская куртка",
       "kind": "masked-terrorist-candidate",
       "path": "casting/masked/02.glb",
       "sourcePath": "casting/realistic/02.glb",
@@ -38,16 +38,16 @@
       "masked": true,
       "hasSkeleton": true,
       "boneCount": 80,
-      "bytes": 990004,
+      "bytes": 973036,
       "maskMaterial": "T02_real_balaclava_Charcoal",
       "note": "Unique real anatomical rigged original male body, mask is an in-project fitted anatomical addition, not a separately downloaded masked character.",
       "outfitPalette": "olive",
-      "outfitVersion": 3,
-      "outfitDescription": "High-key light olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
+      "outfitVersion": 4,
+      "outfitDescription": "VERY LIGHT olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
       "measuredBodyRGB": [
-        197.7,
-        204.6,
-        148.7
+        223.7,
+        228.0,
+        178.5
       ]
     },
     {
@@ -92,7 +92,7 @@
       "number": 5,
       "name": "Masked T-05 · Military Male 05",
       "sourceId": "Military_Male_05",
-      "label": "СВЕТЛЫЙ ХАКИ · поношенная бандитская форма",
+      "label": "T-05 · СВЕТЛЫЙ ХАКИ-ОЛИВА · бандитская форма",
       "kind": "masked-terrorist-candidate",
       "path": "casting/masked/05.glb",
       "sourcePath": "casting/realistic/05.glb",
@@ -103,16 +103,16 @@
       "masked": true,
       "hasSkeleton": true,
       "boneCount": 80,
-      "bytes": 907196,
+      "bytes": 896176,
       "maskMaterial": "T05_real_balaclava_Blackout",
       "note": "Unique real anatomical rigged original male body, mask is an in-project fitted anatomical addition, not a separately downloaded masked character.",
       "outfitPalette": "khaki-olive",
-      "outfitVersion": 3,
-      "outfitDescription": "High-key light olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
+      "outfitVersion": 4,
+      "outfitDescription": "VERY LIGHT olive/khaki baked into original 3D body photo texture, including brighter folds. Black mask, head, weights and original 80-bone skeleton remain unchanged.",
       "measuredBodyRGB": [
-        206.4,
-        196.9,
-        151.3
+        226.4,
+        221.5,
+        179.2
       ]
     },
     {
