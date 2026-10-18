@@ -4,8 +4,9 @@ export const CHOSEN_CT=Object.freeze({
   number:8,name:'Police Male 02',path:'casting/realistic/08.glb',
   source:'Microsoft Rocketbox',license:'MIT'
 });
-export const T_KEY='gameblock:selected-terrorist';
-export const T_COUNT=15;
+// Old 15 candidates and their save key are retained separately for rollback.
+export const T_KEY='gameblock:selected-masked-terrorist';
+export const T_COUNT=10;
 export function readTChoice(storage=globalThis.localStorage){
   try{
     const number=Number(storage?.getItem(T_KEY));
@@ -14,10 +15,10 @@ export function readTChoice(storage=globalThis.localStorage){
 }
 export function terroristAssetPath(number){
   return Number.isInteger(number)&&number>=1&&number<=T_COUNT?
-    'casting/terrorists/'+String(number).padStart(2,'0')+'.glb':null;
+    'casting/masked/'+String(number).padStart(2,'0')+'.glb':null;
 }
 export function saveTChoice(number,storage=globalThis.localStorage){
-  if(!terroristAssetPath(number))throw Error('T candidate must be 1–15');
+  if(!terroristAssetPath(number))throw Error('Masked T candidate must be 1–10');
   try{storage?.setItem(T_KEY,String(number));}catch{}
   return number;
 }
