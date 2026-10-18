@@ -1,0 +1,248 @@
+{
+  "license": "CC0 1.0",
+  "sourcePage": "https://quaternius.com/packs/ultimatedanimatedcharacter",
+  "sourceFolder": "https://drive.google.com/drive/folders/1sNi1AfenfPRrvRt5yfaj5QMMd6KKcUJ5",
+  "description": "30 original humanoid FBX meshes / common compatible armatures. Non-military base appearances will be dressed in tactical gear; NOT independently sourced 30 realistic SWAT assets.",
+  "characters": [
+    {
+      "number": 1,
+      "name": "BlueSoldier_Male",
+      "googleDriveFileId": "1y7bOTEHe9azDgS3H__A1NILasGK8WJUF",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 2,
+      "name": "BlueSoldier_Female",
+      "googleDriveFileId": "1CFrJnGQH8z9tI5DgDLVfbSocWOinmde0",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 3,
+      "name": "Soldier_Male",
+      "googleDriveFileId": "1a-hba4k6uJVtUDYzHsaNvx4r7rVMNICs",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 4,
+      "name": "Soldier_Female",
+      "googleDriveFileId": "1VUzJCP-0RNokA9JLkXiy3T8BEqewuW7Y",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 5,
+      "name": "Ninja_Male",
+      "googleDriveFileId": "1_7yBlHqHVvwDsxY67r-_Tdrask14R6iC",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 6,
+      "name": "Ninja_Female",
+      "googleDriveFileId": "13uZn3GU25lSQIOfYS-5mxO0nmDc6jfBC",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 7,
+      "name": "Ninja_Sand",
+      "googleDriveFileId": "1pblrgQ8P91zDUm-QSBvYI0fS4p17TTmX",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 8,
+      "name": "Ninja_Sand_Female",
+      "googleDriveFileId": "1dfJMk-GruNyOelATvMI3C8pETtLL9oaj",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "combat-base"
+    },
+    {
+      "number": 9,
+      "name": "Worker_Male",
+      "googleDriveFileId": "1rS4HxTBJKur-T_BZRDsvv68J2zr278wn",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 10,
+      "name": "Worker_Female",
+      "googleDriveFileId": "1-l5q7N7Q7ggdALBt_FfZszpf2otp3-QH",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 11,
+      "name": "Casual_Male",
+      "googleDriveFileId": "1Ls3XUkHqIcz3HL9JaW-dNWNnLiQLdkrs",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 12,
+      "name": "Casual_Female",
+      "googleDriveFileId": "1AYI79-CtvncVV0DW0Mg6_9hRKpX8Y1Pe",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 13,
+      "name": "Casual2_Male",
+      "googleDriveFileId": "1vyP4gifMxSfuARNeT7L98pzWOot1GQFD",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 14,
+      "name": "Casual2_Female",
+      "googleDriveFileId": "1DUtvr5CikreEvU0ZzR_wHXLW-zuY1bSt",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 15,
+      "name": "Casual3_Male",
+      "googleDriveFileId": "1XcAoswNJdeK-uthJBenWXPhhOr_g96KV",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 16,
+      "name": "Casual3_Female",
+      "googleDriveFileId": "1lJ6PUT7gE_oEtIur3YDJCELK1w7HNQOw",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 17,
+      "name": "Casual_Bald",
+      "googleDriveFileId": "1D3hxgiqPqAhysH27tGivC87_2il9kNnl",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 18,
+      "name": "Suit_Male",
+      "googleDriveFileId": "1JfVuD8rLEhrnZMRVQeSPMSjk7-rxy6iy",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 19,
+      "name": "Suit_Female",
+      "googleDriveFileId": "12z-3Ej8viMpq-H6HOUIwpIRXTi3d0hwW",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 20,
+      "name": "OldClassy_Male",
+      "googleDriveFileId": "1mPqpDpTXYlFNZEVaf2rx39_o65k2-AhW",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 21,
+      "name": "OldClassy_Female",
+      "googleDriveFileId": "1wpN8sQIyAHo9DNVB3h3u5STbOvMo6049",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 22,
+      "name": "Cowboy_Male",
+      "googleDriveFileId": "1fZp4rsI0nvJAU--o3oJmb4AKOBNQGFo_",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 23,
+      "name": "Cowboy_Female",
+      "googleDriveFileId": "1WnYLbCJ36bAjRdTjv4SksNM6JUFtJAGS",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 24,
+      "name": "Doctor_Male_Young",
+      "googleDriveFileId": "1x_acVXplYt5pjMLr6v6yHLp7OHoOyc6P",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 25,
+      "name": "Doctor_Female_Young",
+      "googleDriveFileId": "1NygsF3KK_FKK8lMzYGT4RZRLdqiOFEwM",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 26,
+      "name": "Doctor_Male_Old",
+      "googleDriveFileId": "1aGu7Ndh9_Gd_jMDSHN5Xzl5pyUv6lFNi",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 27,
+      "name": "Doctor_Female_Old",
+      "googleDriveFileId": "1SNv0Bn4gxt8c2drYL2T3nQmRhSdKg8Sc",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 28,
+      "name": "Kimono_Male",
+      "googleDriveFileId": "1c-TsVBXbUqfb0beIkmu8tDS-JE6PGe2E",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 29,
+      "name": "Kimono_Female",
+      "googleDriveFileId": "16f_maloDvesyRcIREs-sovXB1PUuK8AG",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    },
+    {
+      "number": 30,
+      "name": "Pirate_Male",
+      "googleDriveFileId": "1VkfDPMCRuAgJ9LLP9yTllWHDCQ9wwKpn",
+      "source": "Quaternius Ultimate Animated Character Pack (CC0)",
+      "riggedSource": true,
+      "theme": "humanoid-kitbash"
+    }
+  ]
+}
