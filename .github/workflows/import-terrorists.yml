@@ -1,0 +1,56 @@
+name: Import 15 rigged male T-team candidates (Rocketbox MIT)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/import-terrorists.yml'
+      - 'scripts/fetch_terrorists.py'
+      - 'scripts/validate_terrorists.py'
+      - 'scripts/blender_rocketbox.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: gameblock-fifteen-terrorist-import
+  cancel-in-progress: false
+jobs:
+  convert-and-publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Blender 3 and PIL
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq blender python3-numpy
+          python -m pip install --disable-pip-version-check 'Pillow>=10,<12'
+      - name: Download 15 original separate male FBX models and texture maps
+        run: python scripts/fetch_terrorists.py
+      - name: Convert all 15 into individually rigged textured GLB files
+        run: |
+          set -euo pipefail
+          for n in $(seq -w 1 15); do
+            src=$(find "rocketbox_terrorist_sources/$n" -maxdepth 1 -name '*.fbx' -print -quit)
+            test -n "$src"
+            blender --background --factory-startup --python scripts/blender_rocketbox.py -- "$src" "public/casting/terrorists/$n.glb" >/tmp/rocketbox-convert-$n.log 2>&1 || {
+              tail -80 /tmp/rocketbox-convert-$n.log;exit 1;
+            }
+            tail -3 /tmp/rocketbox-convert-$n.log
+          done
+      - name: Validate fifteen different skinned models and create JSON manifest
+        run: python scripts/validate_terrorists.py
+      - name: Commit 15 real GLBs to GameBlock only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/casting/terrorists/
+          if git diff --cached --quiet; then
+            echo "All fifteen models already stored."
+          else
+            git commit -m 'Import fifteen original male skinned T-team candidate GLBs'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
