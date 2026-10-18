@@ -22,11 +22,14 @@ test('olive T-02/T-05 edits are repeatable, stored as GLBs with untouched source
   assert.match(script,/ImageOps\.autocontrast/);
   assert.match(script,/body\["baseColorFactor"\] = \[1\., 1\., 1\., 1\.\]/);
   assert.match(file('.github/workflows/recolor-olive-terrorists.yml'),/validate_olive_terrorists\.py/);
-  assert.match(file('src/casting.js'),/olive-actual-glb-v3/);
+  assert.match(file('src/casting.js'),/light-olive-v4/);
+  assert.match(script,/"shadow": \(144, 153, 109\)/);
+  assert.match(script,/"shadow": \(154, 147, 107\)/);
+  assert.match(script,/outfitVersion"\] = 3/);
 });
 test('once exported, T-02 and T-05 contain body-specific olive photo textures and original head and masks',()=>{
   const manifest=JSON.parse(file('public/casting/masked/manifest.json'));
-  if(manifest.models[1].outfitVersion!==2||manifest.models[4].outfitVersion!==2){
+  if(manifest.models[1].outfitVersion!==3||manifest.models[4].outfitVersion!==3){
     // Olive-color GLB creation is performed by a separate GitHub Actions
     // workflow. The initial source-code commit is intentionally testable.
     return;
