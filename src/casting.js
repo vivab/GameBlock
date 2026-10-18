@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-masked-ten-v2';
+const CACHE_VERSION='20261018-olive-actual-glb-v3';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
@@ -110,7 +110,7 @@ function placeOperator(entry,gltf){
   });
   if(bones<14 || skinMeshes<1)throw Error('Missing rig/skin: '+entry.name);
   stand.add(body);
-  const label=forT?'T · МАСКА':entry.kind==='military'?'Военный':'Полицейский';
+  const label=forT?(entry.outfitPalette?'T · ОЛИВА':'T · МАСКА'):entry.kind==='military'?'Военный':'Полицейский';
   stand.add(makeLabel(entry.number,label+' '+String(entry.number).padStart(2,'0')));
   operators.push({entry,stand,body,bones,skinMeshes,textured});
 }
