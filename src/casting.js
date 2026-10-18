@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-bright-olive-v6';
+const CACHE_VERSION='20261018-full-outfit-olive-v7';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
@@ -106,15 +106,25 @@ function placeOperator(entry,gltf){
       // head, eyes, hair or skin. This is independent of texture caching.
       if(forT && (entry.number===2 || entry.number===5)){
         const name=(material.name||'').toLowerCase();
-        const cloth=name.includes('_body') || name.includes('olive_bandit_body');
-        if(cloth){
-          const light=entry.number===2?0xb8c987:0xd3cca0;
-          material.color.setHex(light);
-          material.map=null; // prevent the source dark map multiplying the olive
-          material.emissive?.setHex(entry.number===2?0x1b2110:0x242012);
-          material.emissiveIntensity=.65;
+        // Clothes use multiple independent materials: jacket, trousers,
+        // boots and accessories. Never dye the head, face or balaclava.
+        const protectedPart=/(balaclava|_head|head$|face|skin|hair|eye|iris|mouth|teeth|mask|helmet)/.test(name);
+        const pants=/(leg|pant|trouser|jean|bottom)/.test(name);
+        const leather=/(boot|shoe|foot|glove|belt|strap|pouch)/.test(name);
+        const clothing=/(body|olive_bandit|jacket|shirt|cloth|uniform|coat|vest|torso|arm|sleeve|pant|trouser|leg|jean|boot|shoe|foot|glove|belt|strap|pouch)/.test(name);
+        if(clothing && !protectedPart){
+          const shade=leather?0x726e50:pants
+            ?(entry.number===2?0xaeb78b:0xc3b995)
+            :(entry.number===2?0xc1ce95:0xd8d0a9);
+          // Remove the original dark map only from clothing: it otherwise
+          // multiplies the light olive factor back down to black.
+          material.color?.setHex(shade);
+          material.map=null;
+          material.emissive?.setHex(leather?0x17170d:0x272d1c);
+          material.emissiveIntensity=.55;
           material.roughness=.97;
           material.metalness=0;
+          material.needsUpdate=true;
         }
       }
       if(material.map)textured++;
