@@ -25,7 +25,7 @@ jobs:
         run: |
           pip -q install 'gdown>=5,<6'
           sudo apt-get update -qq
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
       - name: Download 30 distinct CC0 rigged FBX models from the original Quaternius pack
         run: |
           mkdir -p casting/downloads
