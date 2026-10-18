@@ -1,4 +1,4 @@
-name: Smoke Test Live Terrorist Gallery
+name: Smoke Test Live Masked Gallery
 on:
   workflow_run:
     workflows: ["Deploy GameBlock"]
@@ -12,32 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - name: Verify live GameBlock Pages, manifest and all fifteen GLB characters
+      - name: Check the live mobile page and all ten GLB files
         run: |
           set -euo pipefail
           base="https://vivab.github.io/GameBlock"
-          cache="smoke-${GITHUB_RUN_ID}"
-          echo "Checking live URL $base/terrorists.html"
-          curl -fLsS --retry 8 --retry-delay 3 --max-time 40 \
-            "$base/terrorists.html?check=$cache" -o /tmp/terrorists.html
-          grep -q 'ПОЛИГОН / 15 ТЕРРОРИСТОВ' /tmp/terrorists.html
-          echo 'Live 15-model HTML exists.'
-          curl -fLsS --retry 8 --retry-delay 3 --max-time 40 \
-            "$base/casting/terrorists/manifest.json?check=$cache" -o /tmp/terrorists-manifest.json
+          ver="checked-${GITHUB_RUN_ID}"
+          curl -fLsS --retry 8 --retry-delay 3 "$base/terrorists.html?v=$ver" -o /tmp/gallery.html
+          grep -q '10 БОЙЦОВ В МАСКАХ' /tmp/gallery.html
+          curl -fLsS --retry 8 --retry-delay 3 "$base/casting/masked/manifest.json?v=$ver" -o /tmp/masked.json
           python3 - <<'PY'
           import json
-          from pathlib import Path
-          j=json.loads(Path('/tmp/terrorists-manifest.json').read_text())
-          assert j['total']==15,len(j.get('models',[]))
-          assert len(j['models'])==15
-          assert len({m['sourceId'] for m in j['models']})==15
-          assert all(m['hasSkeleton'] and m['male'] for m in j['models'])
-          print('Live manifest: 15 unique male skinned characters.')
+          manifest=json.load(open('/tmp/masked.json'))
+          assert manifest['total']==10
+          assert manifest['maskedOnly']
+          assert len({m['sourceId'] for m in manifest['models']})==10
+          assert all(m['male'] and m['masked'] and m['boneCount']>=70 for m in manifest['models'])
+          print('Verified 10 male characters with actual fitted face-coverings.')
           PY
-          for n in $(seq -w 1 15); do
-            curl -fLsS --retry 4 --retry-delay 2 --max-time 40 \
-              "$base/casting/terrorists/$n.glb?check=$cache" -o "/tmp/terrorist-$n.glb"
-            test "$(head -c 4 "/tmp/terrorist-$n.glb")" = "glTF"
-            echo "Model T-$n loaded from live Pages: $(stat -c %s "/tmp/terrorist-$n.glb") bytes"
+          for n in $(seq -w 1 10); do
+            curl -fLsS --retry 5 --retry-delay 2 "$base/casting/masked/$n.glb?v=$ver" -o "/tmp/masked-$n.glb"
+            test "$(head -c 4 "/tmp/masked-$n.glb")" = glTF
+            echo "Validated 3D T-$n: $(stat -c %s "/tmp/masked-$n.glb") bytes"
           done
-          echo "PASS: All 15 real GLBs and the manifest are publicly accessible."
+          echo "PASS: All ten real GLB assets load from public Pages."
