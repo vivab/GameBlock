@@ -11,21 +11,25 @@ test('30 unique licensed model sources are tracked with direct original rig IDs'
   assert.equal(data.license,'CC0 1.0');
   for(let i=0;i<30;i++)assert.equal(data.characters[i].number,i+1);
 });
-test('30-character showroom is a separate no-combat first-person walkable scene',()=>{
+test('ten imported male soldier models are shown in an unarmed first-person walkable scene',()=>{
   const html=file('casting.html'),js=file('src/casting.js'),vite=file('vite.config.js'),menu=file('src/menu.js');
-  assert.match(html,/ПОЛИГОН \/ 30 БОЙЦОВ/);
+  assert.match(html,/ПОЛИГОН \/ 10 РЕАЛИСТИЧНЫХ БОЙЦОВ/);
   assert.match(html,/id="joy"/);
   assert.match(html,/id="look"/);
   assert.match(js,/new THREE\.PlaneGeometry\(120,120\)/);
-  assert.match(js,/gridPosition\(index\)/);
+  assert.match(js,/gridPosition\(i\)/);
   assert.match(js,/const loader=new GLTFLoader/);
-  assert.match(js,/rigRoot\.scale\.multiplyScalar/);
-  assert.match(js,/o\.isBone/);
+  assert.match(js,/body\.scale\.multiplyScalar/);
+  assert.match(js,/node\.isBone/);
   assert.match(js,/keys\.has\('KeyW'\)/);
-  assert.match(js,/models\.push\(/);
+  assert.match(js,/operators\.push\(/);
   assert.doesNotMatch(js,/new Match\(|import .*combat\.js|arena\.js|AK-47|rifle\.glb|terrorist/);
   assert.match(vite,/casting:resolve/);
   assert.match(menu,/retroCasting/);
+  assert.match(menu,/10 РЕАЛИСТИЧНЫХ БОЙЦОВ/);
+  assert.doesNotMatch(js,/addTacticalGear|new THREE\.BoxGeometry|createSwatV6Operator/);
+  assert.match(js,/casting\/realistic\/manifest\.json/);
+  assert.match(file('showroom.html'),/location\.replace\('\.\/casting\.html'\)/);
   assert.match(menu,/casting\.html/);
 });
 test('every published character is a real valid, rigged downloaded GLB (after conversion)',()=>{
@@ -52,5 +56,33 @@ test('every published character is a real valid, rigged downloaded GLB (after co
     assert.ok(gltf.skins.some(x=>x.joints.length>=20),m.path+' has too few bones');
     assert.ok(Array.isArray(gltf.animations)&&gltf.animations.length>0,m.path+' lost its FBX clips');
     assert.ok(Array.isArray(gltf.meshes)&&gltf.meshes.length>0,m.path+' has no mesh');
+  }
+});
+
+test('ten genuinely different male military and police FBX imports preserve skins and textures',()=>{
+  const manifest=JSON.parse(file('public/casting/realistic/manifest.json'));
+  assert.equal(manifest.total,10);
+  assert.equal(manifest.models.length,10);
+  assert.equal(new Set(manifest.models.map(m=>m.name)).size,10);
+  assert.equal(manifest.models.filter(m=>m.kind==='military').length,6);
+  assert.equal(manifest.models.filter(m=>m.kind==='police-tactical').length,4);
+  for(const m of manifest.models){
+    assert.equal(m.male,true);
+    assert.equal(m.hasSkeleton,true);
+    assert.ok(m.boneCount>=60,m.name+' has no usable full-body bones');
+    assert.equal(m.license,'MIT');
+    assert.match(m.path,/^casting\/realistic\/\d\d\.glb$/);
+    const loc=new URL('public/'+m.path,root);
+    assert.ok(existsSync(loc),m.path+' not checked into GameBlock');
+    assert.ok(statSync(loc).size>200000,m.path+' appears empty');
+    const bytes=readFileSync(loc);
+    assert.equal(bytes.toString('ascii',0,4),'glTF',m.name+' not GLB');
+    const length=bytes.readUInt32LE(12);
+    const json=JSON.parse(bytes.subarray(20,20+length).toString('utf8'));
+    assert.ok(json.skins?.some(x=>x.joints.length>=60),m.name+' rig missing');
+    assert.ok(json.textures?.length>=1,m.name+' texture missing');
+    assert.ok(json.meshes?.some(mesh=>mesh.primitives?.some(p=>
+      p.attributes?.JOINTS_0!==undefined && p.attributes?.WEIGHTS_0!==undefined
+    )),m.name+' geometry not skinned');
   }
 });
