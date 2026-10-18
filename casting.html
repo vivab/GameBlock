@@ -2,8 +2,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="theme-color" content="#111b20">
-<title>GameBlock — полигон 30 бойцов</title>
+<title>GameBlock — 10 настоящих мужских бойцов</title>
 <style>
+[hidden]{display:none!important}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111d24;color:#edf2f0;font-family:system-ui,Arial;touch-action:none;user-select:none}
 canvas{display:block}
@@ -17,7 +18,7 @@ canvas{display:block}
 #loadbar{margin-top:8px;height:5px;background:#3a5056}#loadbar i{display:block;width:0%;height:100%;background:#dfc38d;transition:width .25s}
 #tip{position:absolute;bottom:max(9px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);padding:7px 12px;background:#0e2027d9;color:#e0e5e2;text-align:center;font-size:11px;white-space:nowrap}
 #cross{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:23px;font-weight:900;color:#f2f4f2ba;text-shadow:0 1px 5px #000}
-#selected{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);min-width:190px;max-width:85vw;background:#13252cee;border:1px solid #779096;padding:8px 13px;text-align:center;font-size:11px;display:none}
+#selected{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);min-width:190px;max-width:85vw;background:#13252cee;border:1px solid #779096;padding:8px 13px;text-align:center;font-size:11px;display:block}
 #selected b{display:block;font-size:15px;color:#ecd29d}
 #joy{position:absolute;bottom:max(41px,env(safe-area-inset-bottom));left:7%;width:118px;height:118px;border:2px solid #cbdcd78e;background:#a8bbb02b;border-radius:50%;display:none;pointer-events:auto}
 #stick{position:absolute;top:calc(50% - 23px);left:calc(50% - 23px);width:46px;height:46px;border-radius:50%;background:#e5eee29e;pointer-events:none}
@@ -27,11 +28,11 @@ canvas{display:block}
 @media(max-height:510px){#joy{width:92px;height:92px;bottom:18px}#tip{padding:4px 8px}#title{padding:6px 9px}#title b{font-size:12px}#back{padding:6px 9px}}
 </style></head>
 <body><div id="hud">
-<div id="top"><div id="title"><b>ПОЛИГОН / 30 БОЙЦОВ</b><small id="counter">Подготовка скелетных моделей…</small></div><a id="back" href="./">← В ИГРУ</a></div>
+<div id="top"><div id="title"><b>ПОЛИГОН / 10 РЕАЛИСТИЧНЫХ БОЙЦОВ</b><small id="counter">6 военных + 4 полицейских · отдельные модели</small></div><a id="back" href="./">← В ИГРУ</a></div>
 <div id="cross">+</div>
-<div id="loading">Загружаем 30 настоящих моделей…<div id="loadbar"><i></i></div></div>
-<div id="selected"></div>
-<div id="tip">WASD — ходить · мышь / экран — осматривать</div>
+<div id="loading">Загружаем 10 разных мужских моделей спецназа…<div id="loadbar"><i></i></div></div>
+<div id="selected" hidden></div>
+<div id="tip">WASD — идти · свайп — осматривать · коснись бойца, чтобы узнать модель</div>
 <div id="look"><small>↔ КАМЕРА</small></div>
 <div id="joy"><div id="stick"></div></div>
 </div>
