@@ -1,0 +1,12 @@
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x626d70);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,100);camera.position.set(0,1.4,4.8);camera.lookAt(0,1,0);
+const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.append(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xffffff,0x48515c,2.4));const light=new THREE.DirectionalLight(0xffffff,2);light.position.set(3,6,5);scene.add(light);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x545b5b}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+let model,mixer,previousX=null;const clock=new THREE.Clock();
+new GLTFLoader().load(import.meta.env.BASE_URL+'casting/candidates/soldier.glb',gltf=>{model=gltf.scene;const bounds=new THREE.Box3().setFromObject(model);const height=bounds.getSize(new THREE.Vector3()).y;model.scale.setScalar(1.82/height);model.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(model);const center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);scene.add(model);if(gltf.animations.length){mixer=new THREE.AnimationMixer(model);mixer.clipAction(gltf.animations[0]).play()}document.getElementById('state').textContent='Модель загружена · анимаций: '+gltf.animations.length+' · отдельный кандидат, не заменяет бойцов';},undefined,e=>{document.getElementById('state').textContent='Ошибка загрузки: '+e.message});
+renderer.domElement.addEventListener('pointerdown',e=>{previousX=e.clientX;renderer.domElement.setPointerCapture(e.pointerId)});renderer.domElement.addEventListener('pointermove',e=>{if(previousX!==null&&model){model.rotation.y+=(e.clientX-previousX)*.01;previousX=e.clientX}});renderer.domElement.addEventListener('pointerup',()=>previousX=null);renderer.domElement.addEventListener('pointercancel',()=>previousX=null);
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+function draw(){requestAnimationFrame(draw);mixer?.update(Math.min(clock.getDelta(),.05));renderer.render(scene,camera)}draw();
