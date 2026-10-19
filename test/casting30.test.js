@@ -128,26 +128,22 @@ test('all ten masks are attached to actual skin-weighted human meshes, not hover
   }
 });
 
-test('current olive gallery protects dark balaclavas and keeps garments visible',()=>{
+test('terrorist gallery preserves fabric textures and excludes masks from recoloring',()=>{
   const js=file('src/casting.js');
-  assert.match(js,/full-outfit-olive-v7/);
-  assert.match(js,/entry\.number===2 \|\| entry\.number===5/);
-  assert.match(js,/balaclava\|_head/);
-  assert.match(js,/material\.map=null/);
-  assert.match(js,/0xc1ce95/);
-  assert.match(js,/0xd8d0a9/);
+  assert.match(js,/recolorFabric\(material\.map/);
+  assert.match(js,/canvas\.getContext/);
+  assert.match(js,/ctx\.putImageData/);
+  assert.match(js,/balaclava\|head\|face/);
+  assert.match(js,/material\.map=tinted/);
 });
-test('light olive T-02/T-05 outfits recolor jacket trousers and boots, never masks',()=>{
+test('gallery and match preserve masked heads and distinct clothing palettes',()=>{
   const gallery=file('src/casting.js');
   const inMatch=file('src/rocketboxOperator.js');
-  for(const code of [gallery,inMatch]){
-    assert.match(code,/balaclava\|_head/);
-    assert.match(code,/pant\|trouser/);
-    assert.match(code,/boot\|shoe/);
-    assert.match(code,/0xc1ce95/);
-    assert.match(code,/0xd8d0a9/);
-    assert.match(code,/material\.map=null|c\.map=null/);
-  }
-  assert.match(gallery,/full-outfit-olive-v7/);
-  assert.match(file('src/main.js'),/full-outfit-olive-v7/);
+  assert.match(gallery,/balaclava\|head\|face/);
+  assert.match(gallery,/pant\|trouser/);
+  assert.match(gallery,/boot\|shoe/);
+  assert.match(gallery,/recolorFabric/);
+  assert.match(inMatch,/balaclava\|_head/);
+  assert.match(inMatch,/pant\|trouser/);
+  assert.match(inMatch,/boot\|shoe/);
 });
