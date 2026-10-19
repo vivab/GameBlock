@@ -71,12 +71,63 @@ function aimJoint(joint,hand,target,strength=.65){
  joint.quaternion.premultiply(tmpLocalDelta).normalize();
  joint.updateMatrixWorld(true);
 }
-function placeHand(limb,target){
+function palmAnchor(limb){
+ if(!limb.hand)return null;
+ const hand=limb.hand;
+ hand.updateWorldMatrix(true,true);
+ const knuckles=[];
+ hand.traverse(o=>{
+   if(o.isBone&&/finger[123]$/i.test(o.name.replace(/[^a-z0-9]/gi,''))){
+     const p=new THREE.Vector3();o.getWorldPosition(p);
+     knuckles.push(hand.worldToLocal(p));
+   }
+ });
+ const anchor=new THREE.Object3D();
+ anchor.name='Palm grip contact';
+ if(knuckles.length){
+   for(const p of knuckles)anchor.position.add(p);
+   anchor.position.divideScalar(knuckles.length).multiplyScalar(.63);
+ }else{
+   anchor.position.set(0,.045,0);
+ }
+ hand.add(anchor);
+ return anchor;
+}
+function aimPalmDown(limb,anchor,amount=.48){
+ if(!limb.hand||!anchor)return;
+ const hand=limb.hand;
+ hand.updateWorldMatrix(true,true);
+ const wrist=new THREE.Vector3(),palm=new THREE.Vector3();
+ hand.getWorldPosition(wrist);anchor.getWorldPosition(palm);
+ const present=palm.sub(wrist);
+ if(present.lengthSq()<.00001)return;
+ // Fingers curl DOWN around the pistol grip / rifle handguard.
+ const desired=new THREE.Vector3(0,-1,.18).normalize();
+ const correction=new THREE.Quaternion().setFromUnitVectors(present.normalize(),desired);
+ correction.slerp(new THREE.Quaternion(),1-amount);
+ const parentQ=new THREE.Quaternion();hand.parent.getWorldQuaternion(parentQ);
+ const localQ=parentQ.clone().invert().multiply(correction).multiply(parentQ);
+ hand.quaternion.premultiply(localQ).normalize();
+ hand.updateMatrixWorld(true);
+}
+function curlFingers(limb){
+ if(!limb.hand)return;
+ limb.hand.traverse(b=>{
+   if(!b.isBone)return;
+   const match=b.name.replace(/[^a-z0-9]/gi,'').match(/finger([0-4])([12])?$/i);
+   if(!match)return;
+   const digit=Number(match[1]),joint=match[2]?Number(match[2]):0;
+   if(digit===0){b.rotation.x+=joint===0?.18:.18;return}
+   b.rotation.x+=joint===0?.32:joint===1?.50:.33;
+ });
+ limb.hand.updateMatrixWorld(true);
+}
+function placeHand(limb,target,anchor=null){
  if(!limb.upper||!limb.lower||!limb.hand)return false;
- // Iterative inverse kinematics: wrist to desired grip; all angles calculated in bone space.
- for(let i=0;i<38;i++){
-   aimJoint(limb.upper,limb.hand,target,.55);
-   aimJoint(limb.lower,limb.hand,target,.85);
+ const effector=anchor||limb.hand;
+ for(let i=0;i<32;i++){
+   aimJoint(limb.upper,effector,target,.58);
+   aimJoint(limb.lower,effector,target,.82);
  }
  return true;
 }
@@ -153,11 +204,11 @@ function applyCombatStance(person,label){
  person.updateMatrixWorld(true);
  const feet=[left,right].map(l=>{const p=new THREE.Vector3();l.foot.getWorldPosition(p);return p});
  // Lower the centre of gravity, keeping both feet at their original ground level.
- person.position.y-=.095;
+ person.position.y-=.038;
  person.updateMatrixWorld(true);
  // Subtle asymmetric stance: feet wider, one foot slightly ahead.
- feet[0].x-=.065;feet[0].z+=.075;
- feet[1].x+=.065;feet[1].z-=.06;
+ feet[0].x-=.035;feet[0].z+=.022;
+ feet[1].x+=.035;feet[1].z-=.022;
  const leftError=bendLeg(left.upper,left.lower,left.foot,feet[0]);
  const rightError=bendLeg(right.upper,right.lower,right.foot,feet[1]);
  let spine=null,spine2=null;
@@ -167,8 +218,8 @@ function applyCombatStance(person,label){
    if(!spine&&/(?:spine1|spine01)$/.test(n))spine=o;
    if(!spine2&&/(?:spine2|spine02)$/.test(n))spine2=o;
  });
- worldLean(spine,.055);
- worldLean(spine2,.045);
+ worldLean(spine,.028);
+ worldLean(spine2,.025);
  person.updateMatrixWorld(true);
  const result={legs:true,leftError,rightError};
  console.info(label+' crouched combat stance',result);
@@ -208,7 +259,7 @@ function mountAK(holder,weaponSource){
  if(axis==='x')gun.rotation.y=-Math.PI/2+.10;
  else if(axis==='y')gun.rotation.x=Math.PI/2;
  else gun.rotation.y=.10;
- gun.position.set(0,1.33,.32);
+ gun.position.set(0,1.32,.235);
  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  // Coordinates refer to the rifle's centered source geometry in metres.
  const grip=(longitudinal,vertical)=>{
@@ -259,31 +310,38 @@ async function agent(url,x,weaponSource,label,timeout){
  if(label==='Террорист')lightenOliveGear(person);
  holder.updateMatrixWorld(true);
  const arms=avatarBones(person);
+ const palmR=palmAnchor(arms.right);
+ const palmL=palmAnchor(arms.left);
  const {gun,right,left,axis}=mountAK(holder,weaponSource);
- // Shoulder -> elbow -> hand: solve the armature in WORLD coordinates.
  gun.updateMatrixWorld(true);
- const gripR=gun.localToWorld(right.clone());
- const gotRight=placeHand(arms.right,gripR);
+ const targetR=gun.localToWorld(right.clone());
+ // Wrist is NOT the grip: fingers / palm must touch the wooden handle.
+ const gotRight=placeHand(arms.right,targetR,palmR);
+ if(gotRight&&palmR){
+   aimPalmDown(arms.right,palmR,.42);
+   placeHand(arms.right,targetR,palmR);
+ }
  person.updateMatrixWorld(true);
- // Move the rifle by the remaining IK error so the pistol grip ACTUALLY
- // touches the right palm, instead of visually floating in front of it.
  if(gotRight){
-   const wristWorld=new THREE.Vector3();
-   arms.right.hand.getWorldPosition(wristWorld);
-   const localWrist=holder.worldToLocal(wristWorld);
-   const localGrip=holder.worldToLocal(gripR.clone());
-   gun.position.add(localWrist.sub(localGrip));
+   const palmWorld=new THREE.Vector3();
+   (palmR||arms.right.hand).getWorldPosition(palmWorld);
+   const diff=palmWorld.sub(targetR);
+   const localDiff=holder.worldToLocal(diff.clone().add(holder.getWorldPosition(new THREE.Vector3())));
+   gun.position.add(localDiff);
  }
  gun.updateMatrixWorld(true);
- const gripL=gun.localToWorld(left.clone());
- const gotLeft=placeHand(arms.left,gripL);
+ const targetL=gun.localToWorld(left.clone());
+ const gotLeft=placeHand(arms.left,targetL,palmL);
+ if(gotLeft&&palmL){
+   aimPalmDown(arms.left,palmL,.34);
+   placeHand(arms.left,targetL,palmL);
+ }
  person.updateMatrixWorld(true);
- const measuredR=gun.localToWorld(right.clone());
- const measuredL=gun.localToWorld(left.clone());
- const rightError=gripError(arms.right.hand,measuredR);
- const leftError=gripError(arms.left.hand,measuredL);
- // World transform stays fixed after attachment; hand now owns the weapon.
+ // Tighten the free-hand contact after accounting for palm offset.
+ const rightError=gripError(palmR||arms.right.hand,gun.localToWorld(right.clone()));
+ const leftError=gripError(palmL||arms.left.hand,gun.localToWorld(left.clone()));
  if(gotRight)arms.right.hand.attach(gun);
+ curlFingers(arms.right);curlFingers(arms.left);
  let boneCount=0;person.traverse(o=>{if(o.isBone)boneCount++});
  const result={boneCount,gotRight,gotLeft,rightError,leftError,stance,weaponAxis:axis,
   rightBone:arms.right.hand?.name,leftBone:arms.left.hand?.name};
