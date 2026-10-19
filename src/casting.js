@@ -104,7 +104,7 @@ function placeOperator(entry,gltf){
       // separate nearly-black cloth materials. Brighten the actual
       // clothing material in the renderer, never the fitted balaclava,
       // head, eyes, hair or skin. This is independent of texture caching.
-      if(forT){
+      if(forT && (entry.number===2 || entry.number===5)){
         const name=(material.name||'').toLowerCase();
         const protectedPart=/(balaclava|head|face|skin|hair|eye|iris|mouth|teeth|mask|helmet)/.test(name);
         const pants=/(leg|pant|trouser|jean|bottom)/.test(name);
@@ -117,7 +117,7 @@ function placeOperator(entry,gltf){
           [0xadb8ad,0x818e87,0x5d6863], [0xabb68d,0x7e906b,0x606b52],
           [0xc6c0af,0x969183,0x706c60], [0xb4bba0,0x858d79,0x676b59]
         ];
-        if(clothing&&!protectedPart){
+        if(clothing && !protectedPart){
           const [jacket,trousers,accessories]=palettes[(entry.number-1)%palettes.length];
           material.color?.setHex(gear?accessories:pants?trousers:jacket);
           // Dark photographic maps multiply the fabric back to black.
@@ -128,6 +128,13 @@ function placeOperator(entry,gltf){
           material.roughness=.94;
           material.metalness=0;
           material.needsUpdate=true;
+        }
+      }
+      if(forT && entry.number!==2 && entry.number!==5){
+        const n=(material.name||'').toLowerCase();
+        if(!/(balaclava|head|face|skin|hair|eye|mouth|mask)/.test(n) && /(body|jacket|shirt|cloth|uniform|coat|vest|torso|arm|sleeve|pant|trouser|leg|jean|boot|shoe|foot|glove|belt|strap|pouch)/.test(n)){
+          const palette=[0xb6bf91,0xc0b591,0xcdb69a,0xc7c4a2,0xadb8ad,0xabb68d,0xc6c0af,0xb4bba0];
+          material.map=null;material.color?.setHex(palette[(entry.number-1)%palette.length]);material.emissive?.setHex(0x202419);material.emissiveIntensity=.35;material.needsUpdate=true;
         }
       }
       if(material.map)textured++;
