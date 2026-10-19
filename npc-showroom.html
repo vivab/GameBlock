@@ -241,6 +241,62 @@ function lightenOliveGear(person){
    o.material=Array.isArray(o.material)?edited:edited[0];
  });
 }
+// A subtle Counter-Strike-inspired ready stance. Rotate in WORLD space so it
+// works with both the Rocketbox Bip01 armature and other GLB bone orientations.
+function worldBend(joint,axis,angle){
+ if(!joint||!joint.parent)return false;
+ joint.parent.updateWorldMatrix(true,false);
+ const parentWorld=new THREE.Quaternion();
+ joint.parent.getWorldQuaternion(parentWorld);
+ const worldTurn=new THREE.Quaternion().setFromAxisAngle(axis,angle);
+ const localTurn=parentWorld.clone().invert().multiply(worldTurn).multiply(parentWorld);
+ joint.quaternion.premultiply(localTurn).normalize();
+ joint.updateMatrixWorld(true);
+ return true;
+}
+function locateStanceBone(root,side,type){
+ const bones=[];root.traverse(o=>{if(o.isBone)bones.push(o)});
+ const isLeft=side==='left';
+ return bones.find(b=>{
+   const k=b.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+   const sided=isLeft?/(?:left|bip0*1l)/.test(k):/(?:right|bip0*1r)/.test(k);
+   if(!sided)return false;
+   if(type==='thigh')return /(?:thigh|upleg|upperleg)/.test(k);
+   if(type==='calf')return /(?:calf|shin|lowerleg|leg)/.test(k)&&!/(?:thigh|upleg|upperleg|toe|foot)/.test(k);
+   return /(?:foot|ankle)/.test(k)&&!/toe/.test(k);
+ })||null;
+}
+function combatStance(person){
+ const xAxis=new THREE.Vector3(1,0,0),zAxis=new THREE.Vector3(0,0,1);
+ let legPairs=0;
+ for(const [side,forward] of [['left',.22],['right',.14]]){
+   const thigh=locateStanceBone(person,side,'thigh');
+   const calf=locateStanceBone(person,side,'calf');
+   const foot=locateStanceBone(person,side,'foot');
+   if(!thigh||!calf)continue;
+   // Thigh moves the knee forward; calf folds back under the body.
+   worldBend(thigh,xAxis,-forward);
+   worldBend(thigh,zAxis,side==='left' ? -.055 : .055);
+   worldBend(calf,xAxis,forward+.17);
+   // Leave toes level instead of pointing at the floor.
+   if(foot)worldBend(foot,xAxis,-.17);
+   legPairs++;
+ }
+ // Lean chest forward very slightly without changing the shape of the head.
+ let chest=null;
+ person.traverse(o=>{if(!o.isBone)return;
+   const k=o.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+   if(/(?:spine2|chest|upperchest)/.test(k))chest=o;
+ });
+ if(chest)worldBend(chest,xAxis,.065);
+ person.updateMatrixWorld(true);
+ // Preserve visible foot contact after bending (platform top = 0.14 m).
+ const bounds=new THREE.Box3().setFromObject(person);
+ if(Number.isFinite(bounds.min.y))person.position.y+=.14-bounds.min.y;
+ person.updateMatrixWorld(true);
+ return {legsPosed:legPairs,torsoPosed:!!chest};
+}
+
 function gripError(hand,target){
  if(!hand)return null;const w=new THREE.Vector3();
  hand.getWorldPosition(w);return +w.distanceTo(target).toFixed(3);
@@ -257,6 +313,8 @@ async function agent(url,x,weaponSource,label,timeout){
  const stance=applyCombatStance(person,label);
  person.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
  if(label==='Террорист')lightenOliveGear(person);
+ holder.updateMatrixWorld(true);
+ const stance=combatStance(person);
  holder.updateMatrixWorld(true);
  const arms=avatarBones(person);
  const {gun,right,left,axis}=mountAK(holder,weaponSource);
