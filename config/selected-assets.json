@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "description": "Selected existing GameBlock assets; paths relative to public/",
+  "teams": {
+    "ct": {
+      "model": "models/swat_ct.glb",
+      "masked": "verify visually and in GLB",
+      "role": "defender"
+    },
+    "t": {
+      "model": "casting/masked/02.glb",
+      "masked": true,
+      "role": "attacker",
+      "palette": "light olive",
+      "skeletonBones": 80
+    }
+  },
+  "weapons": {
+    "ak47": {
+      "model": "models/ak47.glb",
+      "primaryGripBone": "RightHand",
+      "supportGripBone": "LeftHand",
+      "requiresCalibration": true
+    },
+    "g18": {
+      "model": "models/g18.glb"
+    },
+    "knifeCT": {
+      "model": "models/knife_ct.glb"
+    },
+    "knifeT": {
+      "model": "models/knife_t.glb"
+    }
+  },
+  "nextSteps": [
+    "Inspect both character armatures and confirm masks",
+    "Verify asset licenses for commercial distribution",
+    "Calibrate right-hand AK socket and left-hand IK target",
+    "Create and test idle, run, shoot, reload animations"
+  ]
+}
