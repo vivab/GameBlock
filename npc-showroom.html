@@ -80,6 +80,101 @@ function placeHand(limb,target){
  }
  return true;
 }
+
+function legBone(root,side,part){
+ const prefix=side==='l'?'left':'right';
+ const short=side;
+ let found=null;
+ root.traverse(o=>{
+   if(found||!o.isBone)return;
+   const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+   const sided=n.includes(prefix)||new RegExp('(?:bip[0-9]*|mixamorig)'+short+'(?=thigh|calf|foot|upleg|leg)').test(n);
+   if(!sided)return;
+   const ok=part==='upper'?/(thigh|upleg|upperleg)/.test(n)
+     :part==='lower'?/(calf|shin|lowerleg)/.test(n)||(/(?:leftleg|rightleg)/.test(n)&&!/upleg|upperleg/.test(n))
+     :/(foot|ankle)/.test(n)&&!/toe/.test(n);
+   if(ok)found=o;
+ });
+ return found;
+}
+const stanceV=new THREE.Vector3();
+function worldLean(bone,angle){
+ if(!bone)return;
+ bone.parent.updateWorldMatrix(true,false);
+ const parentQ=new THREE.Quaternion();
+ bone.parent.getWorldQuaternion(parentQ);
+ const twist=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),angle);
+ bone.quaternion.premultiply(parentQ.clone().invert().multiply(twist).multiply(parentQ)).normalize();
+ bone.updateMatrixWorld(true);
+}
+function setFootWorldRotation(foot,worldQ){
+ foot.parent.updateWorldMatrix(true,false);
+ const parentQ=new THREE.Quaternion();
+ foot.parent.getWorldQuaternion(parentQ);
+ foot.quaternion.copy(parentQ.invert().multiply(worldQ)).normalize();
+ foot.updateMatrixWorld(true);
+}
+function bendLeg(upper,lower,foot,ankleTarget){
+ if(!upper||!lower||!foot)return null;
+ const hip=new THREE.Vector3(),knee=new THREE.Vector3(),ankle=new THREE.Vector3();
+ upper.getWorldPosition(hip);lower.getWorldPosition(knee);foot.getWorldPosition(ankle);
+ const a=hip.distanceTo(knee),b=knee.distanceTo(ankle);
+ if(a<.12||b<.12||a>.9||b>.9)return null;
+ const axis=new THREE.Vector3().subVectors(ankleTarget,hip);
+ const c=Math.min(Math.max(axis.length(),.01),a+b-.002);
+ axis.normalize();
+ // Triangle solution with a knee pole facing slightly forwards (+Z).
+ const along=(a*a-b*b+c*c)/(2*c);
+ const height=Math.sqrt(Math.max(.0001,a*a-along*along));
+ const pole=new THREE.Vector3(0,0,1).addScaledVector(axis,-axis.z).normalize();
+ if(pole.lengthSq()<.01)pole.set(1,0,0);
+ const kneeTarget=hip.clone().addScaledVector(axis,along).addScaledVector(pole,height);
+ const soleQ=new THREE.Quaternion();foot.getWorldQuaternion(soleQ);
+ // Pose thigh first, then shin, keeping boots flat.
+ aimJoint(upper,lower,kneeTarget,1);
+ aimJoint(lower,foot,ankleTarget,1);
+ setFootWorldRotation(foot,soleQ);
+ foot.getWorldPosition(ankle);
+ return +ankle.distanceTo(ankleTarget).toFixed(3);
+}
+function applyCombatStance(person,label){
+ const left={upper:legBone(person,'l','upper'),lower:legBone(person,'l','lower'),foot:legBone(person,'l','foot')};
+ const right={upper:legBone(person,'r','upper'),lower:legBone(person,'r','lower'),foot:legBone(person,'r','foot')};
+ person.updateMatrixWorld(true);
+ const complete=[left,right].every(l=>l.upper&&l.lower&&l.foot);
+ if(!complete){
+   console.warn(label+' leg bones unavailable — keeping default stance');
+   person.position.y+=.145;
+   person.updateMatrixWorld(true);
+   return {legs:false};
+ }
+ // Raise the skinned figure onto the podium before calculating ground contact.
+ person.position.y+=.145;
+ person.updateMatrixWorld(true);
+ const feet=[left,right].map(l=>{const p=new THREE.Vector3();l.foot.getWorldPosition(p);return p});
+ // Lower the centre of gravity, keeping both feet at their original ground level.
+ person.position.y-=.075;
+ person.updateMatrixWorld(true);
+ // Subtle asymmetric stance: feet wider, one foot slightly ahead.
+ feet[0].x-=.045;feet[0].z+=.055;
+ feet[1].x+=.045;feet[1].z-=.045;
+ const leftError=bendLeg(left.upper,left.lower,left.foot,feet[0]);
+ const rightError=bendLeg(right.upper,right.lower,right.foot,feet[1]);
+ let spine=null,spine2=null;
+ person.traverse(o=>{
+   if(!o.isBone)return;
+   const n=o.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+   if(!spine&&/(?:spine1|spine01)$/.test(n))spine=o;
+   if(!spine2&&/(?:spine2|spine02)$/.test(n))spine2=o;
+ });
+ worldLean(spine,.055);
+ worldLean(spine2,.045);
+ person.updateMatrixWorld(true);
+ const result={legs:true,leftError,rightError};
+ console.info(label+' crouched combat stance',result);
+ return result;
+}
+
 function fitCharacter(model,height=1.86){
  model.updateMatrixWorld(true);const box=new THREE.Box3().setFromObject(model);
  const size=box.getSize(new THREE.Vector3());
@@ -159,6 +254,7 @@ async function agent(url,x,weaponSource,label,timeout){
  const gltf=await load(url,label,timeout);
  const holder=new THREE.Group();holder.position.x=x;scene.add(holder);
  const person=gltf.scene;fitCharacter(person,1.84);holder.add(person);
+ const stance=applyCombatStance(person,label);
  person.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
  if(label==='Террорист')lightenOliveGear(person);
  holder.updateMatrixWorld(true);
@@ -189,7 +285,7 @@ async function agent(url,x,weaponSource,label,timeout){
  // World transform stays fixed after attachment; hand now owns the weapon.
  if(gotRight)arms.right.hand.attach(gun);
  let boneCount=0;person.traverse(o=>{if(o.isBone)boneCount++});
- const result={boneCount,gotRight,gotLeft,rightError,leftError,weaponAxis:axis,
+ const result={boneCount,gotRight,gotLeft,rightError,leftError,stance,weaponAxis:axis,
   rightBone:arms.right.hand?.name,leftBone:arms.left.hand?.name};
  console.info(label+' grip calibration',result);
  return result;
