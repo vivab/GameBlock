@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261019-ten-light-outfits-v8';
+const CACHE_VERSION='20261019-textured-olive-v9';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
@@ -66,6 +66,36 @@ function gridPosition(i){
     z:forT?3.7-Math.floor(i/5)*5.40:3.15-Math.floor(i/5)*5.15};
 }
 
+// Re-tint real fabric texture pixels instead of discarding their seams and folds.
+const fabricCache=new WeakMap();
+function recolorFabric(texture,hex){
+  if(!texture?.image)return null;
+  let variants=fabricCache.get(texture);
+  if(!variants){variants=new Map();fabricCache.set(texture,variants)}
+  if(variants.has(hex))return variants.get(hex);
+  try{
+    const source=texture.image;
+    const w=source.width,h=source.height;
+    if(!w||!h)return null;
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(source,0,0,w,h);
+    const img=ctx.getImageData(0,0,w,h),data=img.data;
+    const target=new THREE.Color(hex);
+    const rgb=[target.r,target.g,target.b].map(v=>Math.round(255*THREE.MathUtils.linearToSRGB(v)));
+    for(let i=0;i<data.length;i+=4){
+      const l=(data[i]*.28+data[i+1]*.60+data[i+2]*.12)/255;
+      // Keep visible shading, wrinkles and seams even when the source is dark.
+      const detail=THREE.MathUtils.clamp(.70+(l-.30)*.70,.55,1.16);
+      data[i]=Math.min(255,rgb[0]*detail);
+      data[i+1]=Math.min(255,rgb[1]*detail);
+      data[i+2]=Math.min(255,rgb[2]*detail);
+    }
+    ctx.putImageData(img,0,0);
+    const result=texture.clone();result.image=canvas;result.colorSpace=THREE.SRGBColorSpace;result.needsUpdate=true;
+    variants.set(hex,result);return result;
+  }catch(e){console.warn('Fabric texture tint failed',e);return null}
+}
 function placeOperator(entry,gltf){
   const i=entry.number-1;
   const stand=new THREE.Group();
@@ -122,7 +152,8 @@ function placeOperator(entry,gltf){
           material.color?.setHex(gear?accessories:pants?trousers:jacket);
           // Dark photographic maps multiply the fabric back to black.
           // Keep original masks/skin intact; recolor only named fabric parts.
-          material.map=null;
+          const tinted=recolorFabric(material.map,gear?accessories:pants?trousers:jacket);
+          if(tinted){material.map=tinted;material.color?.setHex(0xffffff)}
           material.emissive?.setHex(gear?0x12120e:0x202419);
           material.emissiveIntensity=.35;
           material.roughness=.94;
@@ -134,7 +165,9 @@ function placeOperator(entry,gltf){
         const n=(material.name||'').toLowerCase();
         if(!/(balaclava|head|face|skin|hair|eye|mouth|mask)/.test(n) && /(body|jacket|shirt|cloth|uniform|coat|vest|torso|arm|sleeve|pant|trouser|leg|jean|boot|shoe|foot|glove|belt|strap|pouch)/.test(n)){
           const palette=[0xb6bf91,0xc0b591,0xcdb69a,0xc7c4a2,0xadb8ad,0xabb68d,0xc6c0af,0xb4bba0];
-          material.map=null;material.color?.setHex(palette[(entry.number-1)%palette.length]);material.emissive?.setHex(0x202419);material.emissiveIntensity=.35;material.needsUpdate=true;
+          const tone=palette[(entry.number-1)%palette.length];
+          const tinted=recolorFabric(material.map,tone);
+          if(tinted){material.map=tinted;material.color?.setHex(0xffffff)}else{material.color?.setHex(tone)}material.emissive?.setHex(0x202419);material.emissiveIntensity=.35;material.needsUpdate=true;
         }
       }
       if(material.map)textured++;
