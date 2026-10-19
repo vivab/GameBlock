@@ -8,5 +8,6 @@ export default defineConfig({
     terrorists:resolve(import.meta.dirname,'terrorists.html'),
     elite:resolve(import.meta.dirname,'terrorists-five.html'),
     showroom:resolve(import.meta.dirname,'showroom.html'),
+    soldier:resolve(import.meta.dirname,'soldier.html'),
   }}},
 });
