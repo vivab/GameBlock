@@ -9,5 +9,6 @@ export default defineConfig({
     elite:resolve(import.meta.dirname,'terrorists-five.html'),
     showroom:resolve(import.meta.dirname,'showroom.html'),
     soldier:resolve(import.meta.dirname,'soldier.html'),
+    npcShowroom:resolve(import.meta.dirname,'npc-showroom.html'),
   }}},
 });
