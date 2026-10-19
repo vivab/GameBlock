@@ -22,11 +22,11 @@ window.__npcStarted=true;const app=document.querySelector('#app'),status=documen
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;app.appendChild(renderer.domElement);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x101b26);scene.fog=new THREE.Fog(0x101b26,13,29);
-const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,70);camera.position.set(0,2.2,8.8);
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.1,70);camera.position.set(0,2.1,7.8);
 const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,1.1,0);controls.enableDamping=true;controls.minDistance=3.2;controls.maxDistance=15;controls.maxPolarAngle=Math.PI*.51;controls.update();
-scene.add(new THREE.HemisphereLight(0xbad9ff,0x3d3329,2.1));
+scene.add(new THREE.HemisphereLight(0xf1f4ff,0x778391,3.3));
 const sun=new THREE.DirectionalLight(0xffe2bb,3);sun.position.set(-3,7,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-8;sun.shadow.camera.right=8;sun.shadow.camera.top=8;sun.shadow.camera.bottom=-8;scene.add(sun);
-const rim=new THREE.DirectionalLight(0x5f9ac5,1.8);rim.position.set(3,4,-5);scene.add(rim);
+const rim=new THREE.DirectionalLight(0xbad9ee,2.5);rim.position.set(3,4,-5);scene.add(rim);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x25313b,roughness:.94}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 const loader=new GLTFLoader();const asset=p=>import.meta.env.BASE_URL+p;
 const load=(url,label,timeout=35000)=>new Promise((resolve,reject)=>{
@@ -74,7 +74,7 @@ function aimJoint(joint,hand,target,strength=.65){
 function placeHand(limb,target){
  if(!limb.upper||!limb.lower||!limb.hand)return false;
  // Iterative inverse kinematics: wrist to desired grip; all angles calculated in bone space.
- for(let i=0;i<22;i++){
+ for(let i=0;i<38;i++){
    aimJoint(limb.upper,limb.hand,target,.55);
    aimJoint(limb.lower,limb.hand,target,.85);
  }
@@ -91,51 +91,108 @@ function fitCharacter(model,height=1.86){
  model.position.x-=center.x;model.position.y-=finalBox.min.y;model.position.z-=center.z;
  model.updateMatrixWorld(true);
 }
+
 function mountAK(holder,weaponSource){
- const mount=new THREE.Group();
- mount.name='AK47 / right hand grip socket';
- holder.add(mount);
- const visual=weaponSource.clone(true);
- const raw=new THREE.Box3().setFromObject(visual);
- const size=raw.getSize(new THREE.Vector3());
- const longest=Math.max(size.x,size.y,size.z);
- if(!Number.isFinite(longest)||longest<.01)throw Error('Некорректный размер AK-47');
- visual.scale.multiplyScalar(1.02/longest);
- visual.updateMatrixWorld(true);
- const center=new THREE.Box3().setFromObject(visual).getCenter(new THREE.Vector3());
- visual.position.sub(center);
- mount.add(visual);
- // AK glTF is longitudinal in local Z: stock backward, muzzle forward.
- mount.position.set(0,1.28,.43);
- mount.rotation.set(-.04,Math.PI+.13,-.07);
- visual.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
- mount.updateMatrixWorld(true);
- return mount;
+ const gun=new THREE.Group();
+ gun.name='AK-47 / mobile combat pose';
+ holder.add(gun);
+ const model=weaponSource.clone(true);
+ model.updateMatrixWorld(true);
+ const rawBox=new THREE.Box3().setFromObject(model);
+ const dims=rawBox.getSize(new THREE.Vector3());
+ const axis=dims.x>=dims.y&&dims.x>=dims.z?'x':dims.y>=dims.z?'y':'z';
+ const len=Math.max(dims.x,dims.y,dims.z);
+ if(!Number.isFinite(len)||len<.005)throw Error('AK-47: неправильный размер');
+ model.scale.multiplyScalar(.94/len);model.updateMatrixWorld(true);
+ const bb=new THREE.Box3().setFromObject(model);
+ const center=bb.getCenter(new THREE.Vector3());
+ model.position.sub(center);
+ gun.add(model);
+ // Rotate the rifle's LONG axis, not the camera-facing short axis.
+ // Most AK GLBs have the barrel along +X; in this file +Z faces the viewer.
+ if(axis==='x')gun.rotation.y=-Math.PI/2+.10;
+ else if(axis==='y')gun.rotation.x=Math.PI/2;
+ else gun.rotation.y=.10;
+ gun.position.set(0,1.33,.32);
+ model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+ // Coordinates refer to the rifle's centered source geometry in metres.
+ const grip=(longitudinal,vertical)=>{
+   if(axis==='x')return new THREE.Vector3(longitudinal,vertical,0);
+   if(axis==='y')return new THREE.Vector3(0,longitudinal,vertical);
+   return new THREE.Vector3(0,vertical,longitudinal);
+ };
+ return {gun,right:grip(-.15,-.105),left:grip(.16,-.025),axis};
+}
+function lightenOliveGear(person){
+ person.traverse(o=>{
+   if(!o.isMesh)return;
+   const materials=Array.isArray(o.material)?o.material:[o.material];
+   const edited=materials.map(mat=>{
+     if(!mat)return mat;
+     const name=(mat.name||'').toLowerCase();
+     if(!/(olive_bandit_body|olive.*body)/.test(name))return mat;
+     const m=mat.clone();
+     // Rocketbox body textures are already olive, but dark vertex colours
+     // multiply them almost to black in the mobile screenshot.
+     m.vertexColors=false;
+     m.color.setHex(0xffffff);
+     m.emissive.setHex(0x536348);
+     m.emissiveIntensity=.20;
+     m.metalness=0;
+     m.roughness=.96;
+     m.needsUpdate=true;
+     return m;
+   });
+   o.material=Array.isArray(o.material)?edited:edited[0];
+ });
+}
+function gripError(hand,target){
+ if(!hand)return null;const w=new THREE.Vector3();
+ hand.getWorldPosition(w);return +w.distanceTo(target).toFixed(3);
 }
 function pedestal(x){
  const base=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.12,.15,48),new THREE.MeshStandardMaterial({color:0x354755,metalness:.55,roughness:.4}));
  base.position.set(x,.065,0);base.receiveShadow=true;scene.add(base);
 }
+
 async function agent(url,x,weaponSource,label,timeout){
  const gltf=await load(url,label,timeout);
  const holder=new THREE.Group();holder.position.x=x;scene.add(holder);
  const person=gltf.scene;fitCharacter(person,1.84);holder.add(person);
  person.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
+ if(label==='Террорист')lightenOliveGear(person);
  holder.updateMatrixWorld(true);
- const limbs=avatarBones(person);
- const gun=mountAK(holder,weaponSource);
- // Grip positions are calibrated in normalized rifle coordinates. Both are in front of the torso.
+ const arms=avatarBones(person);
+ const {gun,right,left,axis}=mountAK(holder,weaponSource);
+ // Shoulder -> elbow -> hand: solve the armature in WORLD coordinates.
  gun.updateMatrixWorld(true);
- const gripRight=gun.localToWorld(new THREE.Vector3(.085,-.10,.155));
- const gripLeft=gun.localToWorld(new THREE.Vector3(-.07,-.035,-.255));
- const rightOK=placeHand(limbs.right,gripRight);
- const leftOK=placeHand(limbs.left,gripLeft);
+ const gripR=gun.localToWorld(right.clone());
+ const gotRight=placeHand(arms.right,gripR);
  person.updateMatrixWorld(true);
- // Preserve world transform and parent the rifle to the right hand for subsequent animations.
- if(rightOK){limbs.right.hand.attach(gun);}
+ // Move the rifle by the remaining IK error so the pistol grip ACTUALLY
+ // touches the right palm, instead of visually floating in front of it.
+ if(gotRight){
+   const wristWorld=new THREE.Vector3();
+   arms.right.hand.getWorldPosition(wristWorld);
+   const localWrist=holder.worldToLocal(wristWorld);
+   const localGrip=holder.worldToLocal(gripR.clone());
+   gun.position.add(localWrist.sub(localGrip));
+ }
+ gun.updateMatrixWorld(true);
+ const gripL=gun.localToWorld(left.clone());
+ const gotLeft=placeHand(arms.left,gripL);
+ person.updateMatrixWorld(true);
+ const measuredR=gun.localToWorld(right.clone());
+ const measuredL=gun.localToWorld(left.clone());
+ const rightError=gripError(arms.right.hand,measuredR);
+ const leftError=gripError(arms.left.hand,measuredL);
+ // World transform stays fixed after attachment; hand now owns the weapon.
+ if(gotRight)arms.right.hand.attach(gun);
  let boneCount=0;person.traverse(o=>{if(o.isBone)boneCount++});
- console.info(label+' pose',{boneCount,rightOK,leftOK,rightHand:limbs.right.hand?.name,leftHand:limbs.left.hand?.name});
- return {boneCount,rightOK,leftOK};
+ const result={boneCount,gotRight,gotLeft,rightError,leftError,weaponAxis:axis,
+  rightBone:arms.right.hand?.name,leftBone:arms.left.hand?.name};
+ console.info(label+' grip calibration',result);
+ return result;
 }
 async function start(){
   pedestal(-1.5);pedestal(1.5);
@@ -151,6 +208,7 @@ async function start(){
   window.__npcDone=true;
   if(!ct&&!t)window.__npcFail('Не удалось загрузить персонажей.');
   else status.textContent='Сцена готова · CT: '+(ct?'✓':'ошибка')+' · T: '+(t?'✓':'ошибка')+' · вращай пальцем';
+  if(new URLSearchParams(location.search).has('debug')&&ct&&t)status.textContent='Хват рук (метры): CT '+ct.rightError+'/'+ct.leftError+' · T '+t.rightError+'/'+t.leftError;
   console.info('NPC rig info',{ct,t});
 }
 start();function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
