@@ -7,7 +7,7 @@ import {T_KEY,T_COUNT,saveTChoice} from './operatorChoices.js';
 // characters (MIT). No ninjas, civilian doctors, procedural cubic armor,
 // repeated V8 meshes, artificial color filters, firearms or combat systems.
 const BASE=import.meta.env.BASE_URL;
-const CACHE_VERSION='20261018-full-outfit-olive-v7';
+const CACHE_VERSION='20261019-ten-light-outfits-v8';
 const forT=document.body.dataset.role==='terrorists';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();
@@ -104,25 +104,28 @@ function placeOperator(entry,gltf){
       // separate nearly-black cloth materials. Brighten the actual
       // clothing material in the renderer, never the fitted balaclava,
       // head, eyes, hair or skin. This is independent of texture caching.
-      if(forT && (entry.number===2 || entry.number===5)){
+      if(forT){
         const name=(material.name||'').toLowerCase();
-        // Clothes use multiple independent materials: jacket, trousers,
-        // boots and accessories. Never dye the head, face or balaclava.
-        const protectedPart=/(balaclava|_head|head$|face|skin|hair|eye|iris|mouth|teeth|mask|helmet)/.test(name);
+        const protectedPart=/(balaclava|head|face|skin|hair|eye|iris|mouth|teeth|mask|helmet)/.test(name);
         const pants=/(leg|pant|trouser|jean|bottom)/.test(name);
-        const leather=/(boot|shoe|foot|glove|belt|strap|pouch)/.test(name);
+        const gear=/(boot|shoe|foot|glove|belt|strap|pouch)/.test(name);
         const clothing=/(body|olive_bandit|jacket|shirt|cloth|uniform|coat|vest|torso|arm|sleeve|pant|trouser|leg|jean|boot|shoe|foot|glove|belt|strap|pouch)/.test(name);
-        if(clothing && !protectedPart){
-          const shade=leather?0x726e50:pants
-            ?(entry.number===2?0xaeb78b:0xc3b995)
-            :(entry.number===2?0xc1ce95:0xd8d0a9);
-          // Remove the original dark map only from clothing: it otherwise
-          // multiplies the light olive factor back down to black.
-          material.color?.setHex(shade);
+        const palettes=[
+          [0xb6bf91,0x888f70,0x756d56], [0xd0d8a3,0xaeb78b,0x77745a],
+          [0xc0b591,0x898269,0x6b6451], [0xcdb69a,0xa08b73,0x78695a],
+          [0xd8d0a9,0xc3b995,0x80755c], [0xc7c4a2,0x969578,0x736d57],
+          [0xadb8ad,0x818e87,0x5d6863], [0xabb68d,0x7e906b,0x606b52],
+          [0xc6c0af,0x969183,0x706c60], [0xb4bba0,0x858d79,0x676b59]
+        ];
+        if(clothing&&!protectedPart){
+          const [jacket,trousers,accessories]=palettes[(entry.number-1)%palettes.length];
+          material.color?.setHex(gear?accessories:pants?trousers:jacket);
+          // Dark photographic maps multiply the fabric back to black.
+          // Keep original masks/skin intact; recolor only named fabric parts.
           material.map=null;
-          material.emissive?.setHex(leather?0x17170d:0x272d1c);
-          material.emissiveIntensity=.55;
-          material.roughness=.97;
+          material.emissive?.setHex(gear?0x12120e:0x202419);
+          material.emissiveIntensity=.35;
+          material.roughness=.94;
           material.metalness=0;
           material.needsUpdate=true;
         }
