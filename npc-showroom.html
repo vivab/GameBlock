@@ -122,12 +122,33 @@ function curlFingers(limb){
  });
  limb.hand.updateMatrixWorld(true);
 }
-function placeHand(limb,target,anchor=null){
- if(!limb.upper||!limb.lower||!limb.hand)return false;
- const effector=anchor||limb.hand;
- for(let i=0;i<32;i++){
-   aimJoint(limb.upper,effector,target,.58);
-   aimJoint(limb.lower,effector,target,.82);
+
+function solveTwoBoneArm(limb,effector,target,side){
+ if(!limb.upper||!limb.lower||!limb.hand||!effector)return false;
+ limb.upper.updateWorldMatrix(true,false);
+ limb.lower.updateWorldMatrix(true,false);
+ effector.updateWorldMatrix(true,false);
+ const shoulder=new THREE.Vector3(),elbow=new THREE.Vector3(),palm=new THREE.Vector3();
+ limb.upper.getWorldPosition(shoulder);limb.lower.getWorldPosition(elbow);effector.getWorldPosition(palm);
+ const upperLength=shoulder.distanceTo(elbow),forearmLength=elbow.distanceTo(palm);
+ if(upperLength<.05||forearmLength<.05)return false;
+ const outward=new THREE.Vector3().subVectors(target,shoulder);
+ const reach=outward.length();
+ if(reach<.01)return false;
+ const dir=outward.normalize();
+ const d=Math.min(reach,upperLength+forearmLength-.002);
+ const along=(upperLength*upperLength-forearmLength*forearmLength+d*d)/(2*d);
+ const bend=Math.sqrt(Math.max(.00001,upperLength*upperLength-along*along));
+ // Keep elbow LOWER and OUTSIDE the torso instead of letting CCD pick an
+ // arbitrary plane. This is the same pole-vector idea used in character rigs.
+ const pole=new THREE.Vector3(side==='right'?-1:1,-.75,-.25);
+ pole.addScaledVector(dir,-pole.dot(dir));
+ if(pole.lengthSq()<1e-6)pole.set(side==='right'?-1:1,0,0);
+ pole.normalize();
+ const elbowGoal=shoulder.clone().addScaledVector(dir,along).addScaledVector(pole,bend);
+ for(let i=0;i<4;i++){
+   aimJoint(limb.upper,limb.lower,elbowGoal,1);
+   aimJoint(limb.lower,effector,target,1);
  }
  return true;
 }
@@ -204,11 +225,11 @@ function applyCombatStance(person,label){
  person.updateMatrixWorld(true);
  const feet=[left,right].map(l=>{const p=new THREE.Vector3();l.foot.getWorldPosition(p);return p});
  // Lower the centre of gravity, keeping both feet at their original ground level.
- person.position.y-=.038;
+ person.position.y-=.025;
  person.updateMatrixWorld(true);
  // Subtle asymmetric stance: feet wider, one foot slightly ahead.
- feet[0].x-=.035;feet[0].z+=.022;
- feet[1].x+=.035;feet[1].z-=.022;
+ feet[0].x-=.025;feet[0].z+=.022;
+ feet[1].x+=.025;feet[1].z-=.018;
  const leftError=bendLeg(left.upper,left.lower,left.foot,feet[0]);
  const rightError=bendLeg(right.upper,right.lower,right.foot,feet[1]);
  let spine=null,spine2=null;
@@ -259,7 +280,7 @@ function mountAK(holder,weaponSource){
  if(axis==='x')gun.rotation.y=-Math.PI/2+.10;
  else if(axis==='y')gun.rotation.x=Math.PI/2;
  else gun.rotation.y=.10;
- gun.position.set(0,1.32,.235);
+ gun.position.set(0,1.31,.19);
  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  // Coordinates refer to the rifle's centered source geometry in metres.
  const grip=(longitudinal,vertical)=>{
@@ -267,7 +288,7 @@ function mountAK(holder,weaponSource){
    if(axis==='y')return new THREE.Vector3(0,longitudinal,vertical);
    return new THREE.Vector3(0,vertical,longitudinal);
  };
- return {gun,right:grip(-.15,-.105),left:grip(.16,-.025),axis};
+ return {gun,right:grip(-.11,-.075),left:grip(.10,-.005),axis};
 }
 function lightenOliveGear(person){
  person.traverse(o=>{
@@ -310,42 +331,43 @@ async function agent(url,x,weaponSource,label,timeout){
  if(label==='Террорист')lightenOliveGear(person);
  holder.updateMatrixWorld(true);
  const arms=avatarBones(person);
- const palmR=palmAnchor(arms.right);
- const palmL=palmAnchor(arms.left);
+ const palmR=palmAnchor(arms.right),palmL=palmAnchor(arms.left);
  const {gun,right,left,axis}=mountAK(holder,weaponSource);
  gun.updateMatrixWorld(true);
- const targetR=gun.localToWorld(right.clone());
- // Wrist is NOT the grip: fingers / palm must touch the wooden handle.
- const gotRight=placeHand(arms.right,targetR,palmR);
+ // First position the hands on the real pistol grip and fore-end.
+ let targetR=gun.localToWorld(right.clone());
+ const gotRight=solveTwoBoneArm(arms.right,palmR||arms.right.hand,targetR,'right');
  if(gotRight&&palmR){
-   aimPalmDown(arms.right,palmR,.42);
-   placeHand(arms.right,targetR,palmR);
+   aimPalmDown(arms.right,palmR,.30);
+   solveTwoBoneArm(arms.right,palmR,targetR,'right');
  }
  person.updateMatrixWorld(true);
+ // Snap the rifle grip to the CENTRE OF THE PALM, not to the wrist joint.
  if(gotRight){
    const palmWorld=new THREE.Vector3();
    (palmR||arms.right.hand).getWorldPosition(palmWorld);
    const diff=palmWorld.sub(targetR);
-   const localDiff=holder.worldToLocal(diff.clone().add(holder.getWorldPosition(new THREE.Vector3())));
-   gun.position.add(localDiff);
+   const localDelta=holder.worldToLocal(diff.clone().add(holder.getWorldPosition(new THREE.Vector3())));
+   gun.position.add(localDelta);
  }
  gun.updateMatrixWorld(true);
  const targetL=gun.localToWorld(left.clone());
- const gotLeft=placeHand(arms.left,targetL,palmL);
+ const gotLeft=solveTwoBoneArm(arms.left,palmL||arms.left.hand,targetL,'left');
  if(gotLeft&&palmL){
-   aimPalmDown(arms.left,palmL,.34);
-   placeHand(arms.left,targetL,palmL);
+   aimPalmDown(arms.left,palmL,.24);
+   solveTwoBoneArm(arms.left,palmL,targetL,'left');
  }
  person.updateMatrixWorld(true);
- // Tighten the free-hand contact after accounting for palm offset.
  const rightError=gripError(palmR||arms.right.hand,gun.localToWorld(right.clone()));
  const leftError=gripError(palmL||arms.left.hand,gun.localToWorld(left.clone()));
+ // The weapon becomes a child of the firing hand; this makes future
+ // animation of the right hand and automatic rifle movement possible.
  if(gotRight)arms.right.hand.attach(gun);
  curlFingers(arms.right);curlFingers(arms.left);
  let boneCount=0;person.traverse(o=>{if(o.isBone)boneCount++});
  const result={boneCount,gotRight,gotLeft,rightError,leftError,stance,weaponAxis:axis,
   rightBone:arms.right.hand?.name,leftBone:arms.left.hand?.name};
- console.info(label+' grip calibration',result);
+ console.info(label+' rifle-ready pose',result);
  return result;
 }
 async function start(){
@@ -357,8 +379,8 @@ async function start(){
   status.textContent='Террорист: загрузка…';
   const t=await safe('Террорист',()=>agent(asset('casting/masked/02.glb'),1.5,gun,'Террорист',35000));
   status.textContent='Спецназ: загрузка…';
-  let ct=await safe('Спецназ',()=>agent(asset('models/swat_ct.glb'),-1.5,gun,'Спецназ',30000));
-  if(!ct){status.textContent='Загружаю облегчённую модель спецназа…';ct=await safe('Резервный CT',()=>agent(asset('casting/realistic/08.glb'),-1.5,gun,'Резервный CT',25000))}
+  // Chosen CT: rigged Police Male 02; no gas-mask placeholder.
+  const ct=await safe('Спецназ',()=>agent(asset('casting/realistic/08.glb'),-1.5,gun,'Спецназ',30000));
   window.__npcDone=true;
   if(!ct&&!t)window.__npcFail('Не удалось загрузить персонажей.');
   else status.textContent='Сцена готова · CT: '+(ct?'✓':'ошибка')+' · T: '+(t?'✓':'ошибка')+' · вращай пальцем';
