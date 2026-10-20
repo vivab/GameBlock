@@ -3,9 +3,11 @@
   "description": "Selected existing GameBlock assets; paths relative to public/",
   "teams": {
     "ct": {
-      "model": "models/swat_ct.glb",
-      "masked": "verify visually and in GLB",
-      "role": "defender"
+      "model": "casting/realistic/08.glb",
+      "masked": "verify visual mask coverage",
+      "role": "defender",
+      "source": "Microsoft Rocketbox / Police_Male_02",
+      "skeletonBones": 80
     },
     "t": {
       "model": "casting/masked/02.glb",
@@ -18,8 +20,8 @@
   "weapons": {
     "ak47": {
       "model": "models/ak47.glb",
-      "primaryGripBone": "RightHand",
-      "supportGripBone": "LeftHand",
+      "primaryGripBone": "Bip01 R Hand",
+      "supportGripBone": "Bip01 L Hand",
       "requiresCalibration": true
     },
     "g18": {
@@ -33,9 +35,9 @@
     }
   },
   "nextSteps": [
-    "Inspect both character armatures and confirm masks",
-    "Verify asset licenses for commercial distribution",
-    "Calibrate right-hand AK socket and left-hand IK target",
-    "Create and test idle, run, shoot, reload animations"
+    "Visually verify both grips and knee pose on mobile",
+    "Confirm both masks and asset licensing for monetization",
+    "Calibrate magazine and reload animations",
+    "Implement idle, run, aim and shoot animations"
   ]
 }
