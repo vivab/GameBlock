@@ -259,9 +259,65 @@ function fitCharacter(model,height=1.86){
  model.updateMatrixWorld(true);
 }
 
+
+function findPoseBone(root,patterns){
+ let found=null;
+ root.traverse(o=>{
+   if(found||!o.isBone)return;
+   const name=o.name.toLowerCase().replace(/[^a-z0-9]/g,'');
+   if(patterns.some(p=>p.test(name)))found=o;
+ });
+ return found;
+}
+function rotateBoneWorld(bone,axis,angle){
+ if(!bone||!bone.parent)return;
+ bone.parent.updateWorldMatrix(true,false);
+ const parentQ=new THREE.Quaternion();
+ bone.parent.getWorldQuaternion(parentQ);
+ const turn=new THREE.Quaternion().setFromAxisAngle(axis,angle);
+ bone.quaternion.premultiply(parentQ.clone().invert().multiply(turn).multiply(parentQ)).normalize();
+ bone.updateMatrixWorld(true);
+}
+function poseUpperBodyForAim(person){
+ const spine1=findPoseBone(person,[/(?:spine1|spine01)$/]);
+ const spine2=findPoseBone(person,[/(?:spine2|spine02|chest|upperchest)$/]);
+ const neck=findPoseBone(person,[/(?:neck|bip01neck)$/]);
+ const head=findPoseBone(person,[/(?:head|bip01head)$/]);
+ const rightClav=findPoseBone(person,[/(?:rclavicle|rightclavicle|bip01rclavicle)$/]);
+ const leftClav=findPoseBone(person,[/(?:lclavicle|leftclavicle|bip01lclavicle)$/]);
+ const xAxis=new THREE.Vector3(1,0,0),yAxis=new THREE.Vector3(0,1,0),zAxis=new THREE.Vector3(0,0,1);
+ // Weight onto front foot without folding the character over.
+ rotateBoneWorld(spine1,xAxis,.045);
+ rotateBoneWorld(spine2,xAxis,.055);
+ rotateBoneWorld(rightClav,xAxis,.04);
+ rotateBoneWorld(rightClav,zAxis,-.055);
+ rotateBoneWorld(leftClav,xAxis,.055);
+ rotateBoneWorld(leftClav,zAxis,.035);
+ // Tiny head tilt toward the sight line; keep the face looking along the barrel.
+ rotateBoneWorld(neck,xAxis,-.025);
+ rotateBoneWorld(head,yAxis,-.025);
+ rotateBoneWorld(head,xAxis,.02);
+ person.updateMatrixWorld(true);
+}
+function shoulderStockTarget(person){
+ const arm=findPoseBone(person,[/(?:rupperarm|rightupperarm|bip01rupperarm)$/]);
+ const collar=findPoseBone(person,[/(?:rclavicle|rightclavicle|bip01rclavicle)$/]);
+ if(!arm&&!collar)throw Error('Невозможно найти правое плечо агента');
+ const p=new THREE.Vector3();
+ (arm||collar).getWorldPosition(p);
+ // The stock butt meets the RIGHT FRONT of the shoulder, not the torso centre.
+ return p.add(new THREE.Vector3(.045,-.045,.06));
+}
+function worldOffsetToLocal(parent,worldVector){
+ // Convert DIRECTION with matrix, not position, to avoid introducing a
+ // bogus x offset for the second NPC located at x = 1.5.
+ parent.updateWorldMatrix(true,false);
+ return worldVector.clone().transformDirection(new THREE.Matrix4().copy(parent.matrixWorld).invert()).multiplyScalar(worldVector.length());
+}
+
 function mountAK(holder,weaponSource){
  const gun=new THREE.Group();
- gun.name='AK-47 / mobile combat pose';
+ gun.name='AK-47 / shoulder-aimed combat pose';
  holder.add(gun);
  const model=weaponSource.clone(true);
  model.updateMatrixWorld(true);
@@ -277,10 +333,10 @@ function mountAK(holder,weaponSource){
  gun.add(model);
  // Rotate the rifle's LONG axis, not the camera-facing short axis.
  // Most AK GLBs have the barrel along +X; in this file +Z faces the viewer.
- if(axis==='x')gun.rotation.y=-Math.PI/2+.10;
+ if(axis==='x')gun.rotation.y=-Math.PI/2+.035;
  else if(axis==='y')gun.rotation.x=Math.PI/2;
- else gun.rotation.y=.10;
- gun.position.set(0,1.31,.19);
+ else gun.rotation.y=.035;
+ gun.position.set(0,1.33,.30);
  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  // Coordinates refer to the rifle's centered source geometry in metres.
  const grip=(longitudinal,vertical)=>{
@@ -288,7 +344,7 @@ function mountAK(holder,weaponSource){
    if(axis==='y')return new THREE.Vector3(0,longitudinal,vertical);
    return new THREE.Vector3(0,vertical,longitudinal);
  };
- return {gun,right:grip(-.11,-.075),left:grip(.10,-.005),axis};
+ return {gun,right:grip(-.105,-.07),left:grip(.125,.015),stock:grip(-.435,-.025),sight:grip(.19,-.015),axis};
 }
 function lightenOliveGear(person){
  person.traverse(o=>{
@@ -327,47 +383,49 @@ async function agent(url,x,weaponSource,label,timeout){
  const holder=new THREE.Group();holder.position.x=x;scene.add(holder);
  const person=gltf.scene;fitCharacter(person,1.84);holder.add(person);
  const stance=applyCombatStance(person,label);
+ poseUpperBodyForAim(person);
  person.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=false}});
  if(label==='Террорист')lightenOliveGear(person);
  holder.updateMatrixWorld(true);
  const arms=avatarBones(person);
  const palmR=palmAnchor(arms.right),palmL=palmAnchor(arms.left);
- const {gun,right,left,axis}=mountAK(holder,weaponSource);
- gun.updateMatrixWorld(true);
- // First position the hands on the real pistol grip and fore-end.
- let targetR=gun.localToWorld(right.clone());
- const gotRight=solveTwoBoneArm(arms.right,palmR||arms.right.hand,targetR,'right');
+ const {gun,right,left,stock,sight,axis}=mountAK(holder,weaponSource);
+ gun.updateWorldMatrix(true,true);
+
+ // Locate the rifle from the buttstock, not its visual centre: the back of
+ // the AK must touch the right shoulder before hands are posed.
+ const stockGoal=shoulderStockTarget(person);
+ const stockNow=gun.localToWorld(stock.clone());
+ const shoulderShift=new THREE.Vector3().subVectors(stockGoal,stockNow);
+ gun.position.add(worldOffsetToLocal(holder,shoulderShift));
+ gun.updateWorldMatrix(true,true);
+
+ // The right palm holds the pistol grip; the left palm goes UNDER the handguard.
+ const rightGoal=gun.localToWorld(right.clone());
+ let gotRight=solveTwoBoneArm(arms.right,palmR||arms.right.hand,rightGoal,'right');
  if(gotRight&&palmR){
-   aimPalmDown(arms.right,palmR,.30);
-   solveTwoBoneArm(arms.right,palmR,targetR,'right');
+   aimPalmDown(arms.right,palmR,.22);
+   solveTwoBoneArm(arms.right,palmR,rightGoal,'right');
  }
- person.updateMatrixWorld(true);
- // Snap the rifle grip to the CENTRE OF THE PALM, not to the wrist joint.
- if(gotRight){
-   const palmWorld=new THREE.Vector3();
-   (palmR||arms.right.hand).getWorldPosition(palmWorld);
-   const diff=palmWorld.sub(targetR);
-   const localDelta=holder.worldToLocal(diff.clone().add(holder.getWorldPosition(new THREE.Vector3())));
-   gun.position.add(localDelta);
- }
- gun.updateMatrixWorld(true);
- const targetL=gun.localToWorld(left.clone());
- const gotLeft=solveTwoBoneArm(arms.left,palmL||arms.left.hand,targetL,'left');
+ const leftGoal=gun.localToWorld(left.clone());
+ let gotLeft=solveTwoBoneArm(arms.left,palmL||arms.left.hand,leftGoal,'left');
  if(gotLeft&&palmL){
-   aimPalmDown(arms.left,palmL,.24);
-   solveTwoBoneArm(arms.left,palmL,targetL,'left');
+   aimPalmDown(arms.left,palmL,.15);
+   solveTwoBoneArm(arms.left,palmL,leftGoal,'left');
  }
  person.updateMatrixWorld(true);
  const rightError=gripError(palmR||arms.right.hand,gun.localToWorld(right.clone()));
  const leftError=gripError(palmL||arms.left.hand,gun.localToWorld(left.clone()));
- // The weapon becomes a child of the firing hand; this makes future
- // animation of the right hand and automatic rifle movement possible.
+ const stockError=+gun.localToWorld(stock.clone()).distanceTo(stockGoal).toFixed(3);
+
+ // Child weapon follows the shooting hand in later animations. attach()
+ // preserves its initial world transform, including the stock/shoulder fit.
  if(gotRight)arms.right.hand.attach(gun);
  curlFingers(arms.right);curlFingers(arms.left);
  let boneCount=0;person.traverse(o=>{if(o.isBone)boneCount++});
- const result={boneCount,gotRight,gotLeft,rightError,leftError,stance,weaponAxis:axis,
+ const result={boneCount,gotRight,gotLeft,rightError,leftError,stockError,stance,weaponAxis:axis,
   rightBone:arms.right.hand?.name,leftBone:arms.left.hand?.name};
- console.info(label+' rifle-ready pose',result);
+ console.info(label+' shoulder-aimed rifle stance',result);
  return result;
 }
 async function start(){
@@ -384,7 +442,7 @@ async function start(){
   window.__npcDone=true;
   if(!ct&&!t)window.__npcFail('Не удалось загрузить персонажей.');
   else status.textContent='Сцена готова · CT: '+(ct?'✓':'ошибка')+' · T: '+(t?'✓':'ошибка')+' · вращай пальцем';
-  if(new URLSearchParams(location.search).has('debug')&&ct&&t)status.textContent='Хват рук (метры): CT '+ct.rightError+'/'+ct.leftError+' · T '+t.rightError+'/'+t.leftError;
+  if(new URLSearchParams(location.search).has('debug')&&ct&&t)status.textContent='CT кисти: '+ct.rightError+'/'+ct.leftError+' м · приклад '+ct.stockError+' м | T кисти: '+t.rightError+'/'+t.leftError+' м';
   console.info('NPC rig info',{ct,t});
 }
 start();function frame(){requestAnimationFrame(frame);controls.update();renderer.render(scene,camera)}frame();addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
