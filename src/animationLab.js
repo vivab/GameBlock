@@ -336,8 +336,10 @@ function makeActor(config,ct,t,weapon){
  actor.baseGroupPos=group.position.clone();
  const prop=new THREE.Mesh(new THREE.BoxGeometry(.085,.22,.052),
   new THREE.MeshStandardMaterial({color:0x2e3434,roughness:.6,metalness:.5}));
- prop.position.set(0,.07,0);
- if(rig.leftHand)rig.leftHand.add(prop);
+ prop.position.set(0,.95,.15);
+ // World-sized preview magazine: attaching to a bone with scale .01 would
+ // make it almost invisible on screen.
+ group.add(prop);
  prop.visible=false;
  actor.propMagazine=prop;
  if(config.id==='reload'){
@@ -367,7 +369,7 @@ function flashFire(a,time,burstLength){
   a.gun.flash.visible=true;
   const flare=1+.18*Math.sin(time*110);
   a.gun.flash.scale.setScalar(flare);
-  a.w.position.z=a.baseGunPos.z-.025;
+  a.w.position.add(worldOffset(a.w.parent,new THREE.Vector3(0,.007,-.035)));
   a.w.rotation.x-=.055;
   worldRotation(a.rig.spine2,AXIS_X,-.022);
  }
@@ -405,6 +407,11 @@ function animationUpdate(a,t){
    leftTarget.lerp(magazine,smooth(.15,.32,progress)*(1-smooth(.75,.86,progress)));
    leftTarget.lerp(belt,towardBelt);
    a.propMagazine.visible=progress>.40&&progress<.7;
+   if(a.propMagazine.visible&&a.leftPalm){
+    const wristWorld=a.leftPalm.getWorldPosition(new THREE.Vector3());
+    a.propMagazine.position.copy(a.group.worldToLocal(wristWorld));
+    a.propMagazine.rotation.set(Math.sin(progress*9)*.15,0,.22);
+   }
   }
   a.reloadBar.style.transform='scaleX('+progress.toFixed(3)+')';
   supportHand(a,leftTarget);
