@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {createBlockFighter} from './blockFighter.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
@@ -38,12 +39,12 @@ buildSandstoneArena(scene, ARENA_WALLS, TEAMS);
 const menuScene = new THREE.Scene();
 menuScene.background = new THREE.Color(0x172632);
 const menuCamera = new THREE.PerspectiveCamera(43, innerWidth/innerHeight, .06, 40);
-menuCamera.position.set(0, 1.30, -3.60);
+menuCamera.position.set(0, 1.47, 3.60);
 menuCamera.lookAt(0, .94, 0);
 menuScene.add(new THREE.HemisphereLight(0xfff0d7, 0x404b5d, 2.7));
 const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
 menuLight.position.set(-4, 8, -5);menuScene.add(menuLight);
-let preview=buildRetroOperator('ct');
+let preview=createBlockFighter();
 preview.root.rotation.y=-.32;
 menuScene.add(preview.root);
 const plinth=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.75,.12,36),
@@ -143,20 +144,11 @@ function showGalleryPage(page,pageSize) {
     swatGallery?.setStatus('Ошибка 3D-галереи. Обнови страницу.');
   }
 }
+// Our own lightweight, editable character replaces the old GLB lobby preview.
 function refreshSwatPreview() {
-  if(!assets.chosenCT&&!assets.swat)return;
-  let next;
-  try {
-    next=assets.chosenCT
-      ?createRocketboxOperator(assets.chosenCT,'ct')
-      :createSwatV6Operator(assets.swat,selectedSwatIndex);
-  }catch(error){console.warn('Selected CT operator failed',error);return;}
-  if(!next)return;
-  menuScene.remove(preview.root);
-  preview.release?.();
-  preview=next;
-  preview.root.rotation.y=-.32;
-  menuScene.add(preview.root);
+  // Legacy gallery remains an archive; switching a candidate no longer
+  // replaces the project-wide Block Fighter preview.
+  return preview;
 }
 // V8 Urban is the new detailed face + helmet source GLB for 20 tactical loadouts.
 // Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
@@ -209,23 +201,22 @@ function mountKnife(key) {
 const fighters = new Map();
 function createFighter(actor) {
   if (actor.isPlayer) return;
-  const root = new THREE.Group(); scene.add(root);
-  let animated = null;
-  const preferred=actor.team==='ct'?assets.chosenCT:assets.chosenT;
-  const gltf=preferred||assets[actor.team === 'ct' ? 'swat' : 'terrorist'];
-  if (gltf) {
-    try {
-      animated=preferred?createRocketboxOperator(preferred,actor.team)
-        :actor.team==='ct'
-          ?createSwatV6Operator(gltf,selectedSwatIndex)
-          :createTacticalOperator(gltf,assets.rifle,actor.team);
-    } catch(error) {
-      console.warn('Could not rig '+actor.team+' operator; using fallback',error);
-    }
-  }
-  animated ||= buildRetroOperator(actor.team);
+  // Shared block rig: no GLB loading, no unpredictable third-party T-pose.
+  // CT uses the default midnight-blue palette; T uses the same rig with
+  // restrained olive clothing for team recognition.
+  const palette=actor.team==='ct'?{}:{
+    cloth:'#515b47',clothDark:'#3a4439',seam:'#657455',
+    balaclava:'#242b28',balaclavaDetail:'#343e35',
+    armor:'#2d382f',armorTrim:'#4b584a',
+    pouch:'#444837',pouchFlap:'#555a45'
+  };
+  const animated=createBlockFighter(palette);
+  const root=new THREE.Group();
+  scene.add(root);
   root.add(animated.root);
-  fighters.set(actor.id, {root,animated,lastX:actor.x,lastZ:actor.z});
+  // Existing game coordinates face -Z. Model's authoring forward is +Z.
+  animated.root.rotation.y=Math.PI;
+  fighters.set(actor.id,{root,animated,lastX:actor.x,lastZ:actor.z});
 }
 function matchLoadFraction() {
   const values = Object.values(assetProgress);
@@ -606,10 +597,15 @@ function updateModels(dt) {
     if (!model.root.visible) continue;
     model.root.position.set(actor.x, actor.y, actor.z);
     model.root.rotation.y = actor.yaw;
-    model.root.scale.y = actor.crouch ? 0.73 : 1;
+    model.root.scale.y = model.animated?.mesh?.isSkinnedMesh ? 1 : actor.crouch ? 0.73 : 1;
     const dist = Math.hypot(actor.x - model.lastX, actor.z - model.lastZ);
     model.lastX = actor.x; model.lastZ = actor.z;
-    if(model.animated?.mode==='tactical')
+    if(model.animated?.mesh?.isSkinnedMesh){
+      const moving=dist/Math.max(.02,dt)>.26;
+      const firing=Number.isFinite(actor.lastShotAt)&&match.time-actor.lastShotAt<.18;
+      model.animated.update(match.time,actor.crouch?'crouch':firing?'shoot':moving?'run':'idle');
+    }
+    else if(model.animated?.mode==='tactical')
       animateTacticalOperator(model.animated,actor,
         match.time,dt,dist/Math.max(.01,dt));
     else if(model.animated?.mode==='retro')
@@ -699,6 +695,7 @@ function frame(now) {
   if (lobby) {
     for(const model of fighters.values())model.root.visible=false;
     preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
+    if(preview.mesh?.isSkinnedMesh)preview.update(now*.001,'idle');
     if(preview.mode==='tactical')animateTacticalOperator(preview,
       {lastShotAt:-100},now/1000,dt,0);
     else if(preview.mode==='retro')animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
