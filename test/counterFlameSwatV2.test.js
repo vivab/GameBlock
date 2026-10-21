@@ -28,7 +28,8 @@ test('game loads detailed V8 face GLB and Pages builds original geometry', () =>
   const v7 = readFileSync(new URL('../scripts/build_counter_flame_swat_v7.py', import.meta.url), 'utf8');
   const v8 = readFileSync(new URL('../scripts/build_counter_flame_swat_v8.py', import.meta.url), 'utf8');
   const face = readFileSync(new URL('../scripts/swat_v8_details.py', import.meta.url), 'utf8');
-  assert.match(game, /swat:'counter_flame_swat_v8'/);
+  assert.match(game,/createBlockFighter\(palette\)/);
+  assert.doesNotMatch(game,/swat:'counter_flame_swat_v8'/);
   assert.match(game, /staticBots: true/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v2.py/);
   assert.match(deploy, /python scripts\/build_counter_flame_swat_v5.py/);
