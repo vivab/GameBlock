@@ -141,12 +141,12 @@ function solveTwoBoneArm(limb,effector,target,side){
  const bend=Math.sqrt(Math.max(.00001,upperLength*upperLength-along*along));
  // Keep elbow LOWER and OUTSIDE the torso instead of letting CCD pick an
  // arbitrary plane. This is the same pole-vector idea used in character rigs.
- const pole=new THREE.Vector3(side==='right'?-1:1,-.75,-.25);
+ const pole=new THREE.Vector3(side==='right'?-1:1,-.85,.06);
  pole.addScaledVector(dir,-pole.dot(dir));
  if(pole.lengthSq()<1e-6)pole.set(side==='right'?-1:1,0,0);
  pole.normalize();
  const elbowGoal=shoulder.clone().addScaledVector(dir,along).addScaledVector(pole,bend);
- for(let i=0;i<4;i++){
+ for(let i=0;i<9;i++){
    aimJoint(limb.upper,limb.lower,elbowGoal,1);
    aimJoint(limb.lower,effector,target,1);
  }
@@ -225,11 +225,11 @@ function applyCombatStance(person,label){
  person.updateMatrixWorld(true);
  const feet=[left,right].map(l=>{const p=new THREE.Vector3();l.foot.getWorldPosition(p);return p});
  // Lower the centre of gravity, keeping both feet at their original ground level.
- person.position.y-=.025;
+ person.position.y-=.035;
  person.updateMatrixWorld(true);
  // Subtle asymmetric stance: feet wider, one foot slightly ahead.
- feet[0].x-=.025;feet[0].z+=.022;
- feet[1].x+=.025;feet[1].z-=.018;
+ feet[0].x-=.065;feet[0].z+=.055;
+ feet[1].x+=.065;feet[1].z-=.045;
  const leftError=bendLeg(left.upper,left.lower,left.foot,feet[0]);
  const rightError=bendLeg(right.upper,right.lower,right.foot,feet[1]);
  let spine=null,spine2=null;
@@ -312,7 +312,8 @@ function worldOffsetToLocal(parent,worldVector){
  // Convert DIRECTION with matrix, not position, to avoid introducing a
  // bogus x offset for the second NPC located at x = 1.5.
  parent.updateWorldMatrix(true,false);
- return worldVector.clone().transformDirection(new THREE.Matrix4().copy(parent.matrixWorld).invert()).multiplyScalar(worldVector.length());
+ const inv=new THREE.Matrix4().copy(parent.matrixWorld).invert();
+ return worldVector.clone().applyMatrix3(new THREE.Matrix3().setFromMatrix4(inv));
 }
 
 function mountAK(holder,weaponSource){
@@ -344,7 +345,7 @@ function mountAK(holder,weaponSource){
    if(axis==='y')return new THREE.Vector3(0,longitudinal,vertical);
    return new THREE.Vector3(0,vertical,longitudinal);
  };
- return {gun,right:grip(-.105,-.07),left:grip(.125,.015),stock:grip(-.435,-.025),sight:grip(.19,-.015),axis};
+ return {gun,right:grip(-.105,-.115),left:grip(.185,-.045),stock:grip(-.435,-.025),sight:grip(.19,-.015),axis};
 }
 function lightenOliveGear(person){
  person.traverse(o=>{
@@ -404,13 +405,13 @@ async function agent(url,x,weaponSource,label,timeout){
  const rightGoal=gun.localToWorld(right.clone());
  let gotRight=solveTwoBoneArm(arms.right,palmR||arms.right.hand,rightGoal,'right');
  if(gotRight&&palmR){
-   aimPalmDown(arms.right,palmR,.22);
+   aimPalmDown(arms.right,palmR,.12);
    solveTwoBoneArm(arms.right,palmR,rightGoal,'right');
  }
  const leftGoal=gun.localToWorld(left.clone());
  let gotLeft=solveTwoBoneArm(arms.left,palmL||arms.left.hand,leftGoal,'left');
  if(gotLeft&&palmL){
-   aimPalmDown(arms.left,palmL,.15);
+   aimPalmDown(arms.left,palmL,.10);
    solveTwoBoneArm(arms.left,palmL,leftGoal,'left');
  }
  person.updateMatrixWorld(true);
