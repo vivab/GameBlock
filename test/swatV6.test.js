@@ -73,12 +73,13 @@ test('two V6 variants create different real 3D meshes and empty-handed tactical 
   heavy.release();
 });
 
-test('main game has 20-operator live 3D gallery and selected CT NPC variant',()=>{
+test('legacy 20-operator gallery remains archived while main NPCs use our block rig',()=>{
   const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
   const menu=readFileSync(new URL('../src/menu.js',import.meta.url),'utf8');
   const gallery=readFileSync(new URL('../src/swatV6Gallery.js',import.meta.url),'utf8');
   const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
-  assert.match(main,/createSwatV6Operator\(gltf,selectedSwatIndex\)/);
+  assert.match(main,/createBlockFighter\(palette\)/);
+  assert.match(main,/let preview=createBlockFighter\(\)/);
   assert.match(main,/showGalleryPage\(page,pageSize\)/);
   assert.match(main,/renderer\.render\(galleryScene,galleryCamera\)/);
   assert.match(main,/staticBots: true/);
