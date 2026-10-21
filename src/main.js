@@ -11,7 +11,6 @@ import {installSwatV6Gallery} from './swatV6Gallery.js';
 import { buildSandstoneArena } from './arena.js';
 import { installRetroMenu } from './menu.js';
 import {createRocketboxOperator} from './rocketboxOperator.js';
-import {CHOSEN_CT,readTChoice,terroristAssetPath} from './operatorChoices.js';
 import { createGameAudio } from './audio.js';
 import { setupWeaponCalibration } from './calibration.js';
 import { ACCURACY, weaponSpread, recoverBurst } from './accuracy.js';
@@ -152,28 +151,21 @@ function refreshSwatPreview() {
 }
 // V8 Urban is the new detailed face + helmet source GLB for 20 tactical loadouts.
 // Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
-const assetFiles = {
-  pistol:'g18', rifle:'ak47', knife_ct:'knife_ct', knife_t:'knife_t',
-  swat:'counter_flame_swat_v8', terrorist:'dragomir_t',
-  chosenCT:CHOSEN_CT.path
+// Block Fighter NPCs are generated locally; only weapons are network assets.
+// The old heavy (10–25 MB) imported agents remain archived in the repository,
+// but are not downloaded during normal mobile match startup.
+const assetFiles={
+  pistol:'g18',rifle:'ak47',knife_ct:'knife_ct',knife_t:'knife_t'
 };
-const storedTChoice=readTChoice();
-if(storedTChoice)assetFiles.chosenT=terroristAssetPath(storedTChoice);
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
 const assetProgress = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 0]));
 const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promise(resolve => {
-  const modelPath=filename.endsWith('.glb')?filename:'models/'+filename+'.glb';
-  loader.load(import.meta.env.BASE_URL+modelPath+(key==='chosenT'?'?v=20261018-full-outfit-olive-v7':''), result => {
+  const modelPath='models/'+filename+'.glb';
+  loader.load(import.meta.env.BASE_URL+modelPath, result => {
     try {
-      assets[key] = ['swat','terrorist','chosenCT','chosenT'].includes(key)
-        ? result : result.scene;
+      assets[key]=result.scene;
       if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
-      else if (key === 'chosenCT') {
-        refreshSwatPreview();
-      } else if (key === 'swat') {
-        refreshSwatPreview();
-        if(swatGallery?.isOpen)swatGallery.refresh();
-      } else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
+      else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
       console.warn('Model setup failed:', key, error);
