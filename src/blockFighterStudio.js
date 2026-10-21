@@ -196,7 +196,7 @@ function animate(now){
  lastFrame=now;
  if(fighter){
   fighter.update((now-clockStart)*.001,mode);
-  helper?.update();
+  helper?.updateMatrixWorld(true);
  }
  controls.update();
  renderer.render(scene,camera);
