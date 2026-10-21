@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1521">
+<title>GameBlock | Полигон анимаций</title>
+<style>
+:root{color-scheme:dark;--bg:#09111a;--panel:#152334;--line:#304155;--muted:#aab9ca;--gold:#edba65}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:radial-gradient(ellipse at 50% -20%,#283d52 0%,#0c1520 48%,#080f18 100%);color:#f0f4fa;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);overflow-x:hidden}
+main{position:relative;z-index:2;max-width:1520px;margin:auto;padding:16px clamp(10px,3vw,32px) 44px}
+.top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:10px 0 20px}
+.eyebrow{font-size:11px;color:var(--gold);font-weight:800;letter-spacing:.22em}
+h1{font-size:clamp(23px,4vw,37px);margin:4px 0 7px;letter-spacing:.04em}
+.intro{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+.tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+button{font-family:inherit;cursor:pointer}
+.tool{border:1px solid #53637a;background:#1e3246;color:#fff;border-radius:8px;font-size:13px;padding:11px 14px;font-weight:700}
+.tool:active,.expand:active{transform:scale(.98)}
+.tool.active{background:var(--gold);color:#151a21;border-color:#fbd39a}
+.speed{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px;background:#182636;border:1px solid #354961;border-radius:8px;padding:8px 12px}
+input[type=range]{width:100px;accent-color:#edba65}
+#progress{border:1px solid #43566b;background:#152435;border-radius:9px;color:#dce7f2;padding:11px 15px;font-size:12px;margin-bottom:17px;min-height:40px}
+#progress.ready{border-color:#447461}
+#grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.motion-card{min-width:0;position:relative;border:1px solid #344a60;border-radius:15px;overflow:hidden;background:linear-gradient(155deg,#1d3447 0%,#142232 55%,#101a28 100%);box-shadow:0 15px 35px #0005}
+.card-top{position:relative;z-index:21;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:13px 12px 6px}
+.card-top h2{margin:0;font-size:14px;letter-spacing:.035em}
+.num{color:var(--gold);font-size:11px;font-weight:800;white-space:nowrap}
+.view{height:clamp(230px,27vw,360px);position:relative}
+.view:after{content:"";position:absolute;bottom:10px;left:10%;width:80%;height:1px;background:linear-gradient(90deg,transparent,#7e9dbb66,transparent)}
+.card-bottom{position:relative;z-index:21;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border-top:1px solid #ffffff17;background:#101d2bc7;min-height:73px}
+.note{color:#b6c6d7;font-size:11px;line-height:1.35}
+.expand{flex-shrink:0;border:1px solid #63758a;background:#2c3d50;color:#fff;padding:8px;border-radius:7px;font-size:11px}
+.motion-card[data-action="shoot"]{border-color:#7e5948}
+.motion-card[data-action="reload"]{border-color:#70604b}
+.motion-card[data-action="crouch"]{border-color:#45645a}
+#veil{display:none;position:fixed;inset:0;background:#040b14dc;z-index:13}
+body.has-focus #veil{display:block}
+.motion-card.expanded{position:fixed;inset:5vh 4vw;z-index:18;max-height:90vh;display:flex;flex-direction:column}
+.motion-card.expanded .view{height:auto;flex:1;min-height:170px}
+.motion-card.expanded .card-top h2{font-size:18px}
+.motion-card.expanded .card-bottom{min-height:65px}
+#stage-canvas{position:fixed;inset:0;z-index:20;pointer-events:none;display:block}
+.footer{margin-top:18px;line-height:1.55;color:#9eafc0;font-size:12px;position:relative;z-index:21}
+a{color:#eec47f}
+@media(max-width:1100px){#grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){
+ main{padding-left:10px;padding-right:10px}
+ #grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .motion-card:last-child{grid-column:1/-1}
+ .view{height:245px}
+ .card-top{padding:10px 9px 5px}
+ .card-top h2{font-size:13px}
+ .card-bottom{padding:8px;min-height:67px}
+ .note{font-size:10px}
+ .expand{font-size:10px;padding:7px 6px}
+ .motion-card.expanded{inset:4vh 3vw;grid-column:auto}
+ .tools{width:100%}
+ .top{padding-bottom:12px}
+}
+</style>
+</head>
+<body>
+<div id="veil"></div>
+<main>
+<header class="top">
+ <div><div class="eyebrow">GAMEBLOCK / ANIMATION LAB v1</div><h1>Полигон движений</h1><p class="intro">Пять действий одновременно · CT и T с AK-47 · нажми «Крупно», чтобы рассмотреть движения</p></div>
+ <div class="tools"><button class="tool" id="pause" type="button">⏸ Пауза</button><label class="speed">Скорость <input id="speed" aria-label="Скорость анимации" type="range" min=".5" max="1.5" step=".1" value="1"><output id="speed-value">1.0×</output></label></div>
+</header>
+<div id="progress" role="status">Подготавливаю 3D-модели и пять демонстраций…</div>
+<section id="grid" aria-label="Пять циклических анимаций">
+<article class="motion-card" data-action="run"><div class="card-top"><h2>🏃 БЕГ</h2><span class="num">01 / CT</span></div><div class="view" data-scene="run"></div><div class="card-bottom"><span class="note">Движение ног, рук и корпуса</span><button class="expand" type="button">Крупно ⤢</button></div></article>
+<article class="motion-card" data-action="shoot"><div class="card-top"><h2>🔥 СТРЕЛЬБА</h2><span class="num">02 / T</span></div><div class="view" data-scene="shoot"></div><div class="card-bottom"><span class="note">Очереди, отдача, вспышка</span><button class="expand" type="button">Крупно ⤢</button></div></article>
+<article class="motion-card" data-action="reload"><div class="card-top"><h2>🔄 ПЕРЕЗАРЯДКА</h2><span class="num">03 / CT</span></div><div class="view" data-scene="reload"></div><div class="card-bottom"><span class="note">Рука у магазина и его замена</span><button class="expand" type="button">Крупно ⤢</button></div></article>
+<article class="motion-card" data-action="jump"><div class="card-top"><h2>↗ ПРЫЖОК</h2><span class="num">04 / T</span></div><div class="view" data-scene="jump"></div><div class="card-bottom"><span class="note">Отталкивание, полёт, приземление</span><button class="expand" type="button">Крупно ⤢</button></div></article>
+<article class="motion-card" data-action="crouch"><div class="card-top"><h2>🎯 СИДЯ + СТРЕЛЬБА</h2><span class="num">05 / CT</span></div><div class="view" data-scene="crouch"></div><div class="card-bottom"><span class="note">Приседание и огонь из AK-47</span><button class="expand" type="button">Крупно ⤢</button></div></article>
+</section>
+<p class="footer">Это первый <strong>тест движений на настоящих игровых моделях</strong>. Бег, прыжок, приседание и перезарядка пока процедурные, их ещё предстоит отполировать или заменить подходящими анимациями Mixamo. Стрельба — демонстрация отдачи и визуальных эффектов, не полноценный сетевой бой.</p>
+</main>
+<script type="module" src="/src/animationLab.js"></script>
+</body>
+</html>
