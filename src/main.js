@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
+import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
 import { InspectTimeline } from './inspectTimeline.js';
@@ -44,6 +45,7 @@ menuScene.add(new THREE.HemisphereLight(0xfff0d7, 0x404b5d, 2.7));
 const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
 menuLight.position.set(-4, 8, -5);menuScene.add(menuLight);
 let preview=createBlockFighter();
+const previewGear=createThirdPersonLoadout(preview,{kind:'rifle'});
 preview.root.rotation.y=-.32;
 menuScene.add(preview.root);
 const plinth=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.75,.12,36),
@@ -203,12 +205,13 @@ function createFighter(actor) {
     pouch:'#444837',pouchFlap:'#555a45'
   };
   const animated=createBlockFighter(palette);
+  const gear=createThirdPersonLoadout(animated,{kind:actor.weapon==='pistol'?'pistol':'rifle'});
   const root=new THREE.Group();
   scene.add(root);
   root.add(animated.root);
   // Existing game coordinates face -Z. Model's authoring forward is +Z.
   animated.root.rotation.y=Math.PI;
-  fighters.set(actor.id,{root,animated,lastX:actor.x,lastZ:actor.z});
+  fighters.set(actor.id,{root,animated,gear,lastX:actor.x,lastZ:actor.z});
 }
 function matchLoadFraction() {
   const values = Object.values(assetProgress);
@@ -595,7 +598,12 @@ function updateModels(dt) {
     if(model.animated?.mesh?.isSkinnedMesh){
       const moving=dist/Math.max(.02,dt)>.26;
       const firing=Number.isFinite(actor.lastShotAt)&&match.time-actor.lastShotAt<.18;
-      model.animated.update(match.time,actor.crouch?'crouch':firing?'shoot':moving?'run':'idle');
+      const pose=actor.crouch?'crouch':firing?'shoot':moving?'run':'aim';
+      model.animated.update(match.time,pose);
+      model.gear?.update({
+        kind:actor.weapon==='pistol'?'pistol':'rifle',
+        mode:pose,time:match.time,fire:firing
+      });
     }
     else if(model.animated?.mode==='tactical')
       animateTacticalOperator(model.animated,actor,
@@ -687,7 +695,10 @@ function frame(now) {
   if (lobby) {
     for(const model of fighters.values())model.root.visible=false;
     preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
-    if(preview.mesh?.isSkinnedMesh)preview.update(now*.001,'idle');
+    if(preview.mesh?.isSkinnedMesh){
+      preview.update(now*.001,'aim');
+      previewGear.update({kind:'rifle',mode:'aim',time:now*.001});
+    }
     if(preview.mode==='tactical')animateTacticalOperator(preview,
       {lastShotAt:-100},now/1000,dt,0);
     else if(preview.mode==='retro')animateRetroOperator(preview,{lastShotAt:-100},now/1000,dt,0);
