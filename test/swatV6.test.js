@@ -83,7 +83,8 @@ test('legacy 20-operator gallery remains archived while main NPCs use our block 
   assert.match(main,/showGalleryPage\(page,pageSize\)/);
   assert.match(main,/renderer\.render\(galleryScene,galleryCamera\)/);
   assert.match(main,/staticBots: true/);
-  assert.match(main,/swat:'counter_flame_swat_v8'/);
+  assert.match(main,/only weapons are network assets/);
+  assert.doesNotMatch(main,/swat:'counter_flame_swat_v8'/);
   assert.match(main,/saveSwatSelection\(index\)/);
   assert.match(menu,/retroGallery/);
   assert.match(gallery,/v6Choices/);
