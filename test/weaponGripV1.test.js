@@ -43,9 +43,10 @@ test('Third-person rifle and pistol each have separate defined trigger and suppo
   const rig=createThirdPersonLoadout(fighter,{kind});
   fighter.update(0,'aim');
   const errors=rig.update({kind,time:0,mode:'aim'});
+  console.log('Third-person IK grip residuals',kind,JSON.stringify(errors));
   for(const x of [errors.right,errors.left]){
    assert.ok(Number.isFinite(x),'IK generated an invalid grip offset');
-   assert.ok(x<.35,kind+' hand should be in usable weapon-grip range: '+x);
+   assert.ok(x<.12,kind+' hand should be in usable weapon-grip range: '+x);
   }
   assert.equal(rig.weapons[kind].root.visible,true);
   assert.equal(rig.weapons[kind==='rifle'?'pistol':'rifle'].root.visible,false);
