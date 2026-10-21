@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeHand } from './retroHands.js';
+import {GLOVE_PRESETS, SLEEVE_MODES, recolorModularHand, updateModularGlove} from './gloveSkins.js';
 import { KF, DRAW, FROM, KICK, sample } from './game1Motion.js';
 
 // Game1 hand rig and animation mechanics adapted for GameBlock's existing
@@ -108,6 +109,7 @@ export function createWeaponView(kind) {
   let loaded = fallbackModel(kind);
   modelMount.add(loaded);
   let team = 'ct', drawStarted = 0;
+  let glovePreset='midnight',sleeveMode='uniform',skinTone=0xba896b;
 
   const muzzle = new THREE.Mesh(new THREE.ConeGeometry(0.035,0.13,6),
     new THREE.MeshBasicMaterial({color:0xffd98b,transparent:true,opacity:0.95,depthWrite:false}));
@@ -123,8 +125,13 @@ export function createWeaponView(kind) {
   function updateHand(side, rebuild=false) {
     const anchor=sourceAnchor[side], cfg=poses[side], holder=side==='R'?arms.right:arms.left;
     if (rebuild || !holder.userData.mesh) {
-      if (holder.userData.mesh) holder.remove(holder.userData.mesh);
+      if (holder.userData.mesh){
+        const previous=holder.userData.mesh;
+        holder.remove(previous);
+        for(const m of Object.values(previous.userData.modularGlove?.materials||{}))m.dispose();
+      }
       const mesh=makeHand(side,cfg.pose,U,cfg.k,team);
+      recolorModularHand(mesh,{preset:glovePreset,sleeveMode,team,skinTone});
       holder.add(mesh);holder.userData.mesh=mesh;
       if (knifeWrist && side === 'R') {
         // Rebuild only the glove; the fixed shoulder remains with the mesh.
@@ -153,6 +160,25 @@ export function createWeaponView(kind) {
     kind, root, animated, arms, modelMount, muzzle, knifeWrist,
     get calibration() { return {...mounts}; },
     get handCalibration() { return JSON.parse(JSON.stringify(poses)); },
+    get gloveStyle(){return {preset:glovePreset,sleeveMode,skinTone}},
+    setGloveStyle(style={}){
+      if(style.preset!==undefined){
+        if(!GLOVE_PRESETS[style.preset])throw Error('Unknown glove preset '+style.preset);
+        glovePreset=style.preset;
+      }
+      if(style.sleeveMode!==undefined){
+        if(!SLEEVE_MODES.includes(style.sleeveMode))throw Error('Unknown sleeve mode '+style.sleeveMode);
+        sleeveMode=style.sleeveMode;
+      }
+      if(style.skinTone!==undefined){
+        if(!Number.isInteger(style.skinTone)||style.skinTone<0||style.skinTone>0xffffff)
+          throw Error('Invalid skin tone');
+        skinTone=style.skinTone;
+      }
+      for(const holder of [arms.left,arms.right])if(holder.userData.mesh)
+        updateModularGlove(holder.userData.mesh,{preset:glovePreset,sleeveMode,team,skinTone});
+      return {preset:glovePreset,sleeveMode,skinTone};
+    },
     setModel(gltfScene) {
       modelMount.remove(loaded);
       loaded=gltfScene ? normalizeWeapon(gltfScene,kind) : fallbackModel(kind);
