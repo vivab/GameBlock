@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createBlockFighter,FIGHTER_ACTIONS,FIGHTER_VERSION} from './blockFighter.js';
+import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 
 const $=selector=>document.querySelector(selector);
 const status=$('#status'),message=$('#message'),canvas=$('#canvas');
@@ -48,9 +49,10 @@ const ring=new THREE.Mesh(new THREE.TorusGeometry(.94,.012,5,80),
  new THREE.MeshBasicMaterial({color:0x7ca6c6,transparent:true,opacity:.65}));
 ring.rotation.x=-Math.PI/2;ring.position.y=-.012;scene.add(ring);
 
-let fighter,helper,clockStart=performance.now();
+let fighter,helper,gear,clockStart=performance.now();
 try{
  fighter=createBlockFighter();
+ gear=createThirdPersonLoadout(fighter,{kind:'rifle'});
  scene.add(fighter.root);
  status.textContent='ГОТОВО · RIG '+FIGHTER_VERSION;
  $('#tris').textContent=fighter.triangles.toLocaleString('ru-RU');
@@ -113,6 +115,15 @@ for(const [field,axis] of [['pitch','x'],['yaw','y'],['roll','z']]){
 }
 refreshSliders();
 let mode='idle';
+$('#weaponGrip').addEventListener('change',event=>{
+ if(!gear)return;
+ const next=event.target.value;
+ gear.root.visible=next!=='none';
+ if(next!=='none')gear.setKind(next);
+ notify(next==='none'?'Оружие снято — суставы доступны для редактирования':
+   next==='rifle'?'AK-47: правая на рукоятке, левая под цевьём':
+   'Пистолет: правая на рукоятке, левая поддерживает');
+});
 for(const button of document.querySelectorAll('[data-mode]')){
  button.addEventListener('click',()=>{
   if(!fighter)return;
@@ -159,6 +170,8 @@ $('#copy').addEventListener('click',async()=>{
 $('#export').addEventListener('click',async()=>{
  if(!fighter)return;
  const button=$('#export');
+ const gunWasVisible=gear?.root.visible;
+ if(gear)gear.root.visible=false; // Bare character GLB, weapon assets stay separate.
  button.disabled=true;
  button.textContent='Экспортирую…';
  try{
@@ -185,6 +198,7 @@ $('#export').addEventListener('click',async()=>{
   console.error(error);
   notify('Экспорт GLB: '+error.message,true);
  }finally{
+  if(gear)gear.root.visible=gunWasVisible;
   button.disabled=false;
   button.textContent='↓ Скачать GLB';
  }
@@ -195,7 +209,12 @@ function animate(now){
  if(now-lastFrame<1000/60)return;
  lastFrame=now;
  if(fighter){
-  fighter.update((now-clockStart)*.001,mode);
+  const seconds=(now-clockStart)*.001;
+  fighter.update(seconds,mode);
+  if(gear?.root.visible){
+    gear.update({kind:$('#weaponGrip').value,mode,time:seconds,
+      fire:mode==='shoot'&&(seconds%0.3)<.07});
+  }
   helper?.updateMatrixWorld(true);
  }
  controls.update();
