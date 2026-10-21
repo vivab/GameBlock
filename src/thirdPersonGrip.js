@@ -120,7 +120,49 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
  const weapons={};
  for(const name of ['rifle','pistol']){
   weapons[name]=createWeaponProxy(name);
-  base.add(weapons[name].root);
+  const item=weapons[name];
+  item.proxyParts=item.root.children.filter(part=>part!==item.flash);
+  item.importHolder=new THREE.Group();
+  item.importHolder.name='Swappable imported GLB / '+name;
+  item.root.add(item.importHolder);
+  base.add(item.root);
+ }
+ // Future user-provided weapon models replace ONLY render geometry.
+ // The anatomical trigger, stock and support-hand sockets remain untouched.
+ function setModel(name,source=null,{forwardSign=1}={}){
+  const item=weapons[name];
+  if(!item)throw Error('Unknown weapon model '+name);
+  const holder=item.importHolder;
+  holder.clear();
+  if(source===null){
+   for(const part of item.proxyParts)part.visible=true;
+   return {imported:false};
+  }
+  const object=source.scene||source;
+  if(!object?.isObject3D)throw Error('Expected THREE.Object3D or GLTF scene');
+  if(forwardSign!==1&&forwardSign!==-1)throw Error('Forward sign must be 1 or -1');
+  const model=object.clone(true);
+  const staging=new THREE.Group();
+  staging.add(model);
+  model.updateMatrixWorld(true);
+  const size=new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+  const max=Math.max(size.x,size.y,size.z);
+  if(!Number.isFinite(max)||max<.0001)throw Error('Empty weapon model');
+  if(size.x===max)model.rotation.y+=-Math.PI/2*forwardSign;
+  else if(size.y===max)model.rotation.x+=Math.PI/2*forwardSign;
+  else if(forwardSign<0)model.rotation.y+=Math.PI;
+  model.updateMatrixWorld(true);
+  const oriented=new THREE.Box3().setFromObject(model);
+  const orientedLength=oriented.getSize(new THREE.Vector3()).z;
+  const desired=name==='rifle'?.96:.34;
+  model.scale.multiplyScalar(desired/Math.max(.001,orientedLength));
+  model.updateMatrixWorld(true);
+  const centroid=new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());
+  model.position.sub(centroid);
+  model.position.z+=name==='rifle'?.11:.055;
+  holder.add(model);
+  for(const part of item.proxyParts)part.visible=false;
+  return {imported:true,length:desired};
  }
  let selected=null;
  const palm={};
@@ -173,7 +215,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   return {...lastError};
  }
  setKind(kind);
- return {root:base,palm,weapons,setKind,update,
+ return {root:base,palm,weapons,setKind,setModel,update,
   get kind(){return selected},
   get gripErrors(){return {...lastError}}};
 }
