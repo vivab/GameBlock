@@ -84,7 +84,13 @@ footer{font-size:11px;color:#8fa7b8;margin-top:16px;line-height:1.6}
     <button class="action" data-mode="jump">Прыжок</button>
     <button class="action" data-mode="crouch">Присед</button>
    </div>
-   <p>Все движения создаются через настоящие суставы нового персонажа — больше никакой T-pose.</p>
+   <label class="label" for="weaponGrip">Оружие в руках (отдельный объект)</label>
+   <select id="weaponGrip">
+    <option value="rifle">AK-47 · две руки</option>
+    <option value="pistol">Пистолет · две руки</option>
+    <option value="none">Без оружия · ручная настройка костей</option>
+   </select>
+   <p>Правая кисть держит рукоятку, левая — цевьё автомата или поддерживает пистолет. Руки подводятся к оружию через IK. «Без оружия» освобождает суставы для ручного редактирования.</p>
   </section>
   <section class="card">
    <h2>Ручное управление скелетом</h2>
