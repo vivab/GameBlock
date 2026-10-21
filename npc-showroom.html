@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/><title>GameBlock — NPC showcase</title><style>
-*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#0c1219;color:#edf3fa;font:14px system-ui,Arial}#app{position:fixed;inset:0}canvas{display:block}header{position:absolute;top:0;left:0;right:0;z-index:2;padding:17px 18px;background:linear-gradient(#09121ed9,transparent);pointer-events:none}h1{font-size:20px;margin:0 0 4px;letter-spacing:.1em}small{color:#b4c4d0}#status{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#07131ddc;border:1px solid #ffffff33;border-radius:12px;padding:10px 16px;text-align:center;min-width:220px;max-width:94vw}#hint{position:absolute;right:12px;top:18px;color:#a9bdc9;font-size:12px}#retry{display:none;background:#d7a44a;color:#0d1720;border:0;border-radius:8px;padding:8px 13px;margin-top:7px}#labels{position:absolute;bottom:80px;left:0;right:0;display:flex;justify-content:space-around;pointer-events:none;font-weight:700;text-shadow:0 2px 8px #000}#labels span{padding:7px 15px;border:1px solid #ffffff30;border-radius:8px;background:#0008}@media(max-width:650px){h1{font-size:17px}#hint{display:none}#labels{font-size:12px}}
-</style></head><body><div id="app"></div><header><h1>GAMEBLOCK / AGENTS</h1><small>Два агента с AK-47 · Mixamo Rifle Aiming Idle</small><span id="hint">Проведи пальцем — вращение · щипок — масштаб</span></header><div id="labels"><span>CT / СПЕЦНАЗ</span><span>T / ТЕРРОРИСТ</span></div><div id="status">Загрузка моделей…<div><button id="retry" onclick="location.reload()">Повторить</button></div></div>
+*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#0c1219;color:#edf3fa;font:14px system-ui,Arial}#app{position:fixed;inset:0}canvas{display:block}header{position:absolute;top:0;left:0;right:0;z-index:2;padding:17px 18px;background:linear-gradient(#09121ed9,transparent);pointer-events:none}h1{font-size:20px;margin:0 0 4px;letter-spacing:.1em}small{color:#b4c4d0}#status{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:#07131ddc;border:1px solid #ffffff33;border-radius:12px;padding:10px 16px;text-align:center;min-width:220px;max-width:94vw}#hint{position:absolute;right:12px;top:18px;color:#a9bdc9;font-size:12px}#anim-toggle{position:absolute;top:104px;right:16px;z-index:5;touch-action:manipulation;background:#e6b85f;color:#101820;border:1px solid #eacb8f;border-radius:9px;font-weight:800;padding:11px 14px;font-size:13px;box-shadow:0 2px 10px #0009;cursor:pointer}#anim-toggle.paused{background:#263440;color:#e7e9ed;border-color:#667688}#version{position:absolute;top:73px;right:16px;z-index:3;color:#eec47f;background:#07131b9c;font-size:11px;padding:3px 6px;border-radius:4px}@media(max-width:650px){#anim-toggle{top:117px;right:12px}#version{right:12px}}#retry{display:none;background:#d7a44a;color:#0d1720;border:0;border-radius:8px;padding:8px 13px;margin-top:7px}#labels{position:absolute;bottom:80px;left:0;right:0;display:flex;justify-content:space-around;pointer-events:none;font-weight:700;text-shadow:0 2px 8px #000}#labels span{padding:7px 15px;border:1px solid #ffffff30;border-radius:8px;background:#0008}@media(max-width:650px){h1{font-size:17px}#hint{display:none}#labels{font-size:12px}}
+</style></head><body><div id="app"></div><header><h1>GAMEBLOCK / AGENTS</h1><small>Прицеливание AK-47 · Mixamo v2</small><span id="hint">Проведи пальцем — вращение · щипок — масштаб</span></header><div id="labels"><span>CT / СПЕЦНАЗ</span><span>T / ТЕРРОРИСТ</span></div><button id="anim-toggle" type="button">MIXAMO: ВКЛ</button><span id="version">AIM IDLE v2 · 21.10</span><div id="status">Загрузка моделей…<div><button id="retry" onclick="location.reload()">Повторить</button></div></div>
 <script>
 window.__npcStarted=false;
 window.__npcDone=false;
@@ -29,7 +29,13 @@ scene.add(new THREE.HemisphereLight(0xf1f4ff,0x778391,3.3));
 const sun=new THREE.DirectionalLight(0xffe2bb,3);sun.position.set(-3,7,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-8;sun.shadow.camera.right=8;sun.shadow.camera.top=8;sun.shadow.camera.bottom=-8;scene.add(sun);
 const rim=new THREE.DirectionalLight(0xbad9ee,2.5);rim.position.set(3,4,-5);scene.add(rim);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x25313b,roughness:.94}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
-const liveIdle=[];
+const liveIdle=[];let animationEnabled=true;
+const toggleIdle=document.querySelector('#anim-toggle');
+toggleIdle.addEventListener('click',()=>{
+ animationEnabled=!animationEnabled;
+ toggleIdle.textContent=animationEnabled?'MIXAMO: ВКЛ':'MIXAMO: ВЫКЛ';
+ toggleIdle.classList.toggle('paused',!animationEnabled);
+});
 const loader=new GLTFLoader();const asset=p=>import.meta.env.BASE_URL+p;
 const load=(url,label,timeout=35000)=>new Promise((resolve,reject)=>{
   let settled=false;
@@ -404,17 +410,30 @@ function makeMixamoRifleIdle(person,arms,weapon,supportGrip,supportPalm){
    if(x.isBone&&!bone&&x.name.toLowerCase().replace(/[^a-z0-9]/g,'')===normalized)bone=x;
   });
   if(!bone||boneIndex<0)continue;
-  const amplitude=/(?:Arm|Hand|Shoulder)/.test(sourceName)? .27 :
-    /(?:UpLeg|Leg)/.test(sourceName)? .25:.68;
+  // The original deltas were less than 3 degrees; previous .27 scaling
+  // made the aiming animation visually imperceptible on a phone.
+  const amplitude=/(?:Arm|Hand|Shoulder)/.test(sourceName)? 2.7 :
+    /(?:UpLeg|Leg)/.test(sourceName)? .65:2.4;
   tracked.push({bone,index:boneIndex*3,rest:bone.quaternion.clone(),amplitude});
  }
  if(!tracked.length)console.warn('Mixamo clip: no retargetable Bip01 bones found');
+ console.info('Mixamo retarget: ',tracked.length,'bones active');
  const delta=new THREE.Quaternion(),angles=new THREE.Euler();
+ let paused=false;
  const fps=rifleIdle.frameRate||60;
  const ticks=rifleIdle.ticks,frames=rifleIdle.samples;
  const finalTick=ticks[ticks.length-1],scale=(rifleIdle.scale||.01)*Math.PI/180;
  return function animateRifleIdle(timeSeconds){
   if(!tracked.length)return;
+  if(!animationEnabled){
+    if(!paused){
+      for(const entry of tracked)entry.bone.quaternion.copy(entry.rest);
+      person.updateMatrixWorld(true);
+      paused=true;
+    }
+    return;
+  }
+  paused=false;
   const frame=(timeSeconds*fps)%finalTick;
   let first=0;
   while(first<ticks.length-2&&frame>ticks[first+1])first++;
@@ -423,7 +442,8 @@ function makeMixamoRifleIdle(person,arms,weapon,supportGrip,supportPalm){
   const a=frames[first],b=frames[next];
   for(const entry of tracked){
    const i=entry.index,k=scale*entry.amplitude;
-   angles.set((a[i]*(1-weight)+b[i]*weight)*k,
+   const breath=entry.bone.name.includes('Spine1')?.04*Math.sin(timeSeconds*2.2):0;
+   angles.set((a[i]*(1-weight)+b[i]*weight)*k+breath,
     (a[i+1]*(1-weight)+b[i+1]*weight)*k,
     (a[i+2]*(1-weight)+b[i+2]*weight)*k,'XYZ');
    delta.setFromEuler(angles);
@@ -469,6 +489,21 @@ async function agent(url,x,weaponSource,label,timeout){
    aimPalmDown(arms.right,palmR,.12);
    solveTwoBoneArm(arms.right,palmR,rightGoal,'right');
  }
+ // A short corrective move prioritizes the REAL palm/trigger contact,
+ // while preserving the stock-on-shoulder placement within 6 centimetres.
+ if(gotRight&&palmR){
+   person.updateMatrixWorld(true);
+   const contact=gun.localToWorld(right.clone());
+   const palmWorld=new THREE.Vector3();
+   palmR.getWorldPosition(palmWorld);
+   const contactError=palmWorld.sub(contact);
+   if(contactError.length()>.018){
+     contactError.clampLength(0,.06);
+     gun.position.add(worldOffsetToLocal(holder,contactError));
+     gun.updateWorldMatrix(true,true);
+     solveTwoBoneArm(arms.right,palmR,gun.localToWorld(right.clone()),'right');
+   }
+ }
  const leftGoal=gun.localToWorld(left.clone());
  let gotLeft=solveTwoBoneArm(arms.left,palmL||arms.left.hand,leftGoal,'left');
  if(gotLeft&&palmL){
@@ -504,7 +539,7 @@ async function start(){
   const ct=await safe('Спецназ',()=>agent(asset('casting/realistic/08.glb'),-1.5,gun,'Спецназ',30000));
   window.__npcDone=true;
   if(!ct&&!t)window.__npcFail('Не удалось загрузить персонажей.');
-  else status.textContent='Mixamo Idle · CT: '+(ct?'✓':'ошибка')+' · T: '+(t?'✓':'ошибка')+' · вращай пальцем';
+  else status.textContent='Mixamo v2 · CT: '+(ct?'✓':'ошибка')+' · T: '+(t?'✓':'ошибка')+' · ВКЛ/ВЫКЛ для сравнения';
   if(new URLSearchParams(location.search).has('debug')&&ct&&t)status.textContent='CT кисти: '+ct.rightError+'/'+ct.leftError+' м · приклад '+ct.stockError+' м | T кисти: '+t.rightError+'/'+t.leftError+' м';
   console.info('NPC rig info',{ct,t});
 }
