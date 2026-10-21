@@ -109,11 +109,12 @@ footer{font-size:11px;color:#8fa7b8;margin-top:16px;line-height:1.6}
     <div class="detail"><span>Оружие в модели</span><strong>Нет</strong></div>
    </div>
    <div class="tools" style="margin-top:13px">
-    <button id="export" class="tool primary" type="button">↓ Скачать GLB</button>
+    <a href="./models/block_fighter_v1.glb" download="block_fighter_v1.glb" class="tool primary" style="text-align:center;text-decoration:none">↓ Готовый GLB</a>
+    <button id="export" class="tool" type="button">↓ Моя поза GLB</button>
     <button id="copy" class="tool" type="button">⧉ Копировать позу</button>
    </div>
    <p id="message" role="status"></p>
-   <div class="note">Скелет и меш находятся в <code>src/blockFighter.js</code>. Экспорт GLB сохраняет модель с костями и текущей позой, без встроенных клипов. Анимации и настройки суставов остаются доступны в JavaScript.</div>
+   <div class="note">Скелет и меш находятся в <code>src/blockFighter.js</code>. Готовый GLB собирается автоматически из нашей модели при публикации. «Моя поза GLB» сохраняет текущую настройку костей без встроенных клипов. Анимации и настройки суставов остаются доступны в JavaScript.</div>
   </section>
  </aside>
 </div>
