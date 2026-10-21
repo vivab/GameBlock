@@ -51,6 +51,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     #retroHome #retroTChoice{padding:10px 12px;text-align:center;
       background:#5b352a;border:1px solid #c4967e;color:#fff0d9;
       border-radius:3px;font-size:12px}
+    #retroHome #retroFighter {padding:12px 14px;text-align:center;
+      background:linear-gradient(110deg,#d3a362,#ac7743);color:#172430;
+      border:1px solid #ffe0aa;font-size:12px;border-radius:4px}
     #retroHome #retroGame1 {padding:10px 12px;text-align:center;
       background:#263742;border:1px solid #758f92;color:#e2ebdf;
       border-radius:3px;font-size:11px}
@@ -108,7 +111,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
   home.innerHTML=`
     <div class="retroLeft">
       <div class="retroLogo">GAME<i>BLOCK</i></div>
-      <div class="retroSub">RETRO TACTICAL • ALPHA 0.3</div>
+      <div class="retroSub">BLOCK FIGHTER • ALPHA 0.4</div>
       <div class="retroSep"></div>
       <nav class="retroNav" aria-label="Разделы">
         <button data-tab="loadout" type="button"><b>◈</b> АРСЕНАЛ</button>
@@ -117,11 +120,12 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
         <button data-tab="friends" type="button"><b>☷</b> ДРУЗЬЯ</button>
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
-      <button id="retroGallery" type="button">◈ SWAT V8 / 20 БОЙЦОВ</button>
-      <button id="retroCasting" type="button">✓ НАШ СПЕЦНАЗ №08</button>
-      <button id="retroEliteT" type="button">◆ 5 НОВЫХ ТЕРРОРИСТОВ · ВЫБРАТЬ</button>
-      <button id="retroTChoice" type="button">◈ 10 БОЙЦОВ T · В МАСКАХ</button>
-      <button id="retroGame1" type="button">⬢ ИГРОВОЙ РЕЖИМ GAME1</button>
+      <button id="retroFighter" type="button">◈ ПЕРСОНАЖ v1.0 · РЕДАКТОР</button>
+      <button id="retroGallery" type="button" hidden>◈ СТАРАЯ ГАЛЕРЕЯ (АРХИВ)</button>
+      <button id="retroCasting" type="button" hidden>АРХИВ CT</button>
+      <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
+      <button id="retroTChoice" type="button" hidden>АРХИВ МОДЕЛЕЙ T</button>
+      <button id="retroGame1" type="button" hidden>СТАРЫЙ РЕЖИМ GAME1</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
     </div>
@@ -181,6 +185,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
   home.querySelectorAll('[data-tab]').forEach(button=>
     button.addEventListener('click',()=>showTab(button.dataset.tab)));
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
+  $('retroFighter').addEventListener('click',()=>{window.location.href=new URL('fighter-v1.html',window.location.href).href;});
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
   $('retroEliteT').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'terrorists-five.html');
