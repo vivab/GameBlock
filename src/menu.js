@@ -51,6 +51,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     #retroHome #retroTChoice{padding:10px 12px;text-align:center;
       background:#5b352a;border:1px solid #c4967e;color:#fff0d9;
       border-radius:3px;font-size:12px}
+    #retroHome #retroAnimationLab {padding:11px 13px;text-align:center;
+      background:#24465b;border:1px solid #68a1b3;color:#dcf4ff;
+      font-size:12px;border-radius:4px}
     #retroHome #retroFighter {padding:12px 14px;text-align:center;
       background:linear-gradient(110deg,#d3a362,#ac7743);color:#172430;
       border:1px solid #ffe0aa;font-size:12px;border-radius:4px}
@@ -121,6 +124,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
       <button id="retroFighter" type="button">◈ ПЕРСОНАЖ v1.0 · РЕДАКТОР</button>
+      <button id="retroAnimationLab" type="button">▶ 5 АНИМАЦИЙ · ПОЛИГОН</button>
       <button id="retroGallery" type="button" hidden>◈ СТАРАЯ ГАЛЕРЕЯ (АРХИВ)</button>
       <button id="retroCasting" type="button" hidden>АРХИВ CT</button>
       <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
@@ -186,6 +190,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     button.addEventListener('click',()=>showTab(button.dataset.tab)));
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
   $('retroFighter').addEventListener('click',()=>{window.location.href=new URL('fighter-v1.html',window.location.href).href;});
+  $('retroAnimationLab').addEventListener('click',()=>{window.location.href=new URL('animation-lab.html',window.location.href).href;});
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
   $('retroEliteT').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'terrorists-five.html');
