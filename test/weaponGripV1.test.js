@@ -46,7 +46,7 @@ test('Third-person rifle and pistol each have separate defined trigger and suppo
   console.log('Third-person IK grip residuals',kind,JSON.stringify(errors));
   for(const x of [errors.right,errors.left]){
    assert.ok(Number.isFinite(x),'IK generated an invalid grip offset');
-   assert.ok(x<.12,kind+' hand should be in usable weapon-grip range: '+x);
+   assert.ok(x<.025,kind+' hand must visibly touch the weapon: '+x);
   }
   assert.equal(rig.weapons[kind].root.visible,true);
   assert.equal(rig.weapons[kind==='rifle'?'pistol':'rifle'].root.visible,false);
@@ -72,4 +72,34 @@ test('Third-person firearm has correct muzzle direction and does not embed gun i
   'AK barrel points forward relative to fighter');
  assert.equal(fighter.parts.some(x=>/rifle|pistol|knife/i.test(x.name)),false);
  fighter.dispose();
+});
+
+
+test('Third-person placeholder can be swapped for future X/Y/Z-axis GLB geometry',()=>{
+ const f=createBlockFighter();
+ const gear=createThirdPersonLoadout(f,{kind:'rifle'});
+ for(const [kind,length,vector] of [
+  ['rifle',2.8,[2.8,.25,.3]],
+  ['pistol',.36,[.2,.36,.15]]
+ ]){
+  const source=new THREE.Group();
+  source.add(new THREE.Mesh(new THREE.BoxGeometry(...vector),
+   new THREE.MeshStandardMaterial()));
+  const item=gear.weapons[kind];
+  const result=gear.setModel(kind,source);
+  assert.equal(result.imported,true);
+  assert.equal(item.importHolder.children.length,1);
+  assert.ok(item.proxyParts.every(obj=>obj.visible===false));
+  gear.setKind(kind);
+  f.update(.2,'aim');
+  const errors=gear.update({kind,mode:'aim',time:.2});
+  assert.ok(errors.right<.025&&errors.left<.025,'GLB must not alter hand grip sockets');
+  const bbox=new THREE.Box3().setFromObject(item.importHolder);
+  const size=bbox.getSize(new THREE.Vector3());
+  assert.ok(size.length()>.15,'imported weapon must be visible');
+  assert.equal(gear.setModel(kind,null).imported,false);
+  assert.equal(item.importHolder.children.length,0);
+  assert.ok(item.proxyParts.every(obj=>obj.visible===true));
+ }
+ f.dispose();
 });
