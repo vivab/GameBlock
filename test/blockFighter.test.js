@@ -66,3 +66,29 @@ test('Rigged GLB exporter retains skinning and bone hierarchy',async()=>{
  assert.ok(result.byteLength>4000);
  model.dispose();
 });
+
+
+test('Skinned vertices actually follow their thigh and forearm bones',()=>{
+ const fighter=createBlockFighter();
+ const vertices=fighter.verticesByPart;
+ for(const [part,mode0,mode1,t0,t1] of [
+  ['ThighPantsL','idle','run',0,.25],
+  ['SleeveUpperR','idle','aim',0,.18],
+ ]){
+  const begin=vertices[part]?.[0];
+  assert.ok(Number.isInteger(begin),'vertex range for '+part);
+  const idx=begin+4;
+  const pos=fighter.mesh.geometry.getAttribute('position');
+  const restVertex=new THREE.Vector3().fromBufferAttribute(pos,idx);
+  fighter.update(t0,mode0);
+  fighter.root.updateMatrixWorld(true);
+  fighter.mesh.updateMatrixWorld(true);
+  const before=fighter.mesh.applyBoneTransform(idx,restVertex.clone());
+  fighter.update(t1,mode1);
+  fighter.root.updateMatrixWorld(true);
+  fighter.mesh.updateMatrixWorld(true);
+  const after=fighter.mesh.applyBoneTransform(idx,restVertex.clone());
+  assert.ok(before.distanceTo(after)>.012,part+' should visibly deform with the bone pose');
+ }
+ fighter.dispose();
+});
