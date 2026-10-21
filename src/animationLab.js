@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
+import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 
 // All five actions use OUR controllable rig — no Rocketbox GLBs or T-poses.
 const specs=[
@@ -30,28 +31,13 @@ function box(parent,name,color,pos,size){
  const m=new THREE.Mesh(new THREE.BoxGeometry(...size),mat(name,color));
  m.name=name;m.position.set(...pos);parent.add(m);return m;
 }
-function rifleForFighter(f){
- const gun=new THREE.Group();gun.name='Detachable demonstration rifle, not baked into fighter';
- f.bones.WeaponSocket_R.add(gun);
- // Source fighter's +Z is forward, and the AK demo uses that convention.
- box(gun,'gunmetal','#202529',[0,.038,.24],[.115,.107,.62]);
- box(gun,'wood','#76543a',[0,.026,.32],[.133,.11,.235]);
- box(gun,'butt','#71523b',[0,.058,-.28],[.132,.112,.37]);
- box(gun,'rifle-stock','#282d32',[0,.016,-.395],[.15,.12,.047]);
- box(gun,'steelbarrel','#353b42',[0,.057,.63],[.036,.038,.30]);
- box(gun,'sight','#2b2c30',[0,.135,.545],[.065,.048,.025]);
- box(gun,'pistolgrip','#3a3029',[0,-.115,-.025],[.085,.19,.096]);
- const mag=box(gun,'detachablemagazine','#373c44',[0,-.146,.173],[.09,.22,.13]);
- mag.rotation.x=-.2;
- const flash=new THREE.Group();
- flash.position.set(0,.062,.83);
- const spark=new THREE.Mesh(new THREE.ConeGeometry(.10,.32,8),
- new THREE.MeshBasicMaterial({color:0xffbd4d,transparent:true,opacity:.93,depthWrite:false}));
- spark.rotation.x=Math.PI/2; spark.position.z=.12;flash.add(spark);
- const core=new THREE.Mesh(new THREE.SphereGeometry(.053,8,6),
- new THREE.MeshBasicMaterial({color:0xfff8c4}));
- flash.add(core);flash.visible=false;gun.add(flash);
- return {gun,mag,flash,magBase:mag.position.clone()};
+function rifleForFighter(fighter){
+ const controller=createThirdPersonLoadout(fighter,{kind:'rifle'});
+ const weapon=controller.weapons.rifle;
+ const gun=weapon.root;
+ const mag=gun.getObjectByName('AK curved magazine');
+ if(!mag)throw Error('Missing detachable AK magazine prop');
+ return {controller,gun,mag,flash:weapon.flash,magBase:mag.position.clone()};
 }
 function stageFor(s){
  const scene=new THREE.Scene();
@@ -78,7 +64,7 @@ function stageFor(s){
 for(const s of specs)actionScenes.push(stageFor(s));
 const status=document.querySelector('#progress');
 status.classList.add('ready');
-status.textContent='✓ 5 движений на НАШЕМ новом скелете. Никаких старых T-pose моделей. Нажми «Крупно», чтобы оценить.';
+status.textContent='✓ Новый боевой хват AK-47 работает и в полигоне: правая на рукоятке, левая на цевье. Все 5 движений одновременно.';
 const pause=document.querySelector('#pause');
 let paused=false,speed=1,time=0,last=0,focus=null;
 pause.addEventListener('click',()=>{paused=!paused;pause.textContent=paused?'▶ Продолжить':'⏸ Пауза';pause.classList.toggle('active',paused)});
@@ -108,16 +94,13 @@ addEventListener('resize',()=>renderer.setSize(innerWidth,innerHeight,false));
 const update=(a,t)=>{
  a.fighter.update(t,a.id);
  if(!a.gun)return;
- a.gun.flash.visible=false;
  a.gun.mag.position.copy(a.gun.magBase);
- a.gun.gun.position.set(0,0,0);
- a.gun.gun.rotation.set(0,0,0);
+ a.gun.controller.update({kind:'rifle',mode:a.id,time:t,fire:false});
+ a.gun.flash.visible=false;
  if(a.id==='shoot'||a.id==='crouch'){
   const beat=(t*.95)%1.3;
   if(beat<.72 && beat%.15<.069){
-   a.gun.flash.visible=true;
-   a.gun.gun.position.z=-.023;
-   a.gun.gun.rotation.x=.05;
+   a.gun.controller.update({kind:'rifle',mode:a.id,time:t,fire:true});
   }
  }
  if(a.id==='reload'){
