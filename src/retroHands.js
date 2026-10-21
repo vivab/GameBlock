@@ -57,17 +57,18 @@ export function makeHand(side,pose='fist',u=.105,k=1,team='ct') {
   const thumb=finger(hand,side,sign*.49*u,.18*u,[.53*u,.36*u],
     p.th,.25*u,k,4);
   thumb.rotation.y=-sign*.85;
-  // Widen the glove's wrist into a tapered, rounded tactical sleeve.
-  const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.47*u,.43*u,.93*u,9),
-    band);
-  cuff.rotation.x=Math.PI/2;
+  // Block Strike-style angular forearms. Keep the original pivots,
+  // length and local coordinate system so calibrated knife/gun poses and
+  // CS-style wrist inspection continue to work exactly as before.
+  const cuff=new THREE.Mesh(new THREE.BoxGeometry(.96*u,.74*u,.93*u),band);
   cuff.position.z=1.10*u;arm.add(cuff);
-  const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(.45*u,.39*u,5.9*u,10),
+  const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.84*u,.77*u,5.9*u),
     team==='t'?tSleeve:ctSleeve);
-  sleeve.rotation.x=Math.PI/2;
   sleeve.position.z=4.4*u;arm.add(sleeve);
-  sphere(arm,team==='t'?tSleeve:ctSleeve,.44*u,.38*u,.34*u,
+  const upper=sphere(arm,team==='t'?tSleeve:ctSleeve,.42*u,.36*u,.34*u,
     0,0,7.0*u);
+  upper.geometry.dispose();
+  upper.geometry=new THREE.BoxGeometry(1.0,1.0,1.0);
   root.userData.hand=hand;root.userData.arm=arm;
   root.userData.wr=new THREE.Vector3(0,0,.5*u);
   root.userData.el=new THREE.Vector3(0,0,7*u);
