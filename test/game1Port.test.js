@@ -19,7 +19,7 @@ test('Game1 complete game and menu were copied without overwriting GameBlock',()
   assert.match(html,/src="hands\.js"/);
   assert.match(html,/src="game\.js"/);
   assert.match(file('src/menu.js'),/retroGame1/);
-  assert.match(file('src/main.js'),/swat:'counter_flame_swat_v8'/);
+  assert.match(file('src/main.js'),/createBlockFighter\(palette\)/);
 });
 test('Game1 map and AK are strictly excluded from imported game',()=>{
   assert.equal(ARENA_WALLS.length,10);
