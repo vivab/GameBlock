@@ -10,5 +10,6 @@ export default defineConfig({
     showroom:resolve(import.meta.dirname,'showroom.html'),
     soldier:resolve(import.meta.dirname,'soldier.html'),
     npcShowroom:resolve(import.meta.dirname,'npc-showroom.html'),
+    animationLab:resolve(import.meta.dirname,'animation-lab.html'),
   }}},
 });
