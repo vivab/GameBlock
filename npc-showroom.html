@@ -228,8 +228,8 @@ function applyCombatStance(person,label){
  person.position.y-=.035;
  person.updateMatrixWorld(true);
  // Subtle asymmetric stance: feet wider, one foot slightly ahead.
- feet[0].x-=.065;feet[0].z+=.055;
- feet[1].x+=.065;feet[1].z-=.045;
+ feet[0].x-=.095;feet[0].z+=.055;
+ feet[1].x+=.095;feet[1].z-=.045;
  const leftError=bendLeg(left.upper,left.lower,left.foot,feet[0]);
  const rightError=bendLeg(right.upper,right.lower,right.foot,feet[1]);
  let spine=null,spine2=null;
@@ -306,7 +306,7 @@ function shoulderStockTarget(person){
  const p=new THREE.Vector3();
  (arm||collar).getWorldPosition(p);
  // The stock butt meets the RIGHT FRONT of the shoulder, not the torso centre.
- return p.add(new THREE.Vector3(.045,-.045,.06));
+ return p.add(new THREE.Vector3(.045,-.095,.06));
 }
 function worldOffsetToLocal(parent,worldVector){
  // Convert DIRECTION with matrix, not position, to avoid introducing a
@@ -337,7 +337,7 @@ function mountAK(holder,weaponSource){
  if(axis==='x')gun.rotation.y=-Math.PI/2+.035;
  else if(axis==='y')gun.rotation.x=Math.PI/2;
  else gun.rotation.y=.035;
- gun.position.set(0,1.33,.30);
+ gun.position.set(0,1.28,.30);
  model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
  // Coordinates refer to the rifle's centered source geometry in metres.
  const grip=(longitudinal,vertical)=>{
