@@ -147,6 +147,9 @@ function tick(timestamp){
  last=timestamp;
  if(!paused)time+=dt*speed;
  for(const a of actionScenes)update(a,time);
+ // Wipe the full transparent canvas before applying per-card scissor boxes.
+ // Otherwise opening/closing a fullscreen card leaves stale silhouettes.
+ renderer.setScissor(0,0,innerWidth,innerHeight);
  renderer.clear();
  for(const a of actionScenes){
   if(focus&&a.preview.closest('.motion-card')!==focus)continue;
