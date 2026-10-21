@@ -26,7 +26,7 @@ test('ten imported male soldier models are shown in an unarmed first-person walk
   assert.doesNotMatch(js,/new Match\(|import .*combat\.js|arena\.js|AK-47|rifle\.glb/);
   assert.match(vite,/casting:resolve/);
   assert.match(menu,/retroCasting/);
-  assert.match(menu,/НАШ СПЕЦНАЗ №08/);
+  assert.match(menu,/ПЕРСОНАЖ v1\.0/);
   assert.doesNotMatch(js,/addTacticalGear|new THREE\.BoxGeometry|createSwatV6Operator/);
   assert.match(js,/casting\/realistic\/manifest\.json/);
   assert.match(file('showroom.html'),/location\.replace\('\.\/casting\.html'\)/);
@@ -97,10 +97,10 @@ test('T gallery is now ten skinned MALE characters with fitting face masks',()=>
   assert.match(config,/gameblock:selected-masked-terrorist/);
   assert.match(config,/casting\/masked\//);
   assert.match(vite,/terrorists:resolve/);
-  assert.match(file('src/menu.js'),/10 БОЙЦОВ T · В МАСКАХ/);
+  assert.match(file('src/menu.js'),/АРХИВ МОДЕЛЕЙ T/);
   assert.match(config,/Police Male 02/);
   assert.match(config,/casting\/realistic\/08\.glb/);
-  assert.match(file('src/main.js'),/createRocketboxOperator\(preferred,actor\.team\)/);
+  assert.match(file('src/main.js'),/createBlockFighter\(palette\)/);
 });
 test('all ten masks are attached to actual skin-weighted human meshes, not hovering boxes',()=>{
   const m=JSON.parse(file('public/casting/masked/manifest.json'));
