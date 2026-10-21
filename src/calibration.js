@@ -1,4 +1,5 @@
 import { WEAPON_DEFAULTS,HAND_DEFAULTS } from './viewmodels.js';
+import {listGlovePresets} from './gloveSkins.js';
 
 // The old Source-skeleton calibration is intentionally not migrated. The
 // new GameBlock glove rig has predictable local axes and fresh clean defaults.
@@ -22,6 +23,12 @@ function save(data){
 }
 export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   const saved=read();
+  const GLOVE_STORAGE='gameblock:gloves-v1';
+  let gloveSelection={preset:'midnight',sleeveMode:'uniform'};
+  try{gloveSelection={...gloveSelection,...JSON.parse(localStorage.getItem(GLOVE_STORAGE)||'{}')}}catch{}
+  for(const view of Object.values(views)){
+    try{view.setGloveStyle(gloveSelection)}catch{view.setGloveStyle({preset:'midnight',sleeveMode:'uniform'})}
+  }
   for(const [kind,view] of Object.entries(views)){
     const config=saved[kind];if(!config)continue;
     if(config.weapon)view.calibrate(config.weapon);
@@ -46,6 +53,15 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
         <option value="pistol">На спуске</option><option value="cup">Обхват</option>
         <option value="fist">Кулак</option><option value="open">Открытая</option>
       </select></label>
+      <div style="border-top:1px solid #5673a088;margin:10px 0;padding-top:7px">
+        <b>ПЕРЧАТКИ / СКИНЫ</b>
+        <label>Расцветка <select id="calGlove"></select></label>
+        <label>Предплечья <select id="calSleeves">
+          <option value="uniform">Рукава спецназа</option>
+          <option value="bare">Открытые руки + перчатки</option>
+        </select></label>
+        <small>Перчатки независимы от оружия: одна расцветка на Glock, AK и нож.</small>
+      </div>
       <div id="calSliders"></div>
       <div class="cal-actions">
         <button id="calReset" type="button">Сбросить</button>
@@ -95,6 +111,23 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   const $=id=>wrapper.querySelector('#'+id);
   const wp=$('calWeapon'),part=$('calPart'),pose=$('calPose'),panel=$('calibrationPanel');
   const view=()=>views[wp.value];
+  const gloveSelect=$('calGlove'),sleeveSelect=$('calSleeves');
+  for(const preset of listGlovePresets()){
+    const option=document.createElement('option');
+    option.value=preset.id;option.textContent=preset.name;
+    gloveSelect.append(option);
+  }
+  const currentGlove=views.pistol.gloveStyle;
+  gloveSelect.value=currentGlove.preset;
+  sleeveSelect.value=currentGlove.sleeveMode;
+  function saveGloves(){
+    const config={preset:gloveSelect.value,sleeveMode:sleeveSelect.value};
+    for(const v of Object.values(views))v.setGloveStyle(config);
+    try{localStorage.setItem(GLOVE_STORAGE,JSON.stringify(config))}catch{}
+    $('calStatus').textContent='✓ Перчатки применены ко всему оружию';
+  }
+  gloveSelect.addEventListener('change',saveGloves);
+  sleeveSelect.addEventListener('change',saveGloves);
   const value=()=>part.value==='weapon'?view().calibration:view().handCalibration[part.value];
   function remember(){
     saved[wp.value]={weapon:view().calibration,...view().handCalibration};
