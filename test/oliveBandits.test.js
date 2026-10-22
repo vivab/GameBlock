@@ -27,7 +27,7 @@ test('olive T-02/T-05 edits are repeatable, stored as GLBs with untouched source
   assert.match(script,/"shadow": \(200, 207, 152\)/);
   assert.match(script,/outfitVersion"\] = 5/);
   assert.match(script,/mats\[index\]\["emissiveFactor"\] = list\(palette\["emissive"\]\)/);
-  assert.match(file('src/main.js'),/Block Fighter NPCs are generated locally/);
+  assert.match(file('src/main.js'),/fighter:'block_fighter_v1'/);
   assert.match(file('terrorists.html'),/20261018-full-outfit-olive-v7/);
 });
 test('once exported, T-02 and T-05 contain body-specific olive photo textures and original head and masks',()=>{
