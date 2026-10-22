@@ -282,13 +282,14 @@ function equipCurrent(){
 }
 function setSlot(slot){
  if(!me)return;
- if(slot==='bomb'&&!(me.hasBomb&&me.side==='t'))return;
- if(slot==='primary'&&!me.weapons.primary)return;
+ if(slot==='bomb'&&!(me.hasBomb&&me.side==='t'))return false;
+ if(slot==='primary'&&!me.weapons.primary)return false;
  currentSlot=slot;
  stopScope();
  equipCurrent();
  byId('weapons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.slot===slot));
  updateHud();
+ return true;
 }
 window.GAME_SET=id=>{
  const def=BOMB_WEAPONS[id];if(!def||!me)return;
@@ -826,7 +827,11 @@ function updateHud(){
  const ammo=me.ammo[id];
  const name=currentSlot==='bomb'?'C4':item?.name||'Пусто';
  byId('hp').textContent='♥ '+Math.ceil(me.health)+' · '+name+' '+(ammo?ammo.mag+'/'+ammo.reserve:'');
- byId('weapons').querySelector('[data-slot="bomb"]').textContent=me.hasBomb?'4 C4':'4 —';
+ const bombButton=byId('weapons').querySelector('[data-slot="bomb"]');
+ bombButton.textContent=me.hasBomb?'C4':'—';
+ bombButton.classList.toggle('unavailable',!me.hasBomb||me.side!=='t');
+ byId('weapons').querySelector('[data-slot="primary"]')
+  .classList.toggle('unavailable',!me.weapons.primary);
  byId('shopOpen').style.display=game.phase==='buy'?'block':'none';
  byId('aim').style.display=item?.scope&&me.alive?'block':'none';
  const nearbySite=me.side==='t'&&me.hasBomb&&!!findSite(me.x,me.z)&&game.phase==='live';
@@ -913,7 +918,58 @@ byId('crouch').addEventListener('click',()=>{
  crouched=!crouched;byId('crouch').style.background=crouched?'#7b8648':'';
 });
 byId('aim').addEventListener('click',toggleScope);
-byId('weapons').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setSlot(b.dataset.slot)));
+// Hold the circular button and drag into a slot, or tap to open and select.
+const wheel=byId('weapons'),wheelToggle=byId('weaponToggle');
+let wheelDrag=null;
+function openWheel(){
+ if(!me?.alive)return;
+ wheel.classList.add('open');wheelToggle.classList.add('active');
+ wheelToggle.setAttribute('aria-expanded','true');
+}
+function closeWheel(){
+ wheel.classList.remove('open');wheelToggle.classList.remove('active');
+ wheelToggle.setAttribute('aria-expanded','false');
+ wheel.querySelectorAll('button').forEach(b=>b.classList.remove('hovered'));
+}
+function wheelTarget(x,y){
+ let nearest=null,best=44;
+ for(const b of wheel.querySelectorAll('button')){
+  if(b.classList.contains('unavailable'))continue;
+  const rect=b.getBoundingClientRect();
+  const distance=Math.hypot(x-(rect.left+rect.width/2),y-(rect.top+rect.height/2));
+  if(distance<best){best=distance;nearest=b}
+ }
+ return nearest;
+}
+wheelToggle.addEventListener('pointerdown',e=>{
+ e.preventDefault();if(!me?.alive)return;
+ const wasOpen=wheel.classList.contains('open');
+ openWheel();wheelDrag={id:e.pointerId,x:e.clientX,y:e.clientY,wasOpen};
+ wheelToggle.setPointerCapture(e.pointerId);
+});
+wheelToggle.addEventListener('pointermove',e=>{
+ if(!wheelDrag||wheelDrag.id!==e.pointerId)return;
+ const hit=wheelTarget(e.clientX,e.clientY);
+ wheel.querySelectorAll('button').forEach(b=>b.classList.toggle('hovered',b===hit));
+});
+function finishWheelDrag(e){
+ if(!wheelDrag||wheelDrag.id!==e.pointerId)return;
+ const hit=wheelTarget(e.clientX,e.clientY);
+ const moved=Math.hypot(e.clientX-wheelDrag.x,e.clientY-wheelDrag.y)>18;
+ if(hit){setSlot(hit.dataset.slot);closeWheel()}
+ else if(moved||wheelDrag.wasOpen)closeWheel();
+ // A first short tap keeps the radial menu open for a second tap.
+ wheelDrag=null;
+}
+wheelToggle.addEventListener('pointerup',finishWheelDrag);
+wheelToggle.addEventListener('pointercancel',()=>{wheelDrag=null;closeWheel()});
+wheel.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+ if(setSlot(b.dataset.slot))closeWheel();
+}));
+document.addEventListener('pointerdown',e=>{
+ if(wheel.classList.contains('open')&&!e.target.closest('#weapons,#weaponToggle'))
+  closeWheel();
+});
 byId('grenade').addEventListener('click',()=>{
  if(me)addGrenade(selectedGrenade,me);
 });
@@ -963,10 +1019,11 @@ addEventListener('keydown',e=>{
  if(e.code==='Digit2')setSlot('pistol');
  if(e.code==='Digit3')setSlot('primary');
  if(e.code==='Digit4')setSlot('bomb');
+ if(e.code==='Escape')closeWheel();
 });
 addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='Space')jumping=false;if(e.code==='KeyE'){holdAction=false;progress=0}});
 addEventListener('resize',()=>{
  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
  renderer.setSize(innerWidth,innerHeight);
 });
-addEventListener('blur',()=>{firing=false;holdAction=false;jumping=false;keys.clear();joy.x=joy.y=0;pointers.clear()});
+addEventListener('blur',()=>{firing=false;holdAction=false;jumping=false;keys.clear();joy.x=joy.y=0;pointers.clear();closeWheel()});
