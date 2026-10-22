@@ -16,6 +16,8 @@ export const THIRD_PERSON_GRIPS=Object.freeze({
  })
 });
 export const WEAPON_MOUNT_STORAGE='gameblock:third-person-weapon-editor-v1';
+export const GRIP_EDITOR_STORAGE='gameblock:grip-pose-editor-v2';
+export const GRIP_EDITOR_TARGETS=Object.freeze(['weapon','right','left','all']);
 export const WEAPON_MOUNT_FIELDS=Object.freeze(['x','y','z','rx','ry','rz','scale']);
 const defaultMount=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
 const cleanMount=(data={})=>{
@@ -178,6 +180,27 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   return {imported:true,length:desired};
  }
  const mounts={rifle:defaultMount(),pistol:defaultMount()};
+ const gripEdits={
+  rifle:{right:defaultMount(),left:defaultMount(),all:defaultMount()},
+  pistol:{right:defaultMount(),left:defaultMount(),all:defaultMount()}
+ };
+ try{
+  const saved=JSON.parse(localStorage.getItem(GRIP_EDITOR_STORAGE)||'{}');
+  for(const name of ['rifle','pistol'])
+   for(const target of ['right','left','all'])
+    if(saved?.[name]?.[target])gripEdits[name][target]=cleanMount(saved[name][target]);
+ }catch{}
+ function getGripEdit(name,target){
+  if(!gripEdits[name]?.[target])throw Error('Unknown grip target '+name+'/'+target);
+  return {...gripEdits[name][target]};
+ }
+ function setGripEdit(name,target,values={},persist=true){
+  if(!gripEdits[name]?.[target])throw Error('Unknown grip target '+name+'/'+target);
+  gripEdits[name][target]=cleanMount({...gripEdits[name][target],...values});
+  if(persist)try{localStorage.setItem(GRIP_EDITOR_STORAGE,JSON.stringify(gripEdits))}catch{}
+  return getGripEdit(name,target);
+ }
+ function resetGripEdit(name,target){return setGripEdit(name,target,defaultMount())}
  // Browser-local calibration applies to both showroom and live matches.
  // Node builds are deterministic and do not require localStorage.
  try{
@@ -236,8 +259,18 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   }
   gun.updateWorldMatrix(true,true);
   fighter.root.updateWorldMatrix(true,true);
-  const right=gun.localToWorld(new THREE.Vector3(...profile.right));
-  const left=gun.localToWorld(new THREE.Vector3(...profile.left));
+  // All: move both contact points together, WITHOUT shifting the gun itself.
+  // Right / Left: independent contact position and wrist angle; weapon stays put.
+  const all=gripEdits[selected].all;
+  const targets={};
+  for(const [side,point,targetName] of [['R',profile.right,'right'],['L',profile.left,'left']]){
+   const edit=gripEdits[selected][targetName];
+   const offset=new THREE.Vector3(
+    edit.x+all.x,edit.y+all.y,edit.z+all.z);
+   const p=new THREE.Vector3(...point).add(offset);
+   targets[side]=gun.localToWorld(p);
+  }
+  const right=targets.R,left=targets.L;
   const rightOk=armTo(fighter,'R',right,palm.R);
   const leftOk=armTo(fighter,'L',left,palm.L);
   for(const [side,ok] of [['R',rightOk],['L',leftOk]]){
@@ -245,7 +278,11 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
     const wrist=fighter.bones['Hand_'+side];
     // Curl fingertips onto the grip without modifying the immutable bind pose.
     for(let i=0;i<3;i++)fighter.bones['Finger_'+side+'_'+i].rotation.x+=selected==='rifle'?.45:.32;
-    wrist.rotation.z+=(side==='L'?-.025:.025);
+    const edit=gripEdits[selected][side==='R'?'right':'left'];
+    const together=gripEdits[selected].all;
+    wrist.rotation.x+=THREE.MathUtils.degToRad(edit.rx+together.rx);
+    wrist.rotation.y+=THREE.MathUtils.degToRad(edit.ry+together.ry);
+    wrist.rotation.z+=(side==='L'?-.025:.025)+THREE.MathUtils.degToRad(edit.rz+together.rz);
    }
   }
   fighter.root.updateWorldMatrix(true,true);
@@ -258,7 +295,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   return {...lastError};
  }
  setKind(kind);
- return {root:base,palm,weapons,setKind,setModel,getMount,setMount,resetMount,update,
+ return {root:base,palm,weapons,setKind,setModel,getMount,setMount,resetMount,getGripEdit,setGripEdit,resetGripEdit,update,
   get kind(){return selected},
   get gripErrors(){return {...lastError}}};
 }
