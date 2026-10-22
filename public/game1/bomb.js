@@ -12,13 +12,16 @@ const rng=(a,b)=>a+Math.random()*(b-a);
 const rad=Math.PI/180;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#a4b2c0');
-scene.fog=new THREE.Fog(0xa4b2c0,75,180);
-scene.add(new THREE.HemisphereLight(0xeaf5ff,0x766751,2.2));
-const light=new THREE.DirectionalLight(0xffe3ad,2.1);light.position.set(25,60,-25);scene.add(light);
+scene.fog=new THREE.Fog(0xa9bdc7,100,210);
+// Less glare on the de_dust2 masonry: the old 2.2 + 2.1 lights washed it white.
+scene.add(new THREE.HemisphereLight(0xf0f6ff,0x746c61,1.0));
+const light=new THREE.DirectionalLight(0xffe6c1,1.25);light.position.set(25,60,-25);scene.add(light);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,190);
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.2));
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.13;
 byId('world').append(renderer.domElement);
 const weaponContainer=new THREE.Group();
 camera.add(weaponContainer);scene.add(camera);
@@ -36,7 +39,8 @@ window.scene=scene;
 const loader=new THREE.GLTFLoader();
 const assets=new Map();
 const obstacles=[];
-let levelMeshes=[];
+let levelMeshes=[],levelBounds=[],mapTop=45;
+const groundCache=new Map();
 let mapLoaded=false,game=null,players=[],me=null;
 let currentSlot='pistol',aiming=false,lookYaw=0,lookPitch=0;
 let selectedGrenade='he',firing=false,jumping=false,crouched=false;
@@ -49,13 +53,44 @@ const SITES=[
  {id:'B',x:22,z:17,radius:7,color:0x7ac6fb}
 ];
 const levelRoot=new THREE.Group();scene.add(levelRoot);
+// Limit raycasting to the meshes whose bounding boxes the ray can reach.
+// This avoids costly full-map triangle queries for every AI movement step.
+function levelHits(ray){
+ if(!levelMeshes.length)return [];
+ const candidates=levelBounds.length===levelMeshes.length
+  ? levelMeshes.filter((mesh,index)=>ray.ray.intersectsBox(levelBounds[index]))
+  : levelMeshes;
+ return candidates.length?ray.intersectObjects(candidates,false):[];
+}
 function positionGround(x,z,fromY=45){
  if(!mapLoaded||!levelMeshes.length)return 0;
- const rc=new THREE.Raycaster(new V(x,fromY,z),new V(0,-1,0),0,100);
- const hits=rc.intersectObjects(levelMeshes,false);
- for(const hit of hits)if(hit.face&&hit.face.normal.clone().transformDirection(hit.object.matrixWorld).y>.34)
-  return Math.max(-1,Math.min(8,hit.point.y));
- return 0;
+ // Reuse terrain samples in half-metre cells instead of raycasting 60fps.
+ const ix=Math.round(x*2),iz=Math.round(z*2);
+ const high=fromY>=30;
+ const band=high?'spawn':Math.floor(fromY*2);
+ const key=ix+':'+iz+':'+band;
+ if(groundCache.has(key))return groundCache.get(key);
+ const originY=high?Math.max(mapTop+4,fromY):fromY;
+ const ray=new THREE.Raycaster(new V(ix*.5,originY,iz*.5),new V(0,-1,0),0,Math.max(100,mapTop+30));
+ const hits=levelHits(ray);
+ let candidate=null,floor=null;
+ for(const hit of hits){
+  if(!hit.face||hit.point.y>originY+.05)continue;
+  const normal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+  if(normal.y<.38)continue; // Never spawn or place C4 on vertical geometry.
+  if(candidate===null)candidate=hit.point.y;
+  if(!high){floor=hit.point.y;break}
+  // Select walkways over higher roofs, without clamping the actual Y value.
+  if(hit.point.y<=12){floor=hit.point.y;break}
+ }
+ const height=Number.isFinite(floor??candidate)?floor??candidate:0;
+ if(groundCache.size>800)groundCache.clear();
+ groundCache.set(key,height);
+ return height;
+}
+function refreshLevelCollision(){
+ groundCache.clear();
+ levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
 }
 function makeFallbackMap(){
  const sand=new THREE.MeshStandardMaterial({color:0xcdb58a,roughness:1});
@@ -69,7 +104,8 @@ function makeFallbackMap(){
  add(-50,0,2,100,9);add(50,0,2,100,9);add(0,-50,100,2,9);add(0,50,100,2,9);
  for(const [x,z,w,d,h] of [[-8,4,12,3,4],[7,3,11,3,4],[-16,-9,3,16,5],[14,10,4,18,5],
    [-27,20,12,5,5],[30,-20,13,5,5],[0,-29,5,12,4],[0,27,5,12,4]])add(x,z,w,d,h);
- levelMeshes=obstacles.slice();mapLoaded=true;onMapReady('Резервная тренировочная карта (de_dust2 пока недоступна)');
+ levelMeshes=[floor,...obstacles];mapTop=45;refreshLevelCollision();
+ mapLoaded=true;onMapReady('Резервная тренировочная карта (de_dust2 пока недоступна)');
 }
 function loadDust2(){
  byId('mapStatus').textContent='Читаем оригинальный de_dust2 из Game1…';
@@ -78,15 +114,23 @@ function loadDust2(){
    const root=g.scene;
    root.updateMatrixWorld(true);
    let box=new THREE.Box3().setFromObject(root);
-   const size=box.getSize(new V()),center=box.getCenter(new V());
+   let size=box.getSize(new V());
+   // Detect clearly Z-up exports instead of standing a whole map vertically.
+   if(size.y>Math.max(size.x,size.z)*1.2 && size.z<size.y*.65){
+    root.rotation.x=-Math.PI/2;
+    root.updateMatrixWorld(true);box.setFromObject(root);size=box.getSize(new V());
+   }
    const scale=96/Math.max(size.x,size.z,1);
    root.scale.setScalar(scale);
+   const center=box.getCenter(new V());
    root.position.set(-center.x*scale,-box.min.y*scale,-center.z*scale);
    levelRoot.add(root);
    root.updateMatrixWorld(true);
+   const worldBox=new THREE.Box3().setFromObject(root);
+   mapTop=Math.max(35,worldBox.max.y);
    const meshes=[];root.traverse(o=>{if(o.isMesh){meshes.push(o);o.frustumCulled=true;o.castShadow=false;o.receiveShadow=false}});
    if(!meshes.length)throw Error('No GLB map geometry');
-   levelMeshes=meshes;mapLoaded=true;
+   levelMeshes=meshes;refreshLevelCollision();mapLoaded=true;
    onMapReady('Оригинальная de_dust2 из Game1 загружена');
   }catch(e){console.warn(e);makeFallbackMap()}
  },e=>{
@@ -151,7 +195,7 @@ function respawnActor(actor,index){
  const isCt=actor.side==='ct',row=index%5;
  actor.x=(isCt?30:-29)+(row-2)*1.5;
  actor.z=(isCt?31:-30)+(Math.floor(index/5))*1.2;
- actor.y=positionGround(actor.x,actor.z);
+ actor.y=positionGround(actor.x,actor.z,mapTop+5);
  actor.yaw=isCt?2.25:-.75;
  actor.health=100;actor.alive=true;actor.target=null;actor.travel=0;actor.actionTime=0;
  actor.hasPlanted=false;actor.reloadingUntil=0;actor.lastShot=-10;actor.botGoal=null;
@@ -281,7 +325,8 @@ function groundLOS(a,b){
  const delta=b.clone().sub(a),len=delta.length();
  if(len<.01)return true;
  const ray=new THREE.Raycaster(a,delta.divideScalar(len),.12,len-.14);
- return ray.intersectObjects(levelMeshes,false).length===0;
+ const hit=levelHits(ray)[0];
+ return !hit||hit.distance>=len-.14;
 }
 function insideSmoke(a,b){
  return smokes.some(s=>segmentPassesSmoke(a,b,s.position));
@@ -376,7 +421,7 @@ function fireGun(actor){
  }
  // In fire mode, do not shoot enemies through the original Dust2 geometry.
  const surfaceRay=new THREE.Raycaster(origin,aim,.02,distance);
- const surface=levelMeshes.length?surfaceRay.intersectObjects(levelMeshes,false)[0]:null;
+ const surface=levelHits(surfaceRay)[0];
  if(surface&&surface.distance<distance-.04){closest=null;hitPoint.copy(surface.point);distance=surface.distance}
  if(closest){
   const damage=item.pellets ? item.damage*3: item.damage;
@@ -736,7 +781,7 @@ function updatePlayer(dt){
   if(dist>.001){
    const proposed=new V(me.x,me.y+1.1,me.z);
    const ray=new THREE.Raycaster(proposed,dir.clone().normalize(),.05,dist+.32);
-   const blocked=levelMeshes.length&&ray.intersectObjects(levelMeshes,false)[0];
+   const blocked=levelHits(ray)[0];
    if(!blocked||blocked.distance>dist+.26){
     me.x=clamp(me.x+dir.x*speed*dt,-46,46);
     me.z=clamp(me.z+dir.z*speed*dt,-46,46);
@@ -745,7 +790,7 @@ function updatePlayer(dt){
  }
  if(jumping&&grounded&&!forcedPlantCrouch&&game.phase!=='buy'){verticalSpeed=5.8;grounded=false}
  if(!grounded){verticalSpeed-=16*dt;playerY+=verticalSpeed*dt}
- const ground=positionGround(me.x,me.z,me.y+12);
+ const ground=positionGround(me.x,me.z,me.y+1.45);
  if(playerY<=ground){playerY=ground;verticalSpeed=0;grounded=true}
  me.y=playerY;
  const camH=doCrouch?1.03:1.62;
