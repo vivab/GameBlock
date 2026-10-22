@@ -1,3 +1,5 @@
+import {weaponMoveSpeed} from './movementSpeed.js';
+
 // The simulation is independent of rendering, so match rules and bot perception
 // can be checked without WebGL. Coordinates match the arena in main.js.
 export const MATCH_SECONDS = 120;
@@ -163,7 +165,10 @@ export class Match {
       for (let slot = 0; slot < TEAM_SIZE; slot++) {
         const isPlayer = side === team && slot === 2;
         const actor = { id: side + slot, name: isPlayer ? 'Ты' : (side === 'ct' ? 'CT-' : 'T-') + (slot + 1),
-          team: side, slot, isPlayer, kills: 0, deaths: 0, magazine: isPlayer ? WEAPONS.pistol.magazine : 12 };
+          team: side, slot, isPlayer, kills: 0, deaths: 0,
+          weapon:isPlayer?'pistol':slot===4?'knife':slot===0?'pistol':'rifle',
+          magazine: isPlayer?WEAPONS.pistol.magazine:
+            slot===4?0:slot===0?WEAPONS.pistol.magazine:WEAPONS.rifle.magazine };
         this.actors.push(actor); this.spawn(actor);
         if (isPlayer) this.player = actor;
       }
@@ -261,7 +266,7 @@ export class Match {
     return hit;
   }
   reload(actor) {
-    if (this.phase !== 'playing' || !actor?.alive || actor.reloadingUntil || actor.ammo >= actor.magazine || actor.reserve <= 0 || (actor.isPlayer && actor.weapon === 'knife')) return false;
+    if (this.phase !== 'playing' || !actor?.alive || actor.reloadingUntil || actor.ammo >= actor.magazine || actor.reserve <= 0 || actor.weapon === 'knife') return false;
     actor.reloadingUntil = this.time + (actor.isPlayer ? WEAPONS[actor.weapon].reload : 1.7);
     this.events.push({ type: 'reload', actor });
     return true;
@@ -313,8 +318,10 @@ export class Match {
       const dx = target.x - bot.x, dz = target.z - bot.z, range = Math.hypot(dx, dz);
       bot.yaw = Math.atan2(-dx, -dz);
       if (this.time >= bot.noticedAt && !bot.reloadingUntil) {
-        if (bot.ammo === 0) this.reload(bot);
-        else if (this.time >= bot.nextFire) {
+        if (bot.weapon==='knife' && range<2.1 && this.time>=bot.nextKnife) {
+          this.fire(bot,{x:dx,y:target.y+1.05-eyeHeight(bot),z:dz},true);
+        } else if (bot.weapon!=='knife' && bot.ammo === 0) this.reload(bot);
+        else if (bot.weapon!=='knife' && this.time >= bot.nextFire) {
           // Deliberately modest skill: reaction time, slow fire and imperfect aim.
           const aim = { x: target.x - bot.x + (this.random() - 0.5) * range * 0.085,
             y: target.y + (crouched(target) ? 0.8 : 1.15) - eyeHeight(bot) + (this.random() - 0.5) * range * 0.065,
@@ -322,9 +329,9 @@ export class Match {
           this.fire(bot, aim);
         }
       }
-      if (range > 15) this.follow(bot, { x: target.x, z: target.z }, dt);
-      else if (!bot.reloadingUntil) {
-        const step = dt * 1.15;
+      if (range > (bot.weapon==='knife'?1.8:15)) this.follow(bot, { x: target.x, z: target.z }, dt);
+      else if (!bot.reloadingUntil && bot.weapon!=='knife') {
+        const step=dt*weaponMoveSpeed(bot.weapon,{bot:true})*.28;
         const before = { x: bot.x, z: bot.z };
         this.move(bot, -dz / Math.max(1, range) * step * bot.strafe, dx / Math.max(1, range) * step * bot.strafe);
         if (distance(bot, before) < step * 0.2 || this.random() < dt * 0.25) bot.strafe *= -1;
@@ -343,7 +350,8 @@ export class Match {
     const waypoint = bot.path[0], dx = waypoint.x - bot.x, dz = waypoint.z - bot.z, range = Math.hypot(dx, dz);
     if (range < 0.001) return;
     bot.yaw = Math.atan2(-dx, -dz);
-    const step = Math.min(range, dt * (bot.reloadingUntil ? 1.5 : 2.7));
+    const step=Math.min(range,dt*weaponMoveSpeed(bot.weapon,{
+      bot:true,crouch:crouched(bot),reloading:!!bot.reloadingUntil}));
     const before = { x: bot.x, z: bot.z };
     this.move(bot, dx / range * step, dz / range * step);
     if (distance(bot, before) < step * 0.15) {
@@ -359,7 +367,7 @@ export class Match {
     if (!this.staticBots) this.changePlans();
     for (const actor of this.actors) {
       if (!actor.alive) { if (this.time >= actor.respawnAt) this.spawn(actor); continue; }
-      if (!actor.reloadingUntil && actor.ammo === 0 && actor.reserve > 0 && (!actor.isPlayer || actor.weapon !== 'knife')) this.reload(actor);
+      if (!actor.reloadingUntil && actor.ammo === 0 && actor.reserve > 0 && actor.weapon !== 'knife') this.reload(actor);
       if (actor.reloadingUntil && this.time >= actor.reloadingUntil) {
         const count = Math.min(actor.magazine - actor.ammo, actor.reserve);
         actor.ammo += count; actor.reserve -= count; actor.reloadingUntil = 0;
