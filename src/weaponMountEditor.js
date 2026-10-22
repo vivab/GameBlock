@@ -70,6 +70,8 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  '<input id="weFile" class="we-file" type="file" accept=".glb,model/gltf-binary">',
  '<div class="we-buttons"><button type="button" id="weDefault">Временная модель</button>',
  '<button type="button" id="weReset">↺ Сброс координат</button></div>',
+ '<div class="we-buttons"><button type="button" id="weSmaller">− Меньше оружие</button>',
+ '<button type="button" id="weBigger">＋ Больше оружие</button></div>',
  '<div id="weSliders"></div>',
  '<div class="we-buttons"><button class="we-primary" type="button" id="weCopy">⧉ Копировать JSON</button>',
  '<button type="button" id="weMoveSide">⇆ Перенести меню</button></div>',
@@ -174,6 +176,15 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  function select(kind){
   if(kind!=='pistol'&&kind!=='rifle')return;
   kindSelect.value=kind;refresh();
+ }
+ for(const [id,delta] of [['weSmaller',-.1],['weBigger',.1]]){
+  $(id).addEventListener('click',()=>{
+   const kind=currentKind();
+   const mount=gear.getMount(kind);
+   const scale=mountControlValue(mount,'scale',mount.scale+delta);
+   gear.setMount(kind,{scale});
+   refresh();say('Масштаб '+kind+': '+scale.toFixed(2)+'×');
+  });
  }
  $('weReset').addEventListener('click',()=>{
   gear.resetMount(currentKind());refresh();say('Координаты сброшены');
