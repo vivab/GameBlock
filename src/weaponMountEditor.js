@@ -88,7 +88,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   const width=panel.getBoundingClientRect().width||296;
   const height=panel.getBoundingClientRect().height||52;
   return {x:clamp(x,3,Math.max(3,innerWidth-width-3)),
-   y:clamp(y,3,Math.max(3,innerHeight-Math.min(height,100)-3))};
+   y:clamp(y,3,Math.max(3,innerHeight-height-3))};
  };
  const place=(x,y)=>{
   const p=clampPosition(x,y);
@@ -122,7 +122,15 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   $('weMinimize').textContent=panel.classList.contains('weMin')?'▣':'—';
  });
  $('weClose').addEventListener('click',()=>panel.hidden=true);
- launcher.addEventListener('click',()=>{panel.hidden=!panel.hidden;if(!panel.hidden)refresh()});
+ launcher.addEventListener('click',()=>{
+  if(panel.hidden){
+   panel.hidden=false;panel.classList.remove('weMin');
+  }else if(panel.classList.contains('weMin')){
+   panel.classList.remove('weMin');
+  }else panel.hidden=true;
+  $('weMinimize').textContent=panel.classList.contains('weMin')?'▣':'—';
+  if(!panel.hidden){const bounds=panel.getBoundingClientRect();place(bounds.left,bounds.top);refresh()}
+ });
  function currentKind(){return kindSelect.value==='pistol'?'pistol':'rifle'}
  const say=(txt,err=false)=>{
   const el=$('weMessage');el.textContent=txt;el.style.color=err?'#ffaaa0':'#eacb99';
@@ -200,10 +208,16 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  };
  position();
  addEventListener('resize',()=>{const r=panel.getBoundingClientRect();place(r.left,r.top)});
- if(innerWidth<700)panel.classList.add('weMin');
+ if(innerWidth<700){
+  panel.classList.add('weMin');
+  $('weMinimize').textContent='▣';
+ }
  const selected=getKind();
  if(selected==='rifle'||selected==='pistol')kindSelect.value=selected;
  refresh();
- return {element:panel,launcher,show(){panel.hidden=false;refresh()},hide(){panel.hidden=true},
+ return {element:panel,launcher,show(){
+    panel.hidden=false;panel.classList.remove('weMin');$('weMinimize').textContent='—';
+    const bounds=panel.getBoundingClientRect();place(bounds.left,bounds.top);refresh();
+   },hide(){panel.hidden=true},
   select,refresh,dispose(){launcher.remove();panel.remove();css.remove()}};
 }
