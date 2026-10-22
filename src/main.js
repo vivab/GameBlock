@@ -479,11 +479,12 @@ function updateJoy(event) {
   // The thumb position is linear, but movement is deliberately nonlinear:
   // 10% centre dead zone, gentle walking at small tilts, full run only at edge.
   const maxRadius=Math.min(r.width,r.height)*.41;
+  const knobRadius=Math.max(12,(Math.min(r.width,r.height)-40)*.5);
   const visual=Math.min(1,distance/maxRadius);
   const intensity=joystickIntensity(distance,maxRadius);
   const nx=distance>0?dx/distance:0,nz=distance>0?dy/distance:0;
   move.x=nx*intensity;move.y=nz*intensity;
-  $('knob').style.transform=`translate(${(nx*visual*maxRadius).toFixed(1)}px,${(nz*visual*maxRadius).toFixed(1)}px)`;
+  $('knob').style.transform=`translate(${(nx*visual*knobRadius).toFixed(1)}px,${(nz*visual*knobRadius).toFixed(1)}px)`;
   const pace=joystickPace(intensity);
   $('joy').dataset.pace=pace;
   $('joyMode').textContent=pace==='run'?'БЕГ':pace==='walk'?'ТИХО':'';
