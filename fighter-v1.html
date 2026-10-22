@@ -69,7 +69,7 @@ footer{font-size:11px;color:#8fa7b8;margin-top:16px;line-height:1.6}
   <canvas id="canvas"></canvas>
   <div class="version">ORIGINAL · RIGGED · WEB/MOBILE</div>
   <div class="status" id="status">Загрузка 3D…</div>
-  <div class="hint">Пальцем — повернуть · двумя — приблизить · суставы регулируются справа</div>
+  <div class="hint">Пальцем — повернуть бойца · меню оружия двигается за заголовок</div>
  </section>
  <aside class="panel">
   <section class="card">
@@ -90,10 +90,13 @@ footer{font-size:11px;color:#8fa7b8;margin-top:16px;line-height:1.6}
     <option value="pistol">Пистолет · две руки</option>
     <option value="none">Без оружия · ручная настройка костей</option>
    </select>
-   <p>Правая кисть держит рукоятку, левая — цевьё автомата или поддерживает пистолет. Руки подводятся к оружию через IK. «Без оружия» освобождает суставы для ручного редактирования.</p>
+   <div class="tools" style="margin-top:11px">
+    <button id="openWeaponEditor" class="tool primary" type="button" style="grid-column:1/-1">⚙ ОТКРЫТЬ РЕДАКТОР ОРУЖИЯ</button>
+   </div>
+   <p>Редактор показывает все изменения сразу: вверх/вниз, влево/вправо, вперёд/назад, поворот и масштаб. Меню можно перетащить пальцем или свернуть. Можно примерить свой GLB с телефона.</p>
   </section>
   <section class="card">
-   <h2>Ручное управление скелетом</h2>
+   <h2>Ручное управление скелетом (без оружия)</h2>
    <label class="label" for="bone">Кость</label>
    <select id="bone"><option>Загрузка…</option></select>
    <div class="axes">
