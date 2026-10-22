@@ -277,7 +277,7 @@ export function createBlockFighter(options={}){
   }
   if(action==='jump'){
    const phase=(t%2.0)/2.0;
-   bones.Root.position.y=.56*Math.max(0,Math.sin(Math.PI*phase));
+   bones.Root.position.y=.59*Math.max(0,Math.sin(Math.PI*phase));
    const flying=Math.max(0,Math.sin(Math.PI*phase));
    ROT('UpperArm_L',-.45-.4*flying,0,.26);
    ROT('UpperArm_R',-.45-.4*flying,0,-.26);
