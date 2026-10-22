@@ -14,14 +14,14 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color('#a4b2c0');
 scene.fog=new THREE.Fog(0xa9bdc7,100,210);
 // Less glare on the de_dust2 masonry: the old 2.2 + 2.1 lights washed it white.
-scene.add(new THREE.HemisphereLight(0xf0f6ff,0x746c61,1.0));
-const light=new THREE.DirectionalLight(0xffe6c1,1.25);light.position.set(25,60,-25);scene.add(light);
+scene.add(new THREE.HemisphereLight(0xe8ecf1,0x6b6358,.72));
+const light=new THREE.DirectionalLight(0xffd7a3,.9);light.position.set(25,60,-25);scene.add(light);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,190);
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.13;
+renderer.toneMappingExposure=.85;
 byId('world').append(renderer.domElement);
 const weaponContainer=new THREE.Group();
 camera.add(weaponContainer);scene.add(camera);
@@ -62,31 +62,10 @@ function levelHits(ray){
   : levelMeshes;
  return candidates.length?ray.intersectObjects(candidates,false):[];
 }
+// New map is deliberately flat: player, bots and C4 always stand at Y=0.
+// Never raycast onto crate tops or rooftops as if they were the ground.
 function positionGround(x,z,fromY=45){
- if(!mapLoaded||!levelMeshes.length)return 0;
- // Reuse terrain samples in half-metre cells instead of raycasting 60fps.
- const ix=Math.round(x*2),iz=Math.round(z*2);
- const high=fromY>=30;
- const band=high?'spawn':Math.floor(fromY*2);
- const key=ix+':'+iz+':'+band;
- if(groundCache.has(key))return groundCache.get(key);
- const originY=high?Math.max(mapTop+4,fromY):fromY;
- const ray=new THREE.Raycaster(new V(ix*.5,originY,iz*.5),new V(0,-1,0),0,Math.max(100,mapTop+30));
- const hits=levelHits(ray);
- let candidate=null,floor=null;
- for(const hit of hits){
-  if(!hit.face||hit.point.y>originY+.05)continue;
-  const normal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-  if(normal.y<.38)continue; // Never spawn or place C4 on vertical geometry.
-  if(candidate===null)candidate=hit.point.y;
-  if(!high){floor=hit.point.y;break}
-  // Select walkways over higher roofs, without clamping the actual Y value.
-  if(hit.point.y<=12){floor=hit.point.y;break}
- }
- const height=Number.isFinite(floor??candidate)?floor??candidate:0;
- if(groundCache.size>800)groundCache.clear();
- groundCache.set(key,height);
- return height;
+ return 0;
 }
 function refreshLevelCollision(){
  groundCache.clear();
@@ -96,11 +75,11 @@ function refreshLevelCollision(){
 // The imported GLB is intentionally no longer loaded in bomb mode.
 function buildDust2(){
  byId('mapStatus').textContent='Строим новую карту Dust2…';
- const mat=(color)=>new THREE.MeshStandardMaterial({color,roughness:.95});
- const sand=mat(0xc4aa7e),stone=mat(0xcdb28a),plaster=mat(0xe0c9a2);
- const trim=mat(0x9c815d),dark=mat(0x76634f),wood=mat(0x795638);
+ const mat=(color)=>new THREE.MeshLambertMaterial({color});
+ const sand=mat(0x95744e),stone=mat(0xa58b65),plaster=mat(0xbca17c);
+ const trim=mat(0x796044),dark=mat(0x5c4b3b),wood=mat(0x5b3e2c);
  const floor=new THREE.Mesh(new THREE.BoxGeometry(100,.4,100),sand);
- floor.position.y=-.2;levelRoot.add(floor);
+ floor.position.y=-.2;floor.material.side=THREE.DoubleSide;levelRoot.add(floor);
  const solid=(x,z,w,d,h,m=stone)=>{
   const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
   mesh.position.set(x,h/2,z);levelRoot.add(mesh);obstacles.push(mesh);return mesh;
@@ -135,7 +114,7 @@ function buildDust2(){
   solid(x,z,2.4,2.4,1.45,wood);
   deco(x,1.52,z,2.55,.13,2.55,trim);
  }
- // Architectural silhouettes are decorative, not physical ceilings above spawn.
+ // Decorative building silhouettes (never used to calculate player height).
  for(const [x,z,w,d,h] of [[-41,27,12,15,8],[39,-29,14,18,8],[-40,-37,12,10,7],[42,38,12,12,7]]){
   solid(x,z,w,d,h,plaster);
   deco(x,h+.15,z,w+.3,.3,d+.3,trim);
