@@ -16,7 +16,7 @@ export function mountControlValue(mount,key,value){
  if(!control)throw Error('Unknown mount axis '+key);
  const n=Number(value);
  if(!Number.isFinite(n))return mount[key];
- return clamp(Math.round(n/control.step)*control.step,control.min,control.max);
+ return clamp(Number((Math.round(n/control.step)*control.step).toFixed(6)),control.min,control.max);
 }
 const format=(value,field)=>field.unit==='°'?Math.round(value)+'°':
  field.unit==='×'?Number(value).toFixed(2)+'×':Number(value).toFixed(3)+' м';
