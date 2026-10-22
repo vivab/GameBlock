@@ -32,10 +32,14 @@ jobs:
           python scripts/build_counter_flame_swat_v7.py
           python scripts/build_counter_flame_swat_v8.py
       - run: npm ci
-      - name: Copy Game1 models (read-only, allowlist, no map or AK)
-        run: bash scripts/sync-game1-assets.sh
-      - name: Build Game1-mode map from original GameBlock layout
-        run: node scripts/build-game1-map.mjs
+      - name: Confirm full imported Game1 maps, weapons and mode pages
+        run: |
+          bash scripts/sync-game1-assets.sh
+          test -s public/game1/de_dust2_-_cs_map.glb
+          test -s public/game1/lowpoly__fps__tdm__game__map_by_resoforge.glb
+          test -s public/game1/hands.js
+          test -s public/game1/bomb.html
+          test -s public/game1/bomb.js
       - run: npm test
       - run: npm run build
       - uses: actions/configure-pages@v5
