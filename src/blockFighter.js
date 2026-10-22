@@ -117,11 +117,11 @@ export function createBlockFighter(options={}){
   const s=side==='L'?1:-1;
   const up='UpperArm_'+side,lo='Forearm_'+side,hand='Hand_'+side;
   const thigh='Thigh_'+side,calf='Calf_'+side,foot='Foot_'+side,toe='Toe_'+side;
-  box('SleeveUpper'+side,up,'cloth',[0,-.154,0],[.223,.316,.255]);
+  box('SleeveUpper'+side,up,'cloth',[0,-.154,0],[.255,.316,.272]);
   box('ElbowInset'+side,lo,'clothDark',[0,-.019,.015],[.217,.085,.230]);
-  box('SleeveLower'+side,lo,'cloth',[0,-.142,.011],[.201,.291,.224]);
-  box('WristCuff'+side,hand,'clothDark',[0,.006,0],[.202,.072,.196]);
-  box('Glove'+side,hand,'glove',[0,-.054,.009],[.173,.133,.176]);
+  box('SleeveLower'+side,lo,'cloth',[0,-.142,.011],[.232,.291,.24]);
+  box('WristCuff'+side,hand,'clothDark',[0,.006,0],[.224,.082,.218]);
+  box('Glove'+side,hand,'glove',[0,-.054,.009],[.196,.147,.191]);
   box('PalmGrip'+side,hand,'glovePalm',[0,-.083,.101],[.136,.060,.012]);
   for(let i=0;i<3;i++){
    box('FingerSegment'+side+i,'Finger_'+side+'_'+i,'glove',[(i-1)*.004,-.026,.005],[.044,.076,.065]);
@@ -277,24 +277,24 @@ export function createBlockFighter(options={}){
   }
   if(action==='jump'){
    const phase=(t%2.0)/2.0;
-   bones.Root.position.y=.62*Math.max(0,Math.sin(Math.PI*phase));
+   bones.Root.position.y=.56*Math.max(0,Math.sin(Math.PI*phase));
    const flying=Math.max(0,Math.sin(Math.PI*phase));
    ROT('UpperArm_L',-.45-.4*flying,0,.26);
    ROT('UpperArm_R',-.45-.4*flying,0,-.26);
-   ROT('Thigh_L',-.05-.28*flying,0,.10);
-   ROT('Thigh_R',-.05-.44*flying,0,-.10);
-   ROT('Calf_L',.08+.62*flying,0,0);
-   ROT('Calf_R',.08+.53*flying,0,0);
+   ROT('Thigh_L',-.11-.37*flying,0,.13);
+   ROT('Thigh_R',-.10-.49*flying,0,-.13);
+   ROT('Calf_L',.12+.82*flying,0,0);
+   ROT('Calf_R',.12+.72*flying,0,0);
   }
   if(action==='crouch'){
    aim();
-   bones.Root.position.y=-.215;
-   ROT('Thigh_L',-.74,0,.17);
-   ROT('Thigh_R',-.70,0,-.17);
-   ROT('Calf_L',1.04,0,0);
-   ROT('Calf_R',1.09,0,0);
-   ROT('Foot_L',-.24,0,0);
-   ROT('Foot_R',-.24,0,0);
+   bones.Root.position.y=-.305;
+   ROT('Thigh_L',-.89,0,.19);
+   ROT('Thigh_R',-.86,0,-.19);
+   ROT('Calf_L',1.24,0,0);
+   ROT('Calf_R',1.26,0,0);
+   ROT('Foot_L',-.32,0,0);
+   ROT('Foot_R',-.32,0,0);
    ROT('Spine_01',-.19,0,0);
    ROT('Spine_02',-.17,0,0);
   }
