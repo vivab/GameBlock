@@ -26,7 +26,7 @@ function finger(root,side,x,z,lengths,angles,thick,k,digit) {
     if(i)joint.position.z=-lengths[i-1]*.94;
     joint.rotation.x=angles[i]*k*rad;
     parent.add(joint);
-    const body=sphere(joint,i===0?fingers:glove,thick*.57,thick*.54,
+    const body=sphere(joint,i===0?fingers:glove,thick*.62,thick*.59,
       length*.51,0,0,-length*.51);
     body.userData.finger=digit;body.userData.segment=i;
     if(i===0 && digit<4)sphere(joint,knuckle,thick*.60,thick*.26,
@@ -48,14 +48,14 @@ export function makeHand(side,pose='fist',u=.105,k=1,team='ct') {
   const palm=sphere(hand,glove,.60*u,.33*u,.69*u,0,0,-.08*u);
   sphere(hand,knuckle,.44*u,.12*u,.25*u,0,.20*u,-.32*u);
   sphere(hand,band,.59*u,.37*u,.30*u,0,0,.45*u);
-  const widths=[.25,.26,.25,.24].map(n=>n*u);
+  const widths=[.33,.35,.34,.32].map(n=>n*u);
   for(let i=0;i<4;i++){
-    const x=sign*(.39-i*.28)*u;
+    const x=sign*(.47-i*.32)*u;
     const lens=[[.52,.37,.29],[.58,.41,.31],[.53,.38,.27],[.44,.33,.25]][i].map(n=>n*u);
     finger(hand,side,x,-.55*u,lens,p.f[i],widths[i],k,i);
   }
   const thumb=finger(hand,side,sign*.49*u,.18*u,[.53*u,.36*u],
-    p.th,.25*u,k,4);
+    p.th,.33*u,k,4);
   thumb.rotation.y=-sign*.85;
   // Block Strike-style angular forearms. Keep the original pivots,
   // length and local coordinate system so calibrated knife/gun poses and
