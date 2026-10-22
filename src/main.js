@@ -49,6 +49,7 @@ const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
 menuLight.position.set(-4, 8, -5);menuScene.add(menuLight);
 let preview=createBlockFighter();
 const previewGear=createThirdPersonLoadout(preview,{kind:'rifle'});
+let previewWeaponKind='rifle';
 let previewGLB=null;
 preview.root.rotation.y=-.32;
 menuScene.add(preview.root);
@@ -177,7 +178,12 @@ const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promi
       }else if (key === 'pistol' || key === 'rifle') {
         // A late preload must not overwrite an armory selection made in the lobby.
         const original=key==='pistol'?'g18':'ak47';
-        if(!armory || armory.chosen[key]===original)views[key].setModel(result.scene);
+        if(!armory || armory.chosen[key]===original){
+          views[key].setModel(result.scene);
+          if(previewWeaponKind===key){
+            try{previewGear.setModel(key,result.scene)}catch(error){console.warn('Preview weapon:',error)}
+          }
+        }
       }
       else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
@@ -310,8 +316,13 @@ armory=installArmory({
  selectWeapon:name=>selectWeapon(name),
  baseUrl:import.meta.env.BASE_URL,
  onPlay:()=>{if(match.phase==='home')document.getElementById('retroPlay')?.click()},
- onSelection:item=>{
+ onOpen:()=>resetInputs(),
+ onSelection:(item,scene)=>{
   ARMORY_LABELS[item.slot]=item.label;
+  previewWeaponKind=item.slot;
+  if(scene){
+   try{previewGear.setModel(item.slot,scene)}catch(error){console.warn('Armory preview:',error)}
+  }
   const option=document.querySelector('#calWeapon option[value="'+item.slot+'"]');
   if(option)option.textContent=item.label;
   if(weapon===item.slot)$('weaponLabel').textContent=item.label;
@@ -418,7 +429,7 @@ $('returnHome').addEventListener('click', () => {
   document.body.classList.remove('dead');
   retroMenu.show();
 });
-function canControl() { return match.phase === 'playing' && match.player?.alive; }
+function canControl() { return match.phase === 'playing' && match.player?.alive && !armory?.isOpen; }
 function jump() {
   if (!canControl()) return;
   const player = match.player;
@@ -526,7 +537,7 @@ function endJoy(event) {
 $('joy').addEventListener('pointerup', endJoy); $('joy').addEventListener('pointercancel', endJoy);
 // Multi-touch aiming still works while a finger is on fire/jump/crouch.
 document.addEventListener('pointerdown', event => {
-  if (!canControl() || event.target.closest('#controls, .menu, #calibrationUI')) return;
+  if (!canControl() || event.target.closest('#controls, .menu, #calibrationUI, #gbArmory, #gbArmoryButton')) return;
   lookPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (event.pointerType === 'mouse' && event.target === renderer.domElement && event.button === 0) { firing = true; if (weapon !== 'rifle') shoot(); }
 }, { capture: true });
@@ -741,7 +752,7 @@ let previous = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const elapsed = Math.max(0, (now - previous) / 1000), dt = Math.min(elapsed, 0.04); previous = now;
-  if (match.phase === 'playing') {
+  if (match.phase === 'playing' && !armory?.isOpen) {
     match.step(elapsed);
     if (canControl()) { movePlayer(dt); if (firing && weapon !== 'knife') shoot(); }
   }
@@ -752,7 +763,7 @@ function frame(now) {
     preview.root.rotation.y=-.38+Math.sin(now*.00035)*.18;
     if(preview.mesh?.isSkinnedMesh){
       preview.update(now*.001,'aim');
-      previewGear.update({kind:'rifle',mode:'aim',time:now*.001});
+      previewGear.update({kind:previewWeaponKind,mode:'aim',time:now*.001});
       previewGLB?.sync();
     }
     if(preview.mode==='tactical')animateTacticalOperator(preview,
