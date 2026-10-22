@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {readFileSync} from 'node:fs';
 import {createBlockFighter} from '../src/blockFighter.js';
-import {createThirdPersonLoadout,GRIP_EDITOR_STORAGE,GRIP_EDITOR_TARGETS} from '../src/thirdPersonGrip.js';
+import {createThirdPersonLoadout,GRIP_EDITOR_STORAGE,GRIP_EDITOR_TARGETS,USER_WEAPON_PRESETS} from '../src/thirdPersonGrip.js';
 
 test('weapon, left hand, right hand and whole rig can be edited separately',()=>{
  assert.deepEqual(GRIP_EDITOR_TARGETS,['weapon','right','left','all']);
@@ -84,5 +84,17 @@ test('weapon-only mode freezes both hands while moving gun; closing restores IK'
  gear.update({kind:'pistol',time:.2});
  const moved=fighter.bones.Hand_R.getWorldPosition(new THREE.Vector3()).distanceTo(beforeR);
  assert.ok(moved>.01,'normal IK should resume after leaving calibration');
+ fighter.dispose();
+});
+
+test('shared USP-S and rifle defaults use supplied grip values and point muzzle forward',()=>{
+ assert.equal(USER_WEAPON_PRESETS.pistol.weapon.scale,2.3);
+ assert.equal(USER_WEAPON_PRESETS.pistol.left.ry,81);
+ assert.equal(USER_WEAPON_PRESETS.rifle.weapon.ry,0);
+ assert.equal(USER_WEAPON_PRESETS.rifle.left.ry,-111);
+ const fighter=createBlockFighter();
+ const gear=createThirdPersonLoadout(fighter);
+ assert.equal(gear.getMount('rifle').ry,0);
+ assert.equal(gear.getGripEdit('rifle','left').z,-.75);
  fighter.dispose();
 });
