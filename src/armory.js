@@ -61,7 +61,7 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},baseUrl='/'
   try{
    let scene=cache.get(item.id);
    if(!scene){
-    const url=baseUrl.replace(/\\/$/,'/')+item.path;
+    const url=(baseUrl.endsWith('/')?baseUrl:baseUrl+'/')+item.path;
     const result=await loader.loadAsync(url);
     scene=result.scene;cache.set(item.id,scene);
    }
