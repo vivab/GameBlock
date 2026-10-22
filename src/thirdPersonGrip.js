@@ -141,7 +141,14 @@ function armTo(fighter,side,target,contact){
  fighter.root.updateWorldMatrix(true,true);
  return true;
 }
-export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
+// NPC rigs must never inherit extreme showroom calibration or edits stored
+// on this device. Compact, reachable grips keep both hands on a firearm.
+export const NPC_COMBAT_GRIPS=Object.freeze({
+ rifle:Object.freeze({...THIRD_PERSON_GRIPS.rifle,root:[-.14,1.30,.24],
+  right:[-.045,-.125,.06],left:[.12,-.065,.08]}),
+ pistol:Object.freeze({...THIRD_PERSON_GRIPS.pistol,root:[-.025,1.27,.35]})
+});
+export function createThirdPersonLoadout(fighter,{kind='rifle',npc=false}={}){
  if(!fighter?.bones?.Hand_R||!fighter?.bones?.Hand_L)throw Error('Block Fighter rig required');
  const base=new THREE.Group();
  base.name='Third-person external weapons';
@@ -193,12 +200,17 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   for(const part of item.proxyParts)part.visible=false;
   return {imported:true,length:desired};
  }
- const mounts={rifle:{...USER_WEAPON_PRESETS.rifle.weapon},pistol:{...USER_WEAPON_PRESETS.pistol.weapon}};
- const gripEdits={
+ const mounts=npc
+  ? {rifle:defaultMount(),pistol:defaultMount()}
+  : {rifle:{...USER_WEAPON_PRESETS.rifle.weapon},pistol:{...USER_WEAPON_PRESETS.pistol.weapon}};
+ const gripEdits=npc ? {
+  rifle:{right:defaultMount(),left:defaultMount(),all:defaultMount()},
+  pistol:{right:defaultMount(),left:defaultMount(),all:defaultMount()}
+ } : {
   rifle:{right:{...USER_WEAPON_PRESETS.rifle.right},left:{...USER_WEAPON_PRESETS.rifle.left},all:{...USER_WEAPON_PRESETS.rifle.all}},
   pistol:{right:{...USER_WEAPON_PRESETS.pistol.right},left:{...USER_WEAPON_PRESETS.pistol.left},all:{...USER_WEAPON_PRESETS.pistol.all}}
  };
- try{
+ if(!npc)try{
   const saved=JSON.parse(localStorage.getItem(GRIP_EDITOR_STORAGE)||'{}');
   for(const name of ['rifle','pistol'])
    for(const target of ['right','left','all'])
@@ -211,13 +223,13 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
  function setGripEdit(name,target,values={},persist=true){
   if(!gripEdits[name]?.[target])throw Error('Unknown grip target '+name+'/'+target);
   gripEdits[name][target]=cleanMount({...gripEdits[name][target],...values});
-  if(persist)try{localStorage.setItem(GRIP_EDITOR_STORAGE,JSON.stringify(gripEdits))}catch{}
+  if(persist&&!npc)try{localStorage.setItem(GRIP_EDITOR_STORAGE,JSON.stringify(gripEdits))}catch{}
   return getGripEdit(name,target);
  }
  function resetGripEdit(name,target){return setGripEdit(name,target,defaultMount())}
  // Browser-local calibration applies to both showroom and live matches.
  // Node builds are deterministic and do not require localStorage.
- try{
+ if(!npc)try{
   const saved=JSON.parse(localStorage.getItem(WEAPON_MOUNT_STORAGE)||'{}');
   for(const kind of Object.keys(mounts))if(saved?.[kind])mounts[kind]=cleanMount(saved[kind]);
   // Old editor calibration had 180° yaw, turning the muzzle back at the character.
@@ -225,7 +237,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   if(Math.abs(Math.abs(mounts.rifle.ry)-180)<.5){mounts.rifle.ry=0;saveMounts();}
  }catch{}
  function saveMounts(){
-  try{localStorage.setItem(WEAPON_MOUNT_STORAGE,JSON.stringify(mounts))}catch{}
+  if(!npc)try{localStorage.setItem(WEAPON_MOUNT_STORAGE,JSON.stringify(mounts))}catch{}
  }
  function getMount(name){if(!mounts[name])throw Error('Unknown mount '+name);return {...mounts[name]}}
  function setMount(name,values={},persist=true){
@@ -261,7 +273,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
  }
  function update({kind=selected||'rifle',mode='aim',time=0,fire=false}={}){
   if(kind!==selected)setKind(kind);
-  const profile=THIRD_PERSON_GRIPS[selected];
+  const profile=npc?NPC_COMBAT_GRIPS[selected]:THIRD_PERSON_GRIPS[selected];
   const item=weapons[selected];
   const gun=item.root;
   const mount=mounts[selected];
