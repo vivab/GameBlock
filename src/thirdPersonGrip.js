@@ -267,7 +267,9 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
    const edit=gripEdits[selected][targetName];
    const offset=new THREE.Vector3(
     edit.x+all.x,edit.y+all.y,edit.z+all.z);
-   const p=new THREE.Vector3(...point).add(offset);
+   const center=new THREE.Vector3(...profile.right).add(new THREE.Vector3(...profile.left)).multiplyScalar(.5);
+   const p=new THREE.Vector3(...point).sub(center)
+    .multiplyScalar(all.scale*edit.scale).add(center).add(offset);
    targets[side]=gun.localToWorld(p);
   }
   const right=targets.R,left=targets.L;
