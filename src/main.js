@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
 import {attachBlockFighterGLB} from './blockFighterGLB.js';
-import {weaponMoveSpeed} from './movementSpeed.js';
+import {weaponMoveSpeed,joystickIntensity,joystickPace} from './movementSpeed.js';
 import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
@@ -278,6 +278,8 @@ const markGeometry = new THREE.CircleGeometry(0.055, 10);
 const markMaterial = new THREE.MeshBasicMaterial({ color: 0x242424, side: THREE.DoubleSide, depthWrite: false });
 function resetInputs() {
   move.x = move.y = 0; keys.clear(); lookPointers.clear(); firing = jumpHeld = false; joyId = null;
+  $('joy').dataset.pace='idle';
+  $('joyMode').textContent='';
   firePointer = null;
   inspection.cancel();
   if (match.player) match.player.keyboardCrouch = false;
@@ -473,9 +475,18 @@ for (const [id, name] of [['choosePistol', 'pistol'], ['chooseKnife', 'knife'], 
 function updateJoy(event) {
   const r = $('joy').getBoundingClientRect();
   const dx = event.clientX - r.left - r.width / 2, dy = event.clientY - r.top - r.height / 2;
-  const length = Math.max(1, Math.hypot(dx, dy)), scale = Math.min(1, length / 48);
-  move.x = dx / length * scale; move.y = dy / length * scale;
-  $('knob').style.transform = `translate(${move.x * 38}px,${move.y * 38}px)`;
+  const distance=Math.hypot(dx,dy);
+  // The thumb position is linear, but movement is deliberately nonlinear:
+  // 10% centre dead zone, gentle walking at small tilts, full run only at edge.
+  const maxRadius=Math.min(r.width,r.height)*.41;
+  const visual=Math.min(1,distance/maxRadius);
+  const intensity=joystickIntensity(distance,maxRadius);
+  const nx=distance>0?dx/distance:0,nz=distance>0?dy/distance:0;
+  move.x=nx*intensity;move.y=nz*intensity;
+  $('knob').style.transform=`translate(${(nx*visual*maxRadius).toFixed(1)}px,${(nz*visual*maxRadius).toFixed(1)}px)`;
+  const pace=joystickPace(intensity);
+  $('joy').dataset.pace=pace;
+  $('joyMode').textContent=pace==='run'?'БЕГ':pace==='walk'?'ТИХО':'';
 }
 $('joy').addEventListener('pointerdown', event => {
   event.preventDefault(); if (!canControl()) return;
@@ -485,6 +496,7 @@ $('joy').addEventListener('pointermove', event => { if (event.pointerId === joyI
 function endJoy(event) {
   if (event.pointerId !== joyId) return;
   joyId = null; move.x = move.y = 0; $('knob').style.transform = '';
+  $('joy').dataset.pace='idle';$('joyMode').textContent='';
 }
 $('joy').addEventListener('pointerup', endJoy); $('joy').addEventListener('pointercancel', endJoy);
 // Multi-touch aiming still works while a finger is on fire/jump/crouch.
@@ -611,8 +623,9 @@ function updateModels(dt) {
     if(model.animated?.mesh?.isSkinnedMesh){
       const moving=dist/Math.max(.02,dt)>.26;
       const firing=Number.isFinite(actor.lastShotAt)&&match.time-actor.lastShotAt<.18;
+      const actorSpeed=dist/Math.max(.02,dt);
       const pose=actor.crouch?'crouch':firing?'shoot':
-        moving?'run':actor.weapon==='knife'?'idle':'aim';
+        moving?(actorSpeed<2.45?'walk':'run'):actor.weapon==='knife'?'idle':'aim';
       model.animated.update(match.time,pose);
       model.gear.root.visible=actor.weapon!=='knife';
       if(model.gear.root.visible)model.gear.update({
