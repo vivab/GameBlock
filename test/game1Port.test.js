@@ -26,7 +26,7 @@ test('Original Game1 arena, AK, de_dust2 and M4A4 are included for requested gam
  const hands=file('public/game1/hands.js');
  assert.match(source,/lowpoly__fps__tdm__game__map_by_resoforge/);
  assert.match(hands,/ak-47_low_poly/);
- assert.match(hands,/m4a4_low_poly\.glb/);
+ assert.match(hands,/rifle__m4a4_weapon_model_cs2\.glb/);
  assert.ok(existsSync(new URL('../public/game1/de_dust2_-_cs_map.glb',import.meta.url)));
  assert.match(file('public/game1/bomb.js'),/de_dust2_-_cs_map\.glb/);
 });
