@@ -223,7 +223,7 @@ function createFighter(actor) {
     pouch:'#444837',pouchFlap:'#555a45'
   };
   const animated=createBlockFighter(palette);
-  const gear=createThirdPersonLoadout(animated,{kind:actor.weapon==='pistol'?'pistol':'rifle'});
+  const gear=createThirdPersonLoadout(animated,{kind:actor.weapon==='pistol'?'pistol':'rifle',npc:true});
   let glb=null;
   if(assets.fighter){
     try{glb=attachBlockFighterGLB(animated,assets.fighter,{team:actor.team})}
@@ -662,7 +662,7 @@ function updateModels(dt) {
       const actorSpeed=dist/Math.max(.02,dt);
       const pose=actor.crouch?'crouch':firing?'shoot':
         moving?(actorSpeed<2.45?'walk':'run'):actor.weapon==='knife'?'idle':'aim';
-      model.animated.update(match.time,pose);
+      model.animated.update(match.time,pose,{armed:actor.weapon!=='knife'});
       model.gear.root.visible=actor.weapon!=='knife';
       if(model.gear.root.visible)model.gear.update({
         kind:actor.weapon==='pistol'?'pistol':'rifle',
