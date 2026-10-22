@@ -60,6 +60,20 @@ test('CT-only defuse kit, shop lock and economy',()=>{
  assert.equal(canDefuse('ct',true),true);
  assert.equal(canDefuse('t',true),false);
 });
+test('Free karambit is available in the bomb-mode store without deducting $800',()=>{
+ const actor=makeBombPlayer('player','ct',true);
+ const original=actor.money;
+ const upgraded=buyBombItem(actor,'karambit','buy');
+ assert.equal(upgraded.ok,true);
+ assert.equal(upgraded.cost,0);
+ assert.equal(actor.money,original);
+ assert.equal(actor.weapons.knife,'karambit');
+ assert.equal(buyBombItem(actor,'knife','buy').ok,true);
+ assert.equal(actor.weapons.knife,'knife');
+ assert.equal(buyBombItem(actor,'karambit','live').ok,false,
+  'knife variants can be changed only during buy time');
+});
+
 test('Timed phases, first-to-ten wins and no instant win at 9',()=>{
  const players=[makeBombPlayer('c','ct'),makeBombPlayer('t','t')];
  const state=makeBombMatch(players,()=>0);
