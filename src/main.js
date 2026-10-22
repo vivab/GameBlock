@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
+import {attachBlockFighterGLB} from './blockFighterGLB.js';
 import {weaponMoveSpeed} from './movementSpeed.js';
 import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -47,6 +48,7 @@ const menuLight=new THREE.DirectionalLight(0xffd99f, 3);
 menuLight.position.set(-4, 8, -5);menuScene.add(menuLight);
 let preview=createBlockFighter();
 const previewGear=createThirdPersonLoadout(preview,{kind:'rifle'});
+let previewGLB=null;
 preview.root.rotation.y=-.32;
 menuScene.add(preview.root);
 const plinth=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.75,.12,36),
@@ -58,7 +60,7 @@ pedestalRing.rotation.x=-Math.PI/2;pedestalRing.position.y=-.051;
 menuScene.add(pedestalRing);
 
 // Independent near-camera viewmodel: the original FPS gloves are procedural.
-// Only the existing gun/knife GLBs are downloaded; characters require none.
+// Weapons and one tiny 186KB rigged fighter GLB preload; procedural fallback remains.
 const viewScene = new THREE.Scene();
 const viewCamera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.01, 4);
 viewScene.add(viewCamera);
@@ -154,10 +156,10 @@ function refreshSwatPreview() {
 }
 // V8 Urban is the new detailed face + helmet source GLB for 20 tactical loadouts.
 // Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
-// Block Fighter NPCs are generated locally; only weapons are network assets.
-// The old heavy (10–25 MB) imported agents remain archived in the repository,
-// but are not downloaded during normal mobile match startup.
+// One lightweight, ORIGINAL rigged GLB is shared by all 9 NPCs and the lobby.
+// Heavy old CT/T character packs are still archived and never preloaded.
 const assetFiles={
+  fighter:'block_fighter_v1',
   pistol:'g18',rifle:'ak47',knife_ct:'knife_ct',knife_t:'knife_t'
 };
 const assetStatus = Object.fromEntries(Object.keys(assetFiles).map(key => [key, 'pending']));
@@ -167,7 +169,10 @@ const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promi
   loader.load(import.meta.env.BASE_URL+modelPath, result => {
     try {
       assets[key]=result.scene;
-      if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
+      if(key==='fighter'){
+        previewGLB?.dispose();
+        previewGLB=attachBlockFighterGLB(preview,assets.fighter,{team:'ct'});
+      }else if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
       else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
@@ -207,12 +212,18 @@ function createFighter(actor) {
   };
   const animated=createBlockFighter(palette);
   const gear=createThirdPersonLoadout(animated,{kind:actor.weapon==='pistol'?'pistol':'rifle'});
+  let glb=null;
+  if(assets.fighter){
+    try{glb=attachBlockFighterGLB(animated,assets.fighter,{team:actor.team})}
+    catch(error){console.warn('NPC GLB fallback:',error)}
+  }
+  gear.root.visible=actor.weapon!=='knife';
   const root=new THREE.Group();
   scene.add(root);
   root.add(animated.root);
   // Existing game coordinates face -Z. Model's authoring forward is +Z.
   animated.root.rotation.y=Math.PI;
-  fighters.set(actor.id,{root,animated,gear,lastX:actor.x,lastZ:actor.z});
+  fighters.set(actor.id,{root,animated,gear,glb,lastX:actor.x,lastZ:actor.z});
 }
 function matchLoadFraction() {
   const values = Object.values(assetProgress);
@@ -300,7 +311,8 @@ function start(team) {
   // appear on CT and retired skinned operators do not stay in the scene.
   for (const fighter of fighters.values()) {
     scene.remove(fighter.root);
-    fighter.animated?.release?.();
+    fighter.glb?.dispose?.();
+    fighter.animated?.dispose?.();
   }
   fighters.clear();
   match.start(team);
@@ -599,12 +611,15 @@ function updateModels(dt) {
     if(model.animated?.mesh?.isSkinnedMesh){
       const moving=dist/Math.max(.02,dt)>.26;
       const firing=Number.isFinite(actor.lastShotAt)&&match.time-actor.lastShotAt<.18;
-      const pose=actor.crouch?'crouch':firing?'shoot':moving?'run':'aim';
+      const pose=actor.crouch?'crouch':firing?'shoot':
+        moving?'run':actor.weapon==='knife'?'idle':'aim';
       model.animated.update(match.time,pose);
-      model.gear?.update({
+      model.gear.root.visible=actor.weapon!=='knife';
+      if(model.gear.root.visible)model.gear.update({
         kind:actor.weapon==='pistol'?'pistol':'rifle',
         mode:pose,time:match.time,fire:firing
       });
+      model.glb?.sync();
     }
     else if(model.animated?.mode==='tactical')
       animateTacticalOperator(model.animated,actor,
@@ -700,6 +715,7 @@ function frame(now) {
     if(preview.mesh?.isSkinnedMesh){
       preview.update(now*.001,'aim');
       previewGear.update({kind:'rifle',mode:'aim',time:now*.001});
+      previewGLB?.sync();
     }
     if(preview.mode==='tactical')animateTacticalOperator(preview,
       {lastShotAt:-100},now/1000,dt,0);
