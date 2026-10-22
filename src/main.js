@@ -159,6 +159,7 @@ function refreshSwatPreview() {
 // Eyes, balaclava, helmet and hard shoulder sleeves are actual mesh geometry.
 // One lightweight, ORIGINAL rigged GLB is shared by all 9 NPCs and the lobby.
 // Heavy old CT/T character packs are still archived and never preloaded.
+let armory=null;
 const assetFiles={
   fighter:'block_fighter_v1',
   pistol:'g18',rifle:'ak47',knife_ct:'knife_ct',knife_t:'knife_t'
@@ -173,7 +174,11 @@ const assetTasks = Object.entries(assetFiles).map(([key, filename]) => new Promi
       if(key==='fighter'){
         previewGLB?.dispose();
         previewGLB=attachBlockFighterGLB(preview,assets.fighter,{team:'ct'});
-      }else if (key === 'pistol' || key === 'rifle') views[key].setModel(result.scene);
+      }else if (key === 'pistol' || key === 'rifle') {
+        // A late preload must not overwrite an armory selection made in the lobby.
+        const original=key==='pistol'?'g18':'ak47';
+        if(!armory || armory.chosen[key]===original)views[key].setModel(result.scene);
+      }
       else if (key.startsWith('knife_') && match.player?.team === key.slice(6)) mountKnife(key);
       assetStatus[key] = 'ready';
     } catch (error) {
@@ -235,6 +240,7 @@ const $ = id => document.getElementById(id);
 const audio = createGameAudio();
 let retroMenu;
 retroMenu = installRetroMenu({
+  onArmory:()=>armory?.open(),
   onGallery: () => {retroMenu.hide();swatGallery.open('home');},
   onPlay: () => {
     audio.unlock();audio.ui();
@@ -263,7 +269,7 @@ swatGallery=installSwatV6Gallery({
   },
 });
 $('openSwatGallery').addEventListener('click',()=>swatGallery.open('selection'));
-setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
+const calibration=setupWeaponCalibration({ views, getWeapon: () => weapon, setWeapon: name => selectWeapon(name) });
 const stats = $('stats'), hitmarker = $('hitmarker'), radar = $('radar'), ctx = radar.getContext('2d');
 const move = { x: 0, y: 0 }, keys = new Set(), lookPointers = new Map();
 let weapon = 'pistol', firing = false, jumpHeld = false, joyId = null;
@@ -299,15 +305,20 @@ function selectWeapon(name) {
 }
 // Keep the test armory accessible from the live arena, including on phones.
 const ARMORY_LABELS={};
-const armory=installArmory({
+armory=installArmory({
  views,
  selectWeapon:name=>selectWeapon(name),
  baseUrl:import.meta.env.BASE_URL,
+ onPlay:()=>{if(match.phase==='home')document.getElementById('retroPlay')?.click()},
  onSelection:item=>{
   ARMORY_LABELS[item.slot]=item.label;
-  $('weaponLabel').textContent=item.label;
+  const option=document.querySelector('#calWeapon option[value="'+item.slot+'"]');
+  if(option)option.textContent=item.label;
+  if(weapon===item.slot)$('weaponLabel').textContent=item.label;
  }
 });
+// Reapply stored model choices AFTER default weapon preload finishes.
+weaponsReady.then(()=>armory.restore()).catch(error=>console.warn('Armory restore:',error));
 function inspect() {
   if (!canControl()) return;
   firing = false;

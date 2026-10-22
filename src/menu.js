@@ -9,7 +9,7 @@ function readProfile() {
     return value && typeof value==='object' ? {...defaults(),...value} : defaults();
   } catch { return defaults(); }
 }
-export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}={}) {
+export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},onArmory=()=>{}}={}) {
   const profile=readProfile();
   const save=()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify(profile));}catch{}};
   save();
@@ -63,6 +63,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     #retroHome #retroCasting{padding:11px 12px;text-align:center;
       background:#46554c;border:1px solid #afc0af;color:#f7f4e9;border-radius:3px;
       font-size:12px}
+    #retroHome #retroShop{padding:12px;text-align:center;border:1px solid #e8c38c!important;background:#334b5b;color:#ffe0a8;font-size:13px;border-radius:4px}
     #retroHome #retroPlay {margin-top:0;padding:14px 18px;text-align:center;
       background:linear-gradient(115deg,#f2c181,#b37b45);border:1px solid #ffe6a8;
       box-shadow:0 5px 22px #0008;color:#17232d;font-size:17px;border-radius:4px}
@@ -130,6 +131,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
       <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
       <button id="retroTChoice" type="button" hidden>АРХИВ МОДЕЛЕЙ T</button>
       <button id="retroGame1" type="button" hidden>СТАРЫЙ РЕЖИМ GAME1</button>
+      <button id="retroShop" type="button">▣ МАГАЗИН ОРУЖИЯ · 5 МОДЕЛЕЙ</button>
       <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
     </div>
@@ -187,7 +189,11 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{}}
     }
   }
   home.querySelectorAll('[data-tab]').forEach(button=>
-    button.addEventListener('click',()=>showTab(button.dataset.tab)));
+    button.addEventListener('click',()=>{
+      if(['loadout','market'].includes(button.dataset.tab)){onArmory();return;}
+      showTab(button.dataset.tab);
+    }));
+  $('retroShop').addEventListener('click',()=>onArmory());
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
   $('retroFighter').addEventListener('click',()=>{window.location.href=new URL('fighter-v1.html',window.location.href).href;});
   $('retroAnimationLab').addEventListener('click',()=>{window.location.href=new URL('animation-lab.html',window.location.href).href;});
