@@ -242,16 +242,18 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   const item=weapons[selected];
   const gun=item.root;
   const mount=mounts[selected];
-  gun.position.set(profile.root[0]+mount.x,profile.root[1]+mount.y,profile.root[2]+mount.z);
+  // Whole-set transform: gun + BOTH IK-driven hands, as one assembly.
+  const all=gripEdits[selected].all;
+  gun.position.set(profile.root[0]+mount.x+all.x,profile.root[1]+mount.y+all.y,profile.root[2]+mount.z+all.z);
   // Crouched chest is lower; follow it partially, but DON'T inherit the
   // big up-and-down jump arc or running bob from the animated Root bone.
   // Hands are re-targeted against this stable, unparented weapon every frame.
   if(mode==='crouch')gun.position.y+=fighter.bones.Root.position.y*.72;
   gun.rotation.set(
-    profile.pitch+THREE.MathUtils.degToRad(mount.rx),
-    THREE.MathUtils.degToRad(mount.ry),
-    THREE.MathUtils.degToRad(mount.rz),'XYZ');
-  gun.scale.setScalar(mount.scale);
+    profile.pitch+THREE.MathUtils.degToRad(mount.rx+all.rx),
+    THREE.MathUtils.degToRad(mount.ry+all.ry),
+    THREE.MathUtils.degToRad(mount.rz+all.rz),'XYZ');
+  gun.scale.setScalar(mount.scale*all.scale);
   if(fire){
    // Short view kick, constrained so the rifle never leaves the shoulder.
    gun.rotation.x-=.065;
@@ -259,17 +261,16 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   }
   gun.updateWorldMatrix(true,true);
   fighter.root.updateWorldMatrix(true,true);
-  // All: move both contact points together, WITHOUT shifting the gun itself.
-  // Right / Left: independent contact position and wrist angle; weapon stays put.
-  const all=gripEdits[selected].all;
+  // Right / Left: independently adjust IK hand contact relative to the gun.
+  // All: the gun and both hands already move as one assembly above.
   const targets={};
   for(const [side,point,targetName] of [['R',profile.right,'right'],['L',profile.left,'left']]){
    const edit=gripEdits[selected][targetName];
    const offset=new THREE.Vector3(
-    edit.x+all.x,edit.y+all.y,edit.z+all.z);
+    edit.x,edit.y,edit.z);
    const center=new THREE.Vector3(...profile.right).add(new THREE.Vector3(...profile.left)).multiplyScalar(.5);
    const p=new THREE.Vector3(...point).sub(center)
-    .multiplyScalar(all.scale*edit.scale).add(center).add(offset);
+    .multiplyScalar(edit.scale).add(center).add(offset);
    targets[side]=gun.localToWorld(p);
   }
   const right=targets.R,left=targets.L;
@@ -281,10 +282,9 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
     // Curl fingertips onto the grip without modifying the immutable bind pose.
     for(let i=0;i<3;i++)fighter.bones['Finger_'+side+'_'+i].rotation.x+=selected==='rifle'?.45:.32;
     const edit=gripEdits[selected][side==='R'?'right':'left'];
-    const together=gripEdits[selected].all;
-    wrist.rotation.x+=THREE.MathUtils.degToRad(edit.rx+together.rx);
-    wrist.rotation.y+=THREE.MathUtils.degToRad(edit.ry+together.ry);
-    wrist.rotation.z+=(side==='L'?-.025:.025)+THREE.MathUtils.degToRad(edit.rz+together.rz);
+    wrist.rotation.x+=THREE.MathUtils.degToRad(edit.rx);
+    wrist.rotation.y+=THREE.MathUtils.degToRad(edit.ry);
+    wrist.rotation.z+=(side==='L'?-.025:.025)+THREE.MathUtils.degToRad(edit.rz);
    }
   }
   fighter.root.updateWorldMatrix(true,true);
