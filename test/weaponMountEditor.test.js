@@ -22,13 +22,14 @@ test('runtime weapon transforms update instantly without destroying support hand
  rig.update({kind:'rifle',mode:'aim',time:.2});
  const gun=rig.weapons.rifle.root;
  const before=gun.position.clone();
+ const previousMount=rig.getMount('rifle');
  const mount=rig.setMount('rifle',{x:.18,y:-.16,z:.13,rx:12,ry:22,rz:-8,scale:1.24},false);
  assert.equal(mount.x,.18);
  assert.equal(mount.scale,1.24);
  rig.update({kind:'rifle',mode:'aim',time:.2});
- assert.ok(Math.abs(gun.position.x-before.x-.18)<.00001);
- assert.ok(Math.abs(gun.position.y-before.y+.16)<.00001);
- assert.ok(Math.abs(gun.position.z-before.z-.13)<.00001);
+ assert.ok(Math.abs(gun.position.x-before.x-(.18-previousMount.x))<.00001);
+ assert.ok(Math.abs(gun.position.y-before.y-(-.16-previousMount.y))<.00001);
+ assert.ok(Math.abs(gun.position.z-before.z-(.13-previousMount.z))<.00001);
  assert.ok(Math.abs(gun.rotation.y-THREE.MathUtils.degToRad(22))<.00001);
  assert.equal(gun.scale.x,1.24);
  const error=rig.gripErrors;

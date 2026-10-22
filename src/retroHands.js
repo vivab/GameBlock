@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-// Original, low-poly FPS glove mesh. Unlike imported Source arms every palm,
+// Game1-style articulated box-finger FPS glove mesh. Unlike imported Source arms every palm,
 // finger and forearm is built under our own joints, so reload/inspect and
 // independent right/left hand calibration are entirely controllable.
 const rad=Math.PI/180;
@@ -14,8 +14,8 @@ const POSES={
   cup:   { f:[[-46,-52,-30],[-53,-60,-35],[-57,-60,-37],[-60,-60,-33]], th:[-25,-35] },
   open:  { f:[[-9,-10,-6],[-11,-12,-7],[-11,-12,-7],[-11,-12,-7]], th:[-12,-18] }
 };
-const sphere=(parent,material,w,h,d,x=0,y=0,z=0)=>{
-  const p=new THREE.Mesh(new THREE.SphereGeometry(1,9,6),material);
+const box=(parent,material,w,h,d,x=0,y=0,z=0)=>{
+  const p=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),material);
   p.position.set(x,y,z);p.scale.set(w,h,d);parent.add(p);return p;
 };
 function finger(root,side,x,z,lengths,angles,thick,k,digit) {
@@ -26,10 +26,10 @@ function finger(root,side,x,z,lengths,angles,thick,k,digit) {
     if(i)joint.position.z=-lengths[i-1]*.94;
     joint.rotation.x=angles[i]*k*rad;
     parent.add(joint);
-    const body=sphere(joint,i===0?fingers:glove,thick*.62,thick*.59,
+    const body=box(joint,i===0?fingers:i===2?skin:glove,thick*.95,thick*.80,
       length*.51,0,0,-length*.51);
     body.userData.finger=digit;body.userData.segment=i;
-    if(i===0 && digit<4)sphere(joint,knuckle,thick*.60,thick*.26,
+    if(i===0 && digit<4)box(joint,knuckle,thick*.96,thick*.26,
       thick*.34,0,thick*.20,-length*.08);
     parent=joint;
   });
@@ -45,17 +45,17 @@ export function makeHand(side,pose='fist',u=.105,k=1,team='ct') {
   hand.matrixAutoUpdate=false;
   arm.matrixAutoUpdate=false;
   root.add(hand,arm);
-  const palm=sphere(hand,glove,.60*u,.33*u,.69*u,0,0,-.08*u);
-  sphere(hand,knuckle,.44*u,.12*u,.25*u,0,.20*u,-.32*u);
-  sphere(hand,band,.59*u,.37*u,.30*u,0,0,.45*u);
-  const widths=[.33,.35,.34,.32].map(n=>n*u);
+  const palm=box(hand,glove,.95*u,.38*u,1.05*u,0,0,-.08*u);
+  box(hand,knuckle,.70*u,.12*u,.60*u,0,.22*u,-.10*u);
+  box(hand,band,.95*u,.62*u,.32*u,0,0,.49*u);
+  const widths=[.20,.20,.19,.18].map(n=>n*u);
   for(let i=0;i<4;i++){
-    const x=sign*(.47-i*.32)*u;
-    const lens=[[.52,.37,.29],[.58,.41,.31],[.53,.38,.27],[.44,.33,.25]][i].map(n=>n*u);
-    finger(hand,side,x,-.55*u,lens,p.f[i],widths[i],k,i);
+    const x=sign*(.33-i*.22)*u;
+    const lens=[[.50,.35,.28],[.55,.40,.30],[.50,.37,.28],[.40,.28,.24]][i].map(n=>n*u);
+    finger(hand,side,x,-.52*u,lens,p.f[i],widths[i],k,i);
   }
-  const thumb=finger(hand,side,sign*.49*u,.18*u,[.53*u,.36*u],
-    p.th,.33*u,k,4);
+  const thumb=finger(hand,side,sign*.50*u,.20*u,[.55*u,.42*u],
+    p.th,.24*u,k,4);
   thumb.rotation.y=-sign*.85;
   // Block Strike-style angular forearms. Keep the original pivots,
   // length and local coordinate system so calibrated knife/gun poses and

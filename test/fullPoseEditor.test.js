@@ -16,23 +16,23 @@ test('weapon, left hand, right hand and whole rig can be edited separately',()=>
  const right=gear.setGripEdit('rifle','right',{x:.12,rx:17},false);
  assert.equal(right.x,.12);
  assert.equal(right.rx,17);
- assert.equal(gear.getGripEdit('rifle','left').x,0);
+ assert.equal(gear.getGripEdit('rifle','left').x,USER_WEAPON_PRESETS.rifle.left.x);
  gear.update({kind:'rifle'});
  assert.ok(gun.position.distanceTo(original)<1e-8,'moving right hand must not move gun');
  gear.setGripEdit('rifle','left',{y:.08,ry:-12},false);
- assert.equal(gear.getGripEdit('rifle','right').y,0);
+ assert.equal(gear.getGripEdit('rifle','right').y,USER_WEAPON_PRESETS.rifle.right.y);
  gear.setGripEdit('rifle','all',{x:.14,y:.09,z:-.08,rx:5,scale:1.12},false);
  gear.update({kind:'rifle'});
  assert.ok(Math.abs(gun.position.x-original.x-.14)<1e-6);
  assert.ok(Math.abs(gun.position.y-original.y-.09)<1e-6);
  assert.ok(Math.abs(gun.position.z-original.z+.08)<1e-6);
- assert.ok(Math.abs(gun.scale.x-1.12)<1e-6);
+ assert.ok(Math.abs(gun.scale.x-USER_WEAPON_PRESETS.rifle.weapon.scale*1.12)<1e-6);
  assert.ok(Math.abs(gun.rotation.x-(-.015+THREE.MathUtils.degToRad(5)))<1e-6);
  assert.ok(Number.isFinite(gear.gripErrors.left)&&Number.isFinite(gear.gripErrors.right));
  gear.resetGripEdit('rifle','all');
  assert.equal(gear.getGripEdit('rifle','all').x,0);
  assert.equal(gear.getGripEdit('rifle','right').x,.12);
- assert.equal(gear.getGripEdit('pistol','right').x,0,'pistol edits must be independent');
+ assert.equal(gear.getGripEdit('pistol','right').x,USER_WEAPON_PRESETS.pistol.right.x,'pistol edits must be independent');
  fighter.dispose();
 });
 test('pose editor stores left and right offsets across newly created rigs',()=>{
