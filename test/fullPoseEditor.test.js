@@ -62,3 +62,27 @@ test('full mobile panel exposes four independent live controls and draggable UI'
  for(const id of ['weHeader','weSliders','weCopy','weReset'])assert.match(s,new RegExp(id));
  assert.match(s,/79dvh/);
 });
+
+test('weapon-only mode freezes both hands while moving gun; closing restores IK',()=>{
+ const fighter=createBlockFighter();
+ const gear=createThirdPersonLoadout(fighter,{kind:'pistol'});
+ gear.setEditorTarget('weapon');
+ fighter.update(.2,'aim');
+ gear.update({kind:'pistol',time:.2});
+ const beforeR=fighter.bones.Hand_R.getWorldPosition(new THREE.Vector3());
+ const beforeL=fighter.bones.Hand_L.getWorldPosition(new THREE.Vector3());
+ const gun=gear.weapons.pistol.root;
+ const original=gun.position.clone();
+ gear.setMount('pistol',{x:.3,y:.2,z:-.1},false);
+ fighter.update(.2,'aim');
+ gear.update({kind:'pistol',time:.2});
+ assert.ok(gun.position.distanceTo(original)>.3);
+ assert.ok(fighter.bones.Hand_R.getWorldPosition(new THREE.Vector3()).distanceTo(beforeR)<1e-8);
+ assert.ok(fighter.bones.Hand_L.getWorldPosition(new THREE.Vector3()).distanceTo(beforeL)<1e-8);
+ gear.setEditorTarget(null);
+ fighter.update(.2,'aim');
+ gear.update({kind:'pistol',time:.2});
+ const moved=fighter.bones.Hand_R.getWorldPosition(new THREE.Vector3()).distanceTo(beforeR);
+ assert.ok(moved>.01,'normal IK should resume after leaving calibration');
+ fighter.dispose();
+});
