@@ -64,9 +64,7 @@ function levelHits(ray){
 }
 // New map is deliberately flat: player, bots and C4 always stand at Y=0.
 // Never raycast onto crate tops or rooftops as if they were the ground.
-function positionGround(x,z,fromY=45){
- return 0;
-}
+function positionGround(x,z,fromY=45){return 0;}
 function refreshLevelCollision(){
  groundCache.clear();
  levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
@@ -74,64 +72,35 @@ function refreshLevelCollision(){
 // Original, lightweight Dust2-inspired layout, made from our own geometry.
 // The imported GLB is intentionally no longer loaded in bomb mode.
 function buildDust2(){
- byId('mapStatus').textContent='Строим новую карту Dust2…';
- const mat=(color)=>new THREE.MeshLambertMaterial({color});
- const sand=mat(0x95744e),stone=mat(0xa58b65),plaster=mat(0xbca17c);
- const trim=mat(0x796044),dark=mat(0x5c4b3b),wood=mat(0x5b3e2c);
- const floor=new THREE.Mesh(new THREE.BoxGeometry(100,.4,100),sand);
- floor.position.y=-.2;floor.material.side=THREE.DoubleSide;levelRoot.add(floor);
- const solid=(x,z,w,d,h,m=stone)=>{
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
-  mesh.position.set(x,h/2,z);levelRoot.add(mesh);obstacles.push(mesh);return mesh;
+ byId('mapStatus').textContent='Новая карта: Desert Crossroads 5v5';
+ const material=color=>new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide});
+ const ground=material(0x947452),wall=material(0xa58a62),lightWall=material(0xb69c76),wood=material(0x684b32),dark=material(0x6e5941);
+ const floor=new THREE.Mesh(new THREE.BoxGeometry(100,.4,100),ground);
+ floor.position.y=-.2;levelRoot.add(floor);
+ const solid=(x,z,w,d,h,m=wall)=>{
+  const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  o.position.set(x,h/2,z);levelRoot.add(o);obstacles.push(o);
  };
- const deco=(x,y,z,w,h,d,m)=>{
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
-  mesh.position.set(x,y,z);levelRoot.add(mesh);return mesh;
- };
- // Outer bounds, T spawn south-west, CT spawn north-east.
- solid(-49,0,2,100,9);solid(49,0,2,100,9);
- solid(0,-49,100,2,9);solid(0,49,100,2,9);
- // Long A route: courtyard, double-door passage and long corridor.
- solid(-36,-4,3,50,6,plaster);solid(-18,-39,42,3,6,stone);
- solid(-13,-22,3,28,6);solid(-31,-18,12,3,5);
- solid(-30,-29,5,6,3,trim);solid(-23,-30,4,7,3,wood);
- // A site upper courtyard with short approach and cover.
- solid(-6,-14,22,3,5,plaster);solid(-8,-27,3,16,5);
- solid(-27,-8,10,3,4);solid(-20,-11,3,10,4);
- solid(-24,-22,3,3,2,wood);solid(-16,-20,3,3,2,wood);
- // Mid: two opposing lanes and staggered door openings.
- solid(-7,3,3,19,5);solid(8,-5,3,22,5);
- solid(-1,15,22,3,5,plaster);solid(16,10,3,14,5);
- solid(-17,11,13,3,5);solid(-26,19,3,17,5);
- solid(0,-3,5,3,2.6,wood);solid(3,6,4,3,2.8,trim);
- // B tunnels, upper entrance and open bomb courtyard.
- solid(24,32,3,24,6);solid(39,14,3,45,6);
- solid(21,3,25,3,5);solid(27,-12,3,24,5);
- solid(29,29,17,3,5);solid(11,36,25,3,5);
- solid(15,22,4,4,3,wood);solid(32,17,4,4,3,wood);
- // Solid props that give cover without huge polygon overhead.
- for(const [x,z] of [[-24,-17],[-19,-25],[21,16],[27,21],[0,24],[13,-20]]){
-  solid(x,z,2.4,2.4,1.45,wood);
-  deco(x,1.52,z,2.55,.13,2.55,trim);
+ // Fresh open-air 5v5 arena: three lanes, two sites, no imported geometry.
+ // Spawn courtyards are kept clear; all collision walls start at the ground.
+ for(const [x,z,w,d] of [[-49,0,2,100],[49,0,2,100],[0,-49,100,2],[0,49,100,2]])solid(x,z,w,d,7,dark);
+ // West / A lane: long passage with cover and a short flank.
+ for(const q of [[-37,-12,3,55,6],[-17,-39,40,3,6],[-20,-25,3,19,5],[-30,2,15,3,5],[-13,-14,3,15,5],[-26,13,16,3,5]])solid(...q,lightWall);
+ // East / B lane: tunnels with wide exits and defensive boxes.
+ for(const q of [[37,12,3,55,6],[18,39,40,3,6],[20,25,3,19,5],[30,-2,15,3,5],[13,14,3,15,5],[26,-13,16,3,5]])solid(...q,wall);
+ // Mid lane: staggered corners; no roof above the player's camera.
+ for(const q of [[-8,-7,3,21,5],[8,7,3,21,5],[-4,17,15,3,5],[4,-17,15,3,5],[-18,4,10,3,4],[18,-4,10,3,4]])solid(...q,lightWall);
+ // Crates and cover; sites A/B remain open to stand and plant.
+ for(const [x,z] of [[-24,-19],[-15,-22],[-29,-10],[24,19],[15,22],[29,10],[-3,28],[3,-28],[0,0]]){
+  solid(x,z,2.5,2.5,1.4,wood);
  }
- // Decorative building silhouettes (never used to calculate player height).
- for(const [x,z,w,d,h] of [[-41,27,12,15,8],[39,-29,14,18,8],[-40,-37,12,10,7],[42,38,12,12,7]]){
-  solid(x,z,w,d,h,plaster);
-  deco(x,h+.15,z,w+.3,.3,d+.3,trim);
- }
- // In-world paint on the ground to make each bombsite immediately readable.
- for(const site of SITES){
-  const paint=new THREE.Mesh(new THREE.RingGeometry(3.2,3.5,36),
-   new THREE.MeshBasicMaterial({color:site.color,side:THREE.DoubleSide,transparent:true,opacity:.75}));
-  paint.rotation.x=-Math.PI/2;paint.position.set(site.x,.018,site.z);levelRoot.add(paint);
- }
- levelMeshes=[floor,...obstacles];mapTop=15;refreshLevelCollision();
- mapLoaded=true;onMapReady('Новая собственная карта Dust2 готова');
+ levelMeshes=[floor,...obstacles];mapTop=9;refreshLevelCollision();
+ mapLoaded=true;onMapReady('Desert Crossroads · собственная карта 5 на 5 · точки A и B');
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
  for(const site of SITES){
-  const y=positionGround(site.x,site.z)+.08;
+  const y=.08;
   const mat=new THREE.MeshBasicMaterial({color:site.color,transparent:true,opacity:.88,side:THREE.DoubleSide,depthWrite:false});
   const ring=new THREE.Mesh(new THREE.RingGeometry(site.radius-.15,site.radius+.15,56),mat);
   ring.rotation.x=-Math.PI/2;ring.position.set(site.x,y,site.z);scene.add(ring);
@@ -243,6 +212,7 @@ function resetPositions(){
  else setMessage('Раунд '+game.round+' · подготовка',2);
  setSlot('pistol');
 }
+function canShop(){return game&&me&&me.alive&&(game.phase==='buy'||game.phase==='live')&&game.shopRemaining>0&&Math.hypot(me.x-(me.side==='ct'?31:-31),me.z-(me.side==='ct'?31:-31))<15;}
 function buildShop(){
  const container=byId('shopItems');container.replaceChildren();
  for(const [id,entry] of [...Object.entries(BOMB_WEAPONS),...Object.entries(BOMBSHOP_GEAR)]){
@@ -252,7 +222,7 @@ function buildShop(){
   const price=document.createElement('strong');price.textContent='$'+entry.price;
   button.append(name,price);
   button.addEventListener('click',()=>{
-   const result=buyBombItem(me,id,game.phase);
+   const result=buyBombItem(me,id,canShop()?'buy':'closed');
    byId('shopStatus').textContent=result.ok?'Куплено: '+entry.name:result.reason;
    if(result.ok){
     updateHud();
@@ -823,7 +793,8 @@ function updateHud(){
  bombButton.classList.toggle('unavailable',!me.hasBomb||me.side!=='t');
  byId('weapons').querySelector('[data-slot="primary"]')
   .classList.toggle('unavailable',!me.weapons.primary);
- byId('shopOpen').style.display=game.phase==='buy'?'block':'none';
+ byId('shopOpen').style.display=canShop()?'grid':'none';
+ if(!canShop())byId('shop').hidden=true;
  byId('aim').style.display=item?.scope&&me.alive?'block':'none';
  const nearbySite=me.side==='t'&&me.hasBomb&&!!findSite(me.x,me.z)&&game.phase==='live';
  const nearbyBomb=me.side==='ct'&&game.planted&&game.bombPosition&&
@@ -843,7 +814,7 @@ function screen(dt){
  }
  if(result==='next-round'){
   resetPositions();buildShop();roundSerial=game.round;
-  setMessage(game.round===10?'СМЕНА СТОРОН · раунд 10':'Новый раунд · закупка 25 секунд',4);
+  setMessage(game.round===10?'СМЕНА СТОРОН · раунд 10':'Новый раунд · старт через 10 секунд',4);
  }else if(result==='round-start')setMessage('Раунд начался · держите позиции!',3);
  else if(result==='explosion'){
   if(bombObject){
@@ -969,7 +940,7 @@ byId('grenadeType').addEventListener('click',()=>{
  selectedGrenade=types[(types.indexOf(selectedGrenade)+1)%types.length];
  updateHud();
 });
-byId('shopOpen').addEventListener('click',()=>{if(game?.phase==='buy'){byId('shop').hidden=false;buildShop()}});
+byId('shopOpen').addEventListener('click',()=>{if(canShop()){byId('shop').hidden=false;buildShop()}});
 byId('shopClose').addEventListener('click',()=>byId('shop').hidden=true);
 byId('choose').querySelectorAll('[data-team]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.team)));
 const zone=byId('joystick'),stick=byId('stick');
