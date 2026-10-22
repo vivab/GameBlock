@@ -27,7 +27,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  const css=document.createElement('style');
  css.textContent=[
  '#weOpen{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));right:14px;z-index:72;background:#d9ab67;color:#10202c;border:1px solid #f8d69f;border-radius:9px;box-shadow:0 4px 18px #0008;font:800 12px system-ui;padding:12px 14px;cursor:pointer;touch-action:manipulation}',
- '#wePanel{position:fixed;top:125px;right:16px;z-index:73;width:min(327px,calc(100vw - 18px));max-height:min(74dvh,620px);display:flex;flex-direction:column;border:1px solid #8fa9b4;border-radius:13px;background:#0c1d2ff4;color:#f2f6fc;box-shadow:0 10px 40px #000b;font:12px system-ui;overflow:hidden;backdrop-filter:blur(7px)}',
+ '#wePanel{position:fixed;top:125px;right:16px;z-index:73;width:min(390px,calc(100vw - 18px));max-height:min(85dvh,760px);display:flex;flex-direction:column;border:1px solid #8fa9b4;border-radius:13px;background:#0c1d2ff4;color:#f2f6fc;box-shadow:0 10px 40px #000b;font:12px system-ui;overflow:hidden;backdrop-filter:blur(7px)}',
  '#wePanel[hidden],#wePanel [hidden]{display:none!important}',
  '#wePanel button,#wePanel input,#wePanel select{font:inherit;touch-action:auto}',
  '#wePanel button{background:#263a50;color:#edf6fc;border:1px solid #657e92;border-radius:6px;min-height:32px;cursor:pointer}',
@@ -55,7 +55,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  '#wePanel .we-primary{background:#cda369;color:#112234;font-weight:800;border-color:#ecc68b}',
  '#wePanel .we-tip{line-height:1.5;color:#b2c8d8;font-size:11px;padding-top:6px}',
  '#wePanel #weMessage{color:#eacb99;line-height:1.4;min-height:16px;font-size:11px}',
- '@media(max-width:680px){#wePanel{width:min(296px,calc(100vw - 16px));max-height:60dvh}#weOpen{font-size:11px;right:9px;padding:10px 12px}}'
+ '@media(max-width:680px){#wePanel{width:min(365px,calc(100vw - 16px));max-height:79dvh}#weOpen{font-size:11px;right:9px;padding:10px 12px}}'
  ].join('\n');
  document.head.append(css);
  const launcher=document.createElement('button');
@@ -75,7 +75,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  '<button type="button" data-target="weapon" aria-pressed="true">🔫 Оружие</button>',
  '<button type="button" data-target="right" aria-pressed="false">✋ Правая рука</button>',
  '<button type="button" data-target="left" aria-pressed="false">✋ Левая рука</button>',
- '<button type="button" data-target="all" aria-pressed="false">↔ Обе руки</button></div>',
+ '<button type="button" data-target="all" aria-pressed="false">✥ Всё вместе</button></div>',
  '<div id="weTargetDescription">Перемещает только оружие. Ладони автоматически следуют за ним.</div>',
  '<label for="weFile">Загрузить свой GLB (пока локально)</label>',
  '<input id="weFile" class="we-file" type="file" accept=".glb,model/gltf-binary">',
@@ -104,7 +104,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   weapon:'🔫 Двигается только оружие, руки автоматически следуют за хватом.',
   right:'✋ Двигается только правая кисть (на рукоятке), оружие и левая рука не смещаются.',
   left:'✋ Двигается только левая кисть (под цевьём), оружие и правая рука не смещаются.',
-  all:'↔ Обе руки вместе: общий сдвиг, поворот кистей и ширина хвата. Оружие остаётся на месте.'
+  all:'↔ Весь комплект вместе: оружие и обе руки сдвигаются, вращаются и масштабируются одновременно.'
  };
  const current=()=>target==='weapon'?gear.getMount(currentKind()):gear.getGripEdit(currentKind(),target);
  const change=values=>target==='weapon'?gear.setMount(currentKind(),values):gear.setGripEdit(currentKind(),target,values);
@@ -116,8 +116,8 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   $('weFile').hidden=target!=='weapon';
   $('weModelButtons').hidden=target!=='weapon';
   $('weScaleButtons').hidden=false;
-  $('weSmaller').textContent=target==='weapon'?'− Меньше оружие':'− Уже хват';
-  $('weBigger').textContent=target==='weapon'?'＋ Больше оружие':'＋ Шире хват';
+  $('weSmaller').textContent=target==='weapon'?'− Меньше оружие':target==='all'?'− Меньше всё':'− Уже хват';
+  $('weBigger').textContent=target==='weapon'?'＋ Больше оружие':target==='all'?'＋ Больше всё':'＋ Шире хват';
   refresh();
  }
  for(const button of $('weTargets').querySelectorAll('[data-target]'))
