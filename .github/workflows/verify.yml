@@ -14,6 +14,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Inspect Dust2 bomb map bounds
+        run: node scripts/inspect-dust2.mjs
       - run: npm run build
       - name: Confirm animated character GLB reaches GitHub Pages build
         run: |
