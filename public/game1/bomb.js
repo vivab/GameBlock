@@ -358,10 +358,11 @@ function damaged(actor,amount,killer=null){
  if(killer&&killer!==actor){killer.kills++;killer.money=Math.min(16000,killer.money+300)}
  if(actor.hasBomb&&!game.planted){
   actor.hasBomb=false;game.bombCarrier=null;
-  game.bombDropped={x:actor.x,y:actor.y,z:actor.z};
+  const floorY=positionGround(actor.x,actor.z,actor.y+1.25);
+  game.bombDropped={x:actor.x,y:floorY,z:actor.z};
   if(bombDropObject)scene.remove(bombDropObject);
   bombDropObject=bombMesh();
-  bombDropObject.position.set(actor.x,actor.y+.08,actor.z);
+  bombDropObject.position.set(actor.x,floorY+.012,actor.z);
   scene.add(bombDropObject);
  }
  if(actor.mesh)actor.mesh.visible=false;
@@ -495,11 +496,13 @@ function bombMesh(){
 function plantBomb(actor,site){
  if(!canPlant(actor.side,actor.hasBomb,site,actor.alive)||game.planted)return;
  game.planted=true;game.phase='planted';game.site=site.id;game.time=BOMB_RULES.bombSeconds;
- game.bombPosition={x:actor.x,y:actor.y,z:actor.z};
+ const floorY=positionGround(actor.x,actor.z,actor.y+1.25);
+ game.bombPosition={x:actor.x,y:floorY,z:actor.z};
  actor.hasBomb=false;game.bombCarrier=null;game.bombDropped=null;
  if(bombDropObject){scene.remove(bombDropObject);bombDropObject=null}
  actor.hasPlanted=true;
- bombObject=bombMesh();bombObject.position.set(actor.x,actor.y+.03,actor.z);scene.add(bombObject);
+ // The C4 mesh origin is its base: position it on the actual floor.
+ bombObject=bombMesh();bombObject.position.set(actor.x,floorY+.012,actor.z);scene.add(bombObject);
  setMessage('БОМБА УСТАНОВЛЕНА · '+site.id+' · 40 СЕКУНД',4);
  if(actor.isPlayer){forcedPlantCrouch=false;setSlot('pistol')}
 }
@@ -613,7 +616,7 @@ function updateGrenades(dt){
  for(let i=activeGrenades.length-1;i>=0;i--){
   const g=activeGrenades[i];g.elapsed+=dt;
   const u=Math.min(1,g.elapsed/1.1);
-  const ground=positionGround(g.to.x,g.to.z);
+  const ground=positionGround(g.to.x,g.to.z,g.actor.y+3);
   g.mesh.position.set(g.from.x+(g.to.x-g.from.x)*u,
    ground+.2+(1-u)*1.2+Math.sin(u*Math.PI)*1.7,
    g.from.z+(g.to.z-g.from.z)*u);
@@ -652,7 +655,7 @@ function botObjective(bot){
 }
 function passableStep(bot,x,z){
  const from=new V(bot.x,bot.y+1.12,bot.z);
- const to=new V(x,positionGround(x,z)+1.12,z);
+ const to=new V(x,positionGround(x,z,bot.y+1.35)+1.12,z);
  return groundLOS(from,to);
 }
 function seekBot(bot,goal,dt,speed){
@@ -678,8 +681,8 @@ function seekBot(bot,goal,dt,speed){
      const x=clamp(bot.x+Math.cos(a+turn)*radius,-45,45);
      const z=clamp(bot.z+Math.sin(a+turn)*radius,-45,45);
      if(!passableStep(bot,x,z))continue;
-     const visible=groundLOS(new V(x,positionGround(x,z)+1.12,z),
-      new V(goal.x,positionGround(goal.x,goal.z)+1.12,goal.z));
+     const visible=groundLOS(new V(x,positionGround(x,z,bot.y+1.35)+1.12,z),
+      new V(goal.x,positionGround(goal.x,goal.z,bot.y+1.35)+1.12,goal.z));
      const value=Math.hypot(goal.x-x,goal.z-z)+(visible?-7:3)+radius*.12;
      if(value<score){score=value;best={x,z}}
     }
@@ -695,8 +698,13 @@ function seekBot(bot,goal,dt,speed){
  dx/=d;dz/=d;
  let x=clamp(bot.x+dx*dt*speed,-45.5,45.5);
  let z=clamp(bot.z+dz*dt*speed,-45.5,45.5);
- if(!passableStep(bot,x,z)){
-  bot.routeCheck=0;bot.detour=null;
+ // Only repeat close-quarters collision checks roughly every 5 rendered frames.
+ if(now>=(bot.stepCheckAt||0)){
+  bot.stepPassable=passableStep(bot,x,z);
+  bot.stepCheckAt=now+.085;
+ }
+ if(!bot.stepPassable){
+  bot.routeCheck=0;bot.detour=null;bot.stepCheckAt=0;
   // Don't walk through meshes: try a short legal strafe or hold position.
   const side=botIndex(bot)%2?1:-1;
   const nx=clamp(bot.x-side*dz*dt*speed,-45.5,45.5);
@@ -704,7 +712,10 @@ function seekBot(bot,goal,dt,speed){
   if(!passableStep(bot,nx,nz))return;
   x=nx;z=nz;
  }
- bot.x=x;bot.z=z;bot.y=positionGround(x,z);
+ bot.x=x;bot.z=z;
+ if(now>=(bot.floorCheckAt||0)){
+  bot.y=positionGround(x,z,bot.y+1.35);bot.floorCheckAt=now+.12;
+ }
  bot.yaw=Math.atan2(-dx,-dz);
  bot.walkPhase+=dt*9;
 }
@@ -713,7 +724,12 @@ function aiStep(dt){
  const now=performance.now()/1000;
  for(const bot of players){
   if(bot.isPlayer||!bot.alive)continue;
-  const target=getClosestEnemy(bot);
+  // Offset vision scans across frames to avoid the C4-plant stutter.
+  if(now>=(bot.visionCheckAt||0)){
+   bot.cachedEnemy=getClosestEnemy(bot);
+   bot.visionCheckAt=now+.17+botIndex(bot)*.009;
+  }
+  const target=bot.cachedEnemy?.alive?bot.cachedEnemy:null;
   bot.target=target;
   const nearbySmoke=smokes.some(s=>Math.hypot(bot.x-s.position.x,bot.z-s.position.z)<5);
   const vision=target&&now>=bot.flashUntil&&!nearbySmoke;
