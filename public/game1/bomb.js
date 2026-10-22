@@ -211,7 +211,6 @@ function resetPositions(){
 function buildShop(){
  const container=byId('shopItems');container.replaceChildren();
  for(const [id,entry] of [...Object.entries(BOMB_WEAPONS),...Object.entries(BOMBSHOP_GEAR)]){
-  if(entry.slot==='knife')continue;
   if(id==='kit'&&me?.side!=='ct')continue;
   const button=document.createElement('button');
   const name=document.createElement('span');name.textContent=entry.name;
