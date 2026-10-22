@@ -20,7 +20,8 @@ test('User-approved weapon economics and magazine sizes are preserved',()=>{
   assert.deepEqual([info.price,info.mag,info.reserve],[price,mag,reserve],id);
  }
  assert.equal(BOMBSHOP_GEAR.kit.side,'ct');
- assert.equal(BOMB_RULES.buySeconds,25);
+ assert.equal(BOMB_RULES.buySeconds,10);
+ assert.equal(BOMB_RULES.shopSeconds,25);
  assert.equal(BOMB_RULES.winsToFinish,10);
  assert.equal(BOMB_RULES.roundsBeforeSideSwap,9);
 });
