@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#12202c">
+<title>GameBlock — Закладка бомбы / de_dust2</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080e18;color:#f5f7fc;font-family:system-ui,Arial;touch-action:none;user-select:none}button{font:800 12px system-ui;color:white;background:#263a51;border:1px solid #7190a2;border-radius:7px;padding:10px;touch-action:manipulation}button:active{background:#44657d}canvas{display:block}#world{position:absolute;inset:0}#world canvas{width:100%;height:100%}
+#hud{position:fixed;inset:0;pointer-events:none}#hud button,#hud .interactive-ui{pointer-events:auto}
+#top{position:absolute;top:max(7px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:#112031e5;border:1px solid #61798f;border-radius:8px;padding:7px 13px;text-align:center;white-space:nowrap;font-size:14px;font-weight:800}#top small{display:block;font-size:10px;color:#b5cce1}#money{position:absolute;top:8px;left:10px;color:#b7f2ad;font-size:18px;font-weight:850}#modeTag{position:absolute;top:35px;left:10px;color:#9cb3c8;font-size:10px}
+#message{position:absolute;top:18%;width:100%;text-align:center;font-weight:900;text-shadow:0 2px 6px #000;font-size:clamp(16px,4vw,24px);padding:0 12px}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#fff;text-shadow:0 1px 6px #000}
+#hp{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#14253bdd;padding:8px 13px;border-radius:9px;white-space:nowrap;min-width:130px;text-align:center}
+#joystick{position:absolute;left:25px;bottom:38px;width:125px;height:125px;border-radius:50%;border:2px solid #ffffff80;background:#ffffff17;touch-action:none;pointer-events:auto}#stick{position:absolute;left:42px;top:42px;width:40px;height:40px;background:#ddddddaa;border-radius:50%;pointer-events:none}
+#fire{position:absolute;right:20px;bottom:110px;width:77px;height:77px;border-radius:50%;background:#a73e3ecc;font-size:17px;touch-action:none}
+#actionRow{position:absolute;right:11px;bottom:17px;display:flex;gap:7px}#actionRow button{min-width:53px;min-height:47px}
+#weapons{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;display:flex;gap:5px}#weapons button{min-width:39px;padding:8px 7px;font-size:11px}#weapons button.active{background:#ad8749;color:#111a25}
+#plant{position:absolute;right:16px;bottom:198px;width:115px;background:#b28736;display:none}#grenade{position:absolute;right:110px;bottom:142px}#shopOpen{position:absolute;left:10px;top:65px;background:#526b2e}#aim{position:absolute;right:112px;bottom:205px;display:none}
+#progress{position:absolute;left:25%;top:65%;width:50%;height:10px;background:#1a232f;border:1px solid #ddd;display:none}#progress i{height:100%;display:block;background:#f3b952;width:0}
+#flash{position:fixed;inset:0;background:white;pointer-events:none;opacity:0;z-index:88}
+#scope{position:fixed;inset:0;pointer-events:none;display:none;z-index:24;background:radial-gradient(circle,transparent 0 26%,#000 27%)}#scope:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#000}#scope:after{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:#000}
+#scope.red{background:radial-gradient(circle,transparent 0 24%,#0008 80%)}#scope.red:before{width:8px;height:8px;left:50%;top:50%;border-radius:50%;margin:-4px 0 0 -4px;background:#ff232d;box-shadow:0 0 10px 3px #ff3036}#scope.red:after{display:none}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:#07101ceb;z-index:50;overflow:auto;touch-action:pan-y}.overlay[hidden],#shop[hidden],#hud[hidden]{display:none!important}.card{width:min(480px,100%);max-height:90dvh;overflow:auto;border:1px solid #55748e;border-radius:13px;background:#142437;padding:18px}.card h1{font-size:27px;margin:5px 0}.card p{line-height:1.5;font-size:13px;color:#b5c9d7}.card .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card .choices button{font-size:16px;padding:16px 8px}.card .choices button:first-child{background:#25577d}.card .choices button:last-child{background:#75602f}
+#shop{position:fixed;inset:0;z-index:60;background:#07101de9;padding:15px;overflow:auto;touch-action:pan-y}#shop .card{margin:auto}.shopRows{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0}.shopRows button{text-align:left;padding:9px;font-size:11px}.shopRows button strong{display:block;color:#fbd19a;font-size:12px}#shopStatus{min-height:20px;color:#d6dc9a;font-size:12px}
+#statusLine{font-size:11px;opacity:.9;margin-top:10px}#mapStatus{font-size:11px;color:#a8d9be}#frag{position:fixed;right:10px;top:70px;font-size:10px;text-align:right;pointer-events:none}
+@media(max-width:650px){#weapons{bottom:70px;left:51%}#money{font-size:14px}#top{font-size:11px}#top small{font-size:9px}#grenade{right:105px;bottom:137px}#aim{right:112px;bottom:199px}#hp{bottom:8px;font-size:11px;padding:6px 8px}#weapons button{padding:6px}}
+</style>
+</head>
+<body>
+<div id="world"></div>
+<div id="hud" hidden>
+  <div id="top">CT <span id="ctWins">0</span> : <span id="tWins">0</span> T <small id="roundClock">Раунд 1 · закупка 25</small></div>
+  <div id="money">$800</div><div id="modeTag">ЗАКЛАДКА БОМБЫ · 5 НА 5</div>
+  <div id="message"></div><div id="frag"></div>
+  <div id="crosshair">+</div><div id="hp">♥ 100 · USP-S 12/72</div>
+  <div id="joystick"><div id="stick"></div></div>
+  <button id="fire">ОГОНЬ</button><button id="plant">ЗАЖМИ · C4 / САПЁР</button><button id="grenade">ГРАНАТА</button><button id="aim">ПРИЦЕЛ</button>
+  <div id="actionRow"><button id="reload">↻</button><button id="crouch">ПРИСЕСТЬ</button><button id="jump">↑</button></div>
+  <div id="weapons"><button data-slot="knife">1 Нож</button><button data-slot="pistol" class="active">2 П</button><button data-slot="primary">3 А</button><button data-slot="bomb">4 C4</button></div>
+  <button id="shopOpen">🛒 МАГАЗИН</button>
+  <div id="progress"><i></i></div>
+</div>
+<div id="flash"></div><div id="scope"></div>
+<section class="overlay" id="choose">
+  <div class="card"><h1>ЗАКЛАДКА БОМБЫ</h1>
+    <p>Карта Game1: de_dust2. 5 на 5, 25 секунд закупки, бомба и 2 точки установки, гранаты и сапёрный набор. До 10 побед, смена сторон после девятого раунда.</p>
+    <div class="choices"><button data-team="ct">СПЕЦНАЗ</button><button data-team="t">ТЕРРОРИСТЫ</button></div>
+    <p id="mapStatus">Загружаем карту de_dust2…</p>
+    <p><a href="index.html" style="color:#b8d9ec">Командный бой Game1</a> · <a href="../../index.html" style="color:#b8d9ec">GameBlock</a></p>
+  </div>
+</section>
+<section id="shop" hidden><div class="card"><h1>МАГАЗИН</h1><p>Только в закладке бомбы оружие покупается за деньги. В командном бою всё бесплатно.</p><b id="shopMoney">$800</b><div id="shopItems" class="shopRows"></div><p id="shopStatus"></p><button id="shopClose">В БОЙ</button></div></section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script src="hands.js"></script>
+<script type="module" src="bomb.js"></script>
+</body>
+</html>
