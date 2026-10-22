@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {createBlockFighter,FIGHTER_ACTIONS,FIGHTER_VERSION} from './blockFighter.js';
 import {createThirdPersonLoadout} from './thirdPersonGrip.js';
+import {installWeaponMountEditor} from './weaponMountEditor.js';
 
 const $=selector=>document.querySelector(selector);
 const status=$('#status'),message=$('#message'),canvas=$('#canvas');
@@ -49,7 +50,7 @@ const ring=new THREE.Mesh(new THREE.TorusGeometry(.94,.012,5,80),
  new THREE.MeshBasicMaterial({color:0x7ca6c6,transparent:true,opacity:.65}));
 ring.rotation.x=-Math.PI/2;ring.position.y=-.012;scene.add(ring);
 
-let fighter,helper,gear,clockStart=performance.now();
+let fighter,helper,gear,mountEditor,clockStart=performance.now();
 try{
  fighter=createBlockFighter();
  gear=createThirdPersonLoadout(fighter,{kind:'rifle'});
@@ -94,6 +95,19 @@ function notify(text,isError=false){
  message.style.color=isError?'#efab98':'#aee8c4';
  message.textContent=text;
 }
+if(gear){
+ mountEditor=installWeaponMountEditor({
+  gear,
+  getKind:()=>$('#weaponGrip').value,
+  setKind:kind=>{
+   $('#weaponGrip').value=kind;
+   gear.root.visible=true;
+   notify('Редактор: '+(kind==='rifle'?'AK-47':'Пистолет'));
+  },
+  notify
+ });
+ $('#openWeaponEditor').addEventListener('click',()=>mountEditor.show());
+}
 function refreshSliders(){
  if(!fighter)return;
  const boneName=$('#bone').value;
@@ -120,6 +134,7 @@ $('#weaponGrip').addEventListener('change',event=>{
  const next=event.target.value;
  gear.root.visible=next!=='none';
  if(next!=='none')gear.setKind(next);
+ if(next!=='none')mountEditor?.select(next);
  notify(next==='none'?'Оружие снято — суставы доступны для редактирования':
    next==='rifle'?'AK-47: правая на рукоятке, левая под цевьём':
    'Пистолет: правая на рукоятке, левая поддерживает');
