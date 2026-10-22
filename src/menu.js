@@ -25,7 +25,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
       border:10px solid #07101842;box-shadow:inset 0 0 65px #02090f99}
     #retroHome button {border:0;color:inherit;font-weight:900;cursor:pointer;
       letter-spacing:.09em;touch-action:manipulation}
-    #retroHome .retroLeft {width:min(32vw,325px);min-width:210px;flex-shrink:0;
+    #retroHome .retroLeft {width:min(32vw,325px);min-width:210px;flex-shrink:0;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;
       padding:max(18px,env(safe-area-inset-top)) 16px max(15px,env(safe-area-inset-bottom))
       max(24px,env(safe-area-inset-left));
       display:flex;flex-direction:column;gap:8px;z-index:1}
@@ -57,9 +57,12 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
     #retroHome #retroFighter {padding:12px 14px;text-align:center;
       background:linear-gradient(110deg,#d3a362,#ac7743);color:#172430;
       border:1px solid #ffe0aa;font-size:12px;border-radius:4px}
-    #retroHome #retroGame1 {padding:10px 12px;text-align:center;
-      background:#263742;border:1px solid #758f92;color:#e2ebdf;
-      border-radius:3px;font-size:11px}
+    #retroHome #retroGame1 {padding:13px 12px;text-align:center;
+      background:#315466;border:1px solid #88c1d2;color:#effbff;
+      border-radius:3px;font-size:12px}
+    #retroHome #retroBomb{padding:13px 12px;text-align:center;
+      background:#695029;border:1px solid #efc278;color:#fff5d9;
+      border-radius:3px;font-size:12px}
     #retroHome #retroCasting{padding:11px 12px;text-align:center;
       background:#46554c;border:1px solid #afc0af;color:#f7f4e9;border-radius:3px;
       font-size:12px}
@@ -130,9 +133,10 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
       <button id="retroCasting" type="button" hidden>АРХИВ CT</button>
       <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
       <button id="retroTChoice" type="button" hidden>АРХИВ МОДЕЛЕЙ T</button>
-      <button id="retroGame1" type="button" hidden>СТАРЫЙ РЕЖИМ GAME1</button>
+      <button id="retroGame1" type="button">▶ КОМАНДНЫЙ БОЙ · GAME1</button>
+      <button id="retroBomb" type="button">💣 ЗАКЛАДКА БОМБЫ · DE_DUST2</button>
       <button id="retroShop" type="button">▣ МАГАЗИН ОРУЖИЯ · 5 МОДЕЛЕЙ</button>
-      <button id="retroPlay" type="button">▶ ИГРАТЬ</button>
+      <button id="retroPlay" type="button">▶ КЛАССИЧЕСКИЙ GAMEBLOCK</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
     </div>
     <div class="retroTop">
@@ -206,6 +210,9 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
   });
   $('retroGame1').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'game1/menu.html');
+  });
+  $('retroBomb').addEventListener('click',()=>{
+    window.location.assign(import.meta.env.BASE_URL+'game1/bomb.html');
   });
   $('retroCasting').addEventListener('click',()=>{
     window.location.assign(import.meta.env.BASE_URL+'casting.html');
