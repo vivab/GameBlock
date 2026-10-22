@@ -22,13 +22,13 @@ const format=(value,field)=>field.unit==='°'?Math.round(value)+'°':
  field.unit==='×'?Number(value).toFixed(2)+'×':Number(value).toFixed(3)+' м';
 
 export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=>{},notify=()=>{}}={}){
- if(!gear?.getMount||!gear?.setMount||!gear?.setModel)
+ if(!gear?.getMount||!gear?.setMount||!gear?.setModel||!gear?.getGripEdit||!gear?.setGripEdit)
   throw Error('Weapon editor requires a third-person firearm rig');
  const css=document.createElement('style');
  css.textContent=[
  '#weOpen{position:fixed;bottom:max(14px,env(safe-area-inset-bottom));right:14px;z-index:72;background:#d9ab67;color:#10202c;border:1px solid #f8d69f;border-radius:9px;box-shadow:0 4px 18px #0008;font:800 12px system-ui;padding:12px 14px;cursor:pointer;touch-action:manipulation}',
  '#wePanel{position:fixed;top:125px;right:16px;z-index:73;width:min(327px,calc(100vw - 18px));max-height:min(74dvh,620px);display:flex;flex-direction:column;border:1px solid #8fa9b4;border-radius:13px;background:#0c1d2ff4;color:#f2f6fc;box-shadow:0 10px 40px #000b;font:12px system-ui;overflow:hidden;backdrop-filter:blur(7px)}',
- '#wePanel[hidden]{display:none}',
+ '#wePanel[hidden],#wePanel [hidden]{display:none!important}',
  '#wePanel button,#wePanel input,#wePanel select{font:inherit;touch-action:auto}',
  '#wePanel button{background:#263a50;color:#edf6fc;border:1px solid #657e92;border-radius:6px;min-height:32px;cursor:pointer}',
  '#weHeader{cursor:grab;touch-action:none;user-select:none;flex-shrink:0;padding:11px 8px;display:flex;align-items:center;gap:5px;background:#19344c;border-bottom:1px solid #6f8596;font-weight:800}',
@@ -47,6 +47,11 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  '#wePanel .we-axis input[type=number]{grid-column:2;grid-row:2;width:100%;min-width:0;background:#172c41;color:white;border:1px solid #55728d;border-radius:6px;padding:7px 3px;font-size:12px;text-align:center}',
  '#wePanel .we-value{grid-column:2;grid-row:1;text-align:right;font-variant-numeric:tabular-nums;color:#f8ca87;font-size:11px}',
  '#wePanel .we-buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0 7px}',
+ '#wePanel .we-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:12px 0 5px}',
+ '#wePanel .we-tabs button{padding:9px 3px;font-weight:750;min-height:39px}',
+ '#wePanel .we-tabs button[aria-pressed="true"]{background:#d9ab67;color:#10202c;border-color:#f9d497}',
+ '#wePanel #weTargetDescription{font-size:11px;line-height:1.5;color:#afc9d9;margin:6px 0 10px}',
+ '#wePanel .we-target-note{font-size:10px;color:#d4ba8d;margin:4px 0 8px}',
  '#wePanel .we-primary{background:#cda369;color:#112234;font-weight:800;border-color:#ecc68b}',
  '#wePanel .we-tip{line-height:1.5;color:#b2c8d8;font-size:11px;padding-top:6px}',
  '#wePanel #weMessage{color:#eacb99;line-height:1.4;min-height:16px;font-size:11px}',
@@ -66,17 +71,25 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  '</div><div id="weBody">',
  '<label for="weKind">Модель, которую двигаем</label>',
  '<select id="weKind"><option value="rifle">AK-47 / автомат</option><option value="pistol">Пистолет</option></select>',
+ '<div class="we-tabs" id="weTargets" role="group" aria-label="Что двигать">',
+ '<button type="button" data-target="weapon" aria-pressed="true">🔫 Оружие</button>',
+ '<button type="button" data-target="right" aria-pressed="false">✋ Правая рука</button>',
+ '<button type="button" data-target="left" aria-pressed="false">✋ Левая рука</button>',
+ '<button type="button" data-target="all" aria-pressed="false">↔ Обе руки</button></div>',
+ '<div id="weTargetDescription">Перемещает только оружие. Ладони автоматически следуют за ним.</div>',
  '<label for="weFile">Загрузить свой GLB (пока локально)</label>',
  '<input id="weFile" class="we-file" type="file" accept=".glb,model/gltf-binary">',
- '<div class="we-buttons"><button type="button" id="weDefault">Временная модель</button>',
+ '<div class="we-buttons" id="weModelButtons"><button type="button" id="weDefault">Временная модель</button>',
  '<button type="button" id="weReset">↺ Сброс координат</button></div>',
- '<div class="we-buttons"><button type="button" id="weSmaller">− Меньше оружие</button>',
- '<button type="button" id="weBigger">＋ Больше оружие</button></div>',
+ '<div class="we-buttons" id="weScaleButtons"><button type="button" id="weSmaller">− Меньше / уже</button>',
+ '<button type="button" id="weBigger">＋ Больше / шире</button></div>',
  '<div id="weSliders"></div>',
  '<div class="we-buttons"><button class="we-primary" type="button" id="weCopy">⧉ Копировать JSON</button>',
  '<button type="button" id="weMoveSide">⇆ Перенести меню</button></div>',
  '<div id="weMessage" role="status"></div>',
- '<div class="we-tip">Движения видны сразу: ладони следуют за оружием. Меню можно',
+ '<div class="we-tip">Оружие, правая рука, левая рука и обе руки вместе',
+ ' имеют отдельные координаты X/Y/Z, углы X/Y/Z и масштаб расстояния.',
+ ' Все изменения видны на бойце сразу. Меню можно',
  ' перетащить за заголовок, свернуть или перенести на другую сторону.',
  ' Координаты сохраняются на этом устройстве; сам GLB открыт локально',
  ' до перезагрузки страницы. Для других игроков GLB потребуется залить в GitHub.</div>',
@@ -86,6 +99,29 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  const $=id=>panel.querySelector('#'+id);
  const kindSelect=$('weKind');
  const rows={};
+ let target='weapon';
+ const descriptions={
+  weapon:'🔫 Двигается только оружие, руки автоматически следуют за хватом.',
+  right:'✋ Двигается только правая кисть (на рукоятке), оружие и левая рука не смещаются.',
+  left:'✋ Двигается только левая кисть (под цевьём), оружие и правая рука не смещаются.',
+  all:'↔ Обе руки вместе: общий сдвиг, поворот кистей и ширина хвата. Оружие остаётся на месте.'
+ };
+ const current=()=>target==='weapon'?gear.getMount(currentKind()):gear.getGripEdit(currentKind(),target);
+ const change=values=>target==='weapon'?gear.setMount(currentKind(),values):gear.setGripEdit(currentKind(),target,values);
+ const reset=()=>target==='weapon'?gear.resetMount(currentKind()):gear.resetGripEdit(currentKind(),target);
+ function refreshTarget(){
+  $('weTargetDescription').textContent=descriptions[target];
+  for(const button of $('weTargets').querySelectorAll('[data-target]'))
+   button.setAttribute('aria-pressed',String(button.dataset.target===target));
+  $('weFile').hidden=target!=='weapon';
+  $('weModelButtons').hidden=target!=='weapon';
+  $('weScaleButtons').hidden=false;
+  $('weSmaller').textContent=target==='weapon'?'− Меньше оружие':'− Уже хват';
+  $('weBigger').textContent=target==='weapon'?'＋ Больше оружие':'＋ Шире хват';
+  refresh();
+ }
+ for(const button of $('weTargets').querySelectorAll('[data-target]'))
+  button.addEventListener('click',()=>{target=button.dataset.target;refreshTarget()});
  const clampPosition=(x,y)=>{
   const width=panel.getBoundingClientRect().width||296;
   const height=panel.getBoundingClientRect().height||52;
@@ -139,7 +175,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   notify(txt,err);
  };
  function refresh(){
-  const mount=gear.getMount(currentKind());
+  const mount=current();
   for(const ctrl of MOUNT_CONTROLS){
    const ui=rows[ctrl.key];if(!ui)continue;
    ui.slider.value=String(mount[ctrl.key]);
@@ -160,8 +196,8 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   row.append(label,output,slider,number);$('weSliders').append(row);
   const apply=value=>{
    if(value===''||!Number.isFinite(Number(value)))return;
-   const v=mountControlValue(gear.getMount(currentKind()),ctrl.key,value);
-   gear.setMount(currentKind(),{[ctrl.key]:v});
+   const v=mountControlValue(current(),ctrl.key,value);
+   change({[ctrl.key]:v});
    slider.value=String(v);number.value=String(v);output.textContent=format(v,ctrl);
   };
   slider.addEventListener('input',event=>apply(event.target.value));
@@ -180,20 +216,26 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  for(const [id,delta] of [['weSmaller',-.1],['weBigger',.1]]){
   $(id).addEventListener('click',()=>{
    const kind=currentKind();
-   const mount=gear.getMount(kind);
+   const mount=current();
    const scale=mountControlValue(mount,'scale',mount.scale+delta);
-   gear.setMount(kind,{scale});
-   refresh();say('Масштаб '+kind+': '+scale.toFixed(2)+'×');
+   change({scale});
+   refresh();say('Масштаб '+target+': '+scale.toFixed(2)+'×');
   });
  }
  $('weReset').addEventListener('click',()=>{
-  gear.resetMount(currentKind());refresh();say('Координаты сброшены');
+  reset();refresh();say('Координаты '+target+' сброшены');
  });
  $('weDefault').addEventListener('click',()=>{
   gear.setModel(currentKind(),null);$('weFile').value='';say('Временная модель возвращена');
  });
  $('weCopy').addEventListener('click',async()=>{
-  const data={weapon:currentKind(),mount:gear.getMount(currentKind())};
+  const data={weapon:currentKind(),target,settings:current(),
+   full:{
+    weapon:gear.getMount(currentKind()),
+    right:gear.getGripEdit(currentKind(),'right'),
+    left:gear.getGripEdit(currentKind(),'left'),
+    all:gear.getGripEdit(currentKind(),'all')
+   }};
   try{await navigator.clipboard.writeText(JSON.stringify(data,null,2));
    say('Координаты скопированы');}
   catch{say('Буфер недоступен — сделай скриншот чисел',true)}
@@ -225,7 +267,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  }
  const selected=getKind();
  if(selected==='rifle'||selected==='pistol')kindSelect.value=selected;
- refresh();
+ refreshTarget();
  return {element:panel,launcher,show(){
     panel.hidden=false;panel.classList.remove('weMin');$('weMinimize').textContent='—';
     const bounds=panel.getBoundingClientRect();place(bounds.left,bounds.top);refresh();
