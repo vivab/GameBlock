@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#12202c">
+<title>GameBlock — Закладка бомбы / Desert Crossroads</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080e18;color:#f5f7fc;font-family:system-ui,Arial;touch-action:none;user-select:none}button{font:800 12px system-ui;color:white;background:#263a51;border:1px solid #7190a2;border-radius:7px;padding:10px;touch-action:manipulation}button:active{background:#44657d}canvas{display:block}#world{position:absolute;inset:0}#world canvas{width:100%;height:100%}
+#hud{position:fixed;inset:0;pointer-events:none}#hud button,#hud .interactive-ui{pointer-events:auto}
+#top{position:absolute;top:max(7px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:#112031e5;border:1px solid #61798f;border-radius:8px;padding:7px 13px;text-align:center;white-space:nowrap;font-size:14px;font-weight:800}#top small{display:block;font-size:10px;color:#b5cce1}#money{position:absolute;top:8px;left:10px;color:#b7f2ad;font-size:18px;font-weight:850}#modeTag{position:absolute;top:35px;left:10px;color:#9cb3c8;font-size:10px}
+#message{position:absolute;top:18%;width:100%;text-align:center;font-weight:900;text-shadow:0 2px 6px #000;font-size:clamp(16px,4vw,24px);padding:0 12px}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#fff;text-shadow:0 1px 6px #000}
+#hp{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#14253bdd;padding:8px 13px;border-radius:9px;white-space:nowrap;min-width:130px;text-align:center}
+#joystick{position:absolute;left:25px;bottom:38px;width:125px;height:125px;border-radius:50%;border:2px solid #ffffff80;background:#ffffff17;touch-action:none;pointer-events:auto}#stick{position:absolute;left:42px;top:42px;width:40px;height:40px;background:#ddddddaa;border-radius:50%;pointer-events:none}
+#fire{position:absolute;right:20px;bottom:110px;width:77px;height:77px;border-radius:50%;background:#a73e3ecc;font-size:17px;touch-action:none}
+#actionRow{position:absolute;right:11px;bottom:17px;display:flex;gap:7px}#actionRow button{min-width:53px;min-height:47px}
+#weapons{position:absolute;left:50%;transform:translateX(-50%);bottom:64px;display:flex;gap:5px}#weapons button{min-width:39px;padding:8px 7px;font-size:11px}#weapons button.active{background:#ad8749;color:#111a25}
+#plant{position:absolute;right:16px;bottom:198px;width:115px;background:#b28736;display:none}#grenade{position:absolute;right:102px;bottom:143px}#grenadeType{position:absolute;right:193px;bottom:143px;background:#394e40}#shopOpen{position:absolute;left:10px;top:65px;background:#526b2e}#aim{position:absolute;right:112px;bottom:205px;display:none}
+#progress{position:absolute;left:25%;top:65%;width:50%;height:10px;background:#1a232f;border:1px solid #ddd;display:none}#progress i{height:100%;display:block;background:#f3b952;width:0}
+#flash{position:fixed;inset:0;background:white;pointer-events:none;opacity:0;z-index:88}
+#scope{position:fixed;inset:0;pointer-events:none;display:none;z-index:24;background:radial-gradient(circle,transparent 0 26%,#000 27%)}#scope:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:#000}#scope:after{content:"";position:absolute;top:0;bottom:0;left:50%;width:1px;background:#000}
+#scope.red{background:radial-gradient(circle,transparent 0 24%,#0008 80%)}#scope.red:before{width:8px;height:8px;left:50%;top:50%;border-radius:50%;margin:-4px 0 0 -4px;background:#ff232d;box-shadow:0 0 10px 3px #ff3036}#scope.red:after{display:none}
+.overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:#07101ceb;z-index:50;overflow:auto;touch-action:pan-y}.overlay[hidden],#shop[hidden],#hud[hidden]{display:none!important}.card{width:min(480px,100%);max-height:90dvh;overflow:auto;border:1px solid #55748e;border-radius:13px;background:#142437;padding:18px}.card h1{font-size:27px;margin:5px 0}.card p{line-height:1.5;font-size:13px;color:#b5c9d7}.card .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card .choices button{font-size:16px;padding:16px 8px}.card .choices button:first-child{background:#25577d}.card .choices button:last-child{background:#75602f}
+#shop{position:fixed;inset:0;z-index:60;background:#07101de9;padding:15px;overflow:auto;touch-action:pan-y}#shop .card{margin:auto}.shopRows{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0}.shopRows button{text-align:left;padding:9px;font-size:11px}.shopRows button strong{display:block;color:#fbd19a;font-size:12px}#shopStatus{min-height:20px;color:#d6dc9a;font-size:12px}
+#statusLine{font-size:11px;opacity:.9;margin-top:10px}#mapStatus{font-size:11px;color:#a8d9be}#frag{position:fixed;right:10px;top:70px;font-size:10px;text-align:right;pointer-events:none}
+@media(max-width:650px){#weapons{bottom:70px;left:51%}#money{font-size:14px}#top{font-size:11px}#top small{font-size:9px}#grenade{right:102px;bottom:138px}#grenadeType{right:191px;bottom:138px}#aim{right:112px;bottom:199px}#hp{bottom:8px;font-size:11px;padding:6px 8px}#weapons button{padding:6px}}
+
+/* Mobile-first circular action controls and hold-and-drag weapon selector. */
+#fire,#actionRow button,#grenade,#grenadeType,#aim,#plant,#weaponToggle{
+ border-radius:50%;display:grid;place-items:center;text-align:center;padding:0;
+ box-shadow:0 3px 12px #0009;backdrop-filter:blur(3px);
+}
+#fire{width:78px;height:78px;font-size:15px;border:2px solid #f0b6b6a8}
+#actionRow{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));gap:9px}
+#actionRow button{width:54px;height:54px;min-width:54px;min-height:54px;font-size:25px}
+#actionRow #crouch{font-size:11px;letter-spacing:.02em}
+#plant{width:88px;height:88px;right:max(14px,env(safe-area-inset-right));bottom:205px;font-size:10px;line-height:1.25;padding:8px}
+#grenade{width:56px;height:56px;right:108px;bottom:145px;font-size:10px}
+#grenadeType{width:50px;height:50px;right:172px;bottom:150px;font-size:10px}
+#aim{width:55px;height:55px;right:113px;bottom:211px;font-size:10px}
+#weaponToggle{position:absolute;right:182px;bottom:13px;width:62px;height:62px;
+ font-size:29px;background:#314c5ddc;border:2px solid #bfd0d0a8;pointer-events:auto;z-index:6}
+#weaponToggle.active{border-color:#f0c983;background:#9b7744}
+#weapons{position:absolute;right:140px;bottom:80px;left:auto;transform:scale(.82);
+ width:198px;height:198px;display:block;gap:0;z-index:5;opacity:0;visibility:hidden;
+ pointer-events:none;border-radius:50%;border:2px solid #d0dfd4c2;
+ background:conic-gradient(from 45deg,#263c4ceb 0 25%,#162b39f5 25% 50%,#263c4ceb 50% 75%,#162b39f5 75% 100%);
+ box-shadow:0 6px 30px #000c;transition:opacity .1s,transform .1s,visibility .1s;
+ touch-action:none}
+#weapons.open{opacity:1;visibility:visible;transform:scale(1);pointer-events:auto}
+#weapons:before{content:"";position:absolute;inset:64px;border-radius:50%;border:1px solid #b8cbd171;background:#0b1c28bb;pointer-events:none}
+#wheelCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:8px;letter-spacing:.08em;color:#cfdbe2;pointer-events:none}
+#weapons button{position:absolute;width:58px;height:58px;min-width:0;border-radius:50%;
+ display:grid;place-items:center;padding:0;font-size:13px;touch-action:none;
+ border:1px solid #d0e0e0bb;background:#354f62ee;color:white}
+#weapons button[data-slot="bomb"]{top:7px;left:68px}
+#weapons button[data-slot="pistol"]{top:69px;left:6px}
+#weapons button[data-slot="knife"]{top:69px;right:6px}
+#weapons button[data-slot="primary"]{bottom:7px;left:68px}
+#weapons button.active,#weapons button.hovered{background:#d4a254;color:#1e2832;border-color:#ffe1a6}
+#weapons button.unavailable{opacity:.28}
+#shopOpen{width:64px;height:64px;min-width:64px;left:12px;top:64px;border-radius:50%;font-size:0;padding:0;display:grid;place-items:center;box-shadow:0 3px 12px #0008}
+#shopOpen:before{content:'🛒';font-size:27px}
+@media(max-height:450px){
+ #fire{bottom:103px;width:70px;height:70px}
+ #plant{bottom:178px;width:72px;height:72px}
+ #weaponToggle{right:183px;bottom:10px;width:56px;height:56px}
+ #weapons{right:145px;bottom:64px}
+ #grenade{bottom:125px}#grenadeType{bottom:130px}
+}
+</style>
+</head>
+<body>
+<div id="world"></div>
+<div id="hud" hidden>
+  <div id="top">CT <span id="ctWins">0</span> : <span id="tWins">0</span> T <small id="roundClock">Раунд 1 · закупка 25</small></div>
+  <div id="money">$800</div><div id="modeTag">ЗАКЛАДКА БОМБЫ · 5 НА 5</div>
+  <div id="message"></div><div id="frag"></div>
+  <div id="crosshair">+</div><div id="hp">♥ 100 · USP-S 12/72</div>
+  <div id="joystick"><div id="stick"></div></div>
+  <button id="fire">ОГОНЬ</button><button id="plant">ЗАЖМИ · C4 / САПЁР</button><button id="grenadeType">ТИП</button><button id="grenade">БРОСИТЬ</button><button id="aim">ПРИЦЕЛ</button>
+  <div id="actionRow"><button id="reload" aria-label="Перезарядка или осмотр">↻</button><button id="crouch" aria-label="Присесть">СЕСТЬ</button><button id="jump" aria-label="Прыгнуть">↑</button></div>
+  <button id="weaponToggle" aria-label="Круговой выбор оружия" aria-expanded="false">◉</button>
+  <div id="weapons" role="group" aria-label="Круговое меню оружия">
+    <span id="wheelCenter">ОРУЖИЕ</span>
+    <button data-slot="bomb" aria-label="Бомба C4">C4</button>
+    <button data-slot="pistol" class="active" aria-label="Пистолет">П</button>
+    <button data-slot="knife" aria-label="Нож">НОЖ</button>
+    <button data-slot="primary" aria-label="Основное оружие">АК</button>
+  </div>
+  <button id="shopOpen" aria-label="Открыть магазин оружия">🛒 МАГАЗИН</button>
+  <div id="progress"><i></i></div>
+</div>
+<div id="flash"></div><div id="scope"></div>
+<section class="overlay" id="choose">
+  <div class="card"><h1>ЗАКЛАДКА БОМБЫ</h1>
+    <p>Новая карта Desert Crossroads. 5 на 5, старт через 10 секунд, магазин на базе 25 секунд, бомба и 2 точки установки, гранаты и сапёрный набор. До 10 побед, смена сторон после девятого раунда.</p>
+    <div class="choices"><button data-team="ct">СПЕЦНАЗ</button><button data-team="t">ТЕРРОРИСТЫ</button></div>
+    <p id="mapStatus">Строим Desert Crossroads…</p>
+    <p><a href="index.html" style="color:#b8d9ec">Командный бой Game1</a> · <a href="../../index.html" style="color:#b8d9ec">GameBlock</a></p>
+  </div>
+</section>
+<section id="shop" hidden><div class="card"><h1>МАГАЗИН</h1><p>Только в закладке бомбы оружие покупается за деньги. В командном бою всё бесплатно.</p><b id="shopMoney">$800</b><div id="shopItems" class="shopRows"></div><p id="shopStatus"></p><button id="shopClose">В БОЙ</button></div></section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script src="hands.js"></script>
+<script type="module" src="bomb-desert-v2.js"></script>
+</body>
+</html>
