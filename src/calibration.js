@@ -40,8 +40,11 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
     <button id="calibrationOpen" aria-label="Настроить оружие и руки"
       type="button">⚙</button>
     <section id="calibrationPanel" aria-label="Настройка оружия" hidden>
-      <div class="cal-head"><b>НАСТРОЙКА ХВАТА</b>
+      <div class="cal-head" id="calDragBar"><b style="flex:1">⠿ ПЕРЕТАЩИ МЕНЮ</b>
+        <button id="calSide" type="button" aria-label="Перенести меню">⇆</button>
+        <button id="calCollapse" type="button" aria-label="Свернуть меню">—</button>
         <button id="calibrationClose" type="button">✕</button></div>
+      <div id="calBody">
       <p>Собственные 3D-руки и оружие. Все изменения сохраняются на этом устройстве.</p>
       <label>Оружие <select id="calWeapon">
         <option value="pistol">Glock 18</option><option value="rifle">AK-47</option>
@@ -69,6 +72,7 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
       </div>
       <textarea id="calOutput" readonly aria-label="Координаты" rows="3"></textarea>
       <small id="calStatus">Передвигай руки ползунками и смотри на оружие.</small>
+      </div>
     </section>`;
   const css=document.createElement('style');
   css.textContent=`
@@ -78,10 +82,18 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
       pointer-events:auto;background:#172737;border:1px solid #b7a27f;
       border-radius:8px;width:38px;height:38px;color:#fff;font-size:24px}
     #calibrationPanel{position:absolute;top:2%;left:max(9px,env(safe-area-inset-left));
-      width:min(330px,46vw);max-height:94%;overflow:auto;overscroll-behavior:contain;
+      width:min(330px,calc(100vw - 22px));max-height:94%;overflow:hidden;overscroll-behavior:contain;
       pointer-events:auto;background:#111e2bf7;border:1px solid #b7a27f;
       border-radius:11px;padding:13px;box-shadow:0 12px 45px #000a}
     #calibrationPanel[hidden],#calPoseRow[hidden]{display:none!important}
+    #calDragBar{touch-action:none;user-select:none;cursor:grab;margin:-5px -5px 8px;padding:6px;
+      background:#233c50;border-radius:6px}
+    #calDragBar:active{cursor:grabbing}
+    #calDragBar button{touch-action:manipulation;min-width:28px}
+    #calBody{max-height:calc(87dvh - 66px);overflow:auto;overscroll-behavior:contain;
+      touch-action:pan-y;-webkit-overflow-scrolling:touch}
+    #calibrationPanel.cal-collapsed{max-height:none}
+    #calibrationPanel.cal-collapsed #calBody{display:none}
     #calibrationUI button,#calibrationUI input,#calibrationUI select,
     #calibrationUI textarea{touch-action:auto;color:inherit;font:inherit}
     #calibrationPanel button{background:#324b59;border:1px solid #b2a180;
@@ -162,9 +174,46 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   $('calibrationOpen').addEventListener('pointerdown',event=>{
     event.stopPropagation();event.preventDefault();
     panel.hidden=!panel.hidden;
-    if(!panel.hidden){wp.value=getWeapon();part.value='R';display();}
+    if(!panel.hidden){
+      panel.classList.remove('cal-collapsed');$('calCollapse').textContent='—';
+      wp.value=getWeapon();part.value='R';display();
+    }
   });
   $('calibrationClose').addEventListener('click',()=>panel.hidden=true);
+  $('calCollapse').addEventListener('click',()=>{
+    panel.classList.toggle('cal-collapsed');
+    $('calCollapse').textContent=panel.classList.contains('cal-collapsed')?'▣':'—';
+  });
+  const setPanelPosition=(x,y)=>{
+    const r=panel.getBoundingClientRect();
+    panel.style.left=Math.max(3,Math.min(innerWidth-r.width-3,x))+'px';
+    panel.style.top=Math.max(3,Math.min(innerHeight-Math.min(r.height,90)-3,y))+'px';
+    panel.style.right='auto';
+  };
+  $('calSide').addEventListener('click',()=>{
+    const r=panel.getBoundingClientRect();
+    setPanelPosition(r.left>innerWidth/2?8:innerWidth-r.width-8,r.top);
+  });
+  const dragbar=$('calDragBar');
+  let dragging=null;
+  dragbar.addEventListener('pointerdown',event=>{
+    if(event.target.closest('button')||event.button!==0)return;
+    const r=panel.getBoundingClientRect();
+    dragging={id:event.pointerId,dx:event.clientX-r.left,dy:event.clientY-r.top};
+    dragbar.setPointerCapture(event.pointerId);
+    event.preventDefault();event.stopPropagation();
+  });
+  dragbar.addEventListener('pointermove',event=>{
+    if(!dragging||event.pointerId!==dragging.id)return;
+    setPanelPosition(event.clientX-dragging.dx,event.clientY-dragging.dy);
+    event.preventDefault();event.stopPropagation();
+  });
+  const stopDragging=event=>{if(dragging?.id===event.pointerId)dragging=null};
+  dragbar.addEventListener('pointerup',stopDragging);
+  dragbar.addEventListener('pointercancel',stopDragging);
+  addEventListener('resize',()=>{
+    const r=panel.getBoundingClientRect();setPanelPosition(r.left,r.top);
+  });
   wp.addEventListener('change',()=>{setWeapon(wp.value);display();});
   part.addEventListener('change',display);
   pose.addEventListener('change',()=>{
