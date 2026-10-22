@@ -45,10 +45,10 @@ export function makeHand(side,pose='fist',u=.105,k=1,team='ct') {
   hand.matrixAutoUpdate=false;
   arm.matrixAutoUpdate=false;
   root.add(hand,arm);
-  const palm=sphere(hand,glove,.48*u,.27*u,.63*u,0,0,-.08*u);
-  sphere(hand,knuckle,.37*u,.105*u,.23*u,0,.20*u,-.32*u);
-  sphere(hand,band,.49*u,.31*u,.26*u,0,0,.45*u);
-  const widths=[.18,.19,.18,.165].map(n=>n*u);
+  const palm=sphere(hand,glove,.60*u,.33*u,.69*u,0,0,-.08*u);
+  sphere(hand,knuckle,.44*u,.12*u,.25*u,0,.20*u,-.32*u);
+  sphere(hand,band,.59*u,.37*u,.30*u,0,0,.45*u);
+  const widths=[.21,.215,.20,.195].map(n=>n*u);
   for(let i=0;i<4;i++){
     const x=sign*(.32-i*.21)*u;
     const lens=[[.52,.37,.29],[.58,.41,.31],[.53,.38,.27],[.44,.33,.25]][i].map(n=>n*u);
@@ -60,15 +60,14 @@ export function makeHand(side,pose='fist',u=.105,k=1,team='ct') {
   // Block Strike-style angular forearms. Keep the original pivots,
   // length and local coordinate system so calibrated knife/gun poses and
   // CS-style wrist inspection continue to work exactly as before.
-  const cuff=new THREE.Mesh(new THREE.BoxGeometry(.96*u,.74*u,.93*u),band);
+  const cuff=new THREE.Mesh(new THREE.BoxGeometry(1.17*u,.94*u,.93*u),band);
   cuff.position.z=1.10*u;arm.add(cuff);
-  const sleeve=new THREE.Mesh(new THREE.BoxGeometry(.84*u,.77*u,5.9*u),
+  const sleeve=new THREE.Mesh(new THREE.BoxGeometry(1.13*u,.99*u,5.9*u),
     team==='t'?tSleeve:ctSleeve);
   sleeve.position.z=4.4*u;arm.add(sleeve);
-  const upper=sphere(arm,team==='t'?tSleeve:ctSleeve,.42*u,.36*u,.34*u,
-    0,0,7.0*u);
-  upper.geometry.dispose();
-  upper.geometry=new THREE.BoxGeometry(1.0,1.0,1.0);
+  const upper=new THREE.Mesh(new THREE.BoxGeometry(1.12*u,.98*u,.88*u),
+    team==='t'?tSleeve:ctSleeve);
+  upper.position.z=7*u;arm.add(upper);
   root.userData.hand=hand;root.userData.arm=arm;
   root.userData.wr=new THREE.Vector3(0,0,.5*u);
   root.userData.el=new THREE.Vector3(0,0,7*u);
