@@ -1,0 +1,39 @@
+name: Import complete Game1 assets
+
+on:
+  push:
+    paths:
+      - .github/workflows/import-game1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-game1-assets
+  cancel-in-progress: false
+
+jobs:
+  import-game1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Copy entire original Game1 to playable /game1/ folder
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/vivab/Game1.git /tmp/game1-upstream
+          mkdir -p public/game1
+          rsync -a --exclude=.git /tmp/game1-upstream/ public/game1/
+          test -s public/game1/game.js
+          test -s public/game1/hands.js
+          test -s public/game1/de_dust2_-_cs_map.glb
+          test -s public/game1/m4a4_low_poly.glb
+          git config user.name "GameBlock Import Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/game1
+          if ! git diff --cached --quiet; then
+            git commit -m "Import complete Game1 game, maps, hand rigs and every weapon GLB"
+            git push origin HEAD:main
+          fi
