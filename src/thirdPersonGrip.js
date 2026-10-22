@@ -15,6 +15,19 @@ export const THIRD_PERSON_GRIPS=Object.freeze({
   stock:[-.07,-.045,-.06],muzzle:[0,.05,.25]
  })
 });
+export const WEAPON_MOUNT_STORAGE='gameblock:third-person-weapon-editor-v1';
+export const WEAPON_MOUNT_FIELDS=Object.freeze(['x','y','z','rx','ry','rz','scale']);
+const defaultMount=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
+const cleanMount=(data={})=>{
+ const result=defaultMount();
+ for(const key of WEAPON_MOUNT_FIELDS){
+  const v=data[key];
+  if(typeof v!=='number'||!Number.isFinite(v))continue;
+  const bound=key==='scale'?[.35,2.3]:key.startsWith('r')?[-180,180]:[-.85,.85];
+  result[key]=THREE.MathUtils.clamp(v,bound[0],bound[1]);
+ }
+ return result;
+};
 const mats=new Map();
 const geo=new THREE.BoxGeometry(1,1,1);
 function mat(color){
@@ -164,6 +177,27 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   for(const part of item.proxyParts)part.visible=false;
   return {imported:true,length:desired};
  }
+ const mounts={rifle:defaultMount(),pistol:defaultMount()};
+ // Browser-local calibration applies to both showroom and live matches.
+ // Node builds are deterministic and do not require localStorage.
+ try{
+  const saved=JSON.parse(localStorage.getItem(WEAPON_MOUNT_STORAGE)||'{}');
+  for(const kind of Object.keys(mounts))if(saved?.[kind])mounts[kind]=cleanMount(saved[kind]);
+ }catch{}
+ function saveMounts(){
+  try{localStorage.setItem(WEAPON_MOUNT_STORAGE,JSON.stringify(mounts))}catch{}
+ }
+ function getMount(name){if(!mounts[name])throw Error('Unknown mount '+name);return {...mounts[name]}}
+ function setMount(name,values={},persist=true){
+  if(!mounts[name])throw Error('Unknown mount '+name);
+  mounts[name]=cleanMount({...mounts[name],...values});
+  if(persist)saveMounts();
+  return getMount(name);
+ }
+ function resetMount(name){
+  if(!mounts[name])throw Error('Unknown mount '+name);
+  mounts[name]=defaultMount();saveMounts();return getMount(name);
+ }
  let selected=null;
  const palm={};
  for(const side of ['R','L']){
@@ -184,8 +218,17 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   const profile=THIRD_PERSON_GRIPS[selected];
   const item=weapons[selected];
   const gun=item.root;
-  gun.position.set(...profile.root);
-  gun.rotation.set(profile.pitch,0,0);
+  const mount=mounts[selected];
+  gun.position.set(profile.root[0]+mount.x,profile.root[1]+mount.y,profile.root[2]+mount.z);
+  // Crouched chest is lower; follow it partially, but DON'T inherit the
+  // big up-and-down jump arc or running bob from the animated Root bone.
+  // Hands are re-targeted against this stable, unparented weapon every frame.
+  if(mode==='crouch')gun.position.y+=fighter.bones.Root.position.y*.72;
+  gun.rotation.set(
+    profile.pitch+THREE.MathUtils.degToRad(mount.rx),
+    THREE.MathUtils.degToRad(mount.ry),
+    THREE.MathUtils.degToRad(mount.rz),'XYZ');
+  gun.scale.setScalar(mount.scale);
   if(fire){
    // Short view kick, constrained so the rifle never leaves the shoulder.
    gun.rotation.x-=.065;
@@ -215,7 +258,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   return {...lastError};
  }
  setKind(kind);
- return {root:base,palm,weapons,setKind,setModel,update,
+ return {root:base,palm,weapons,setKind,setModel,getMount,setMount,resetMount,update,
   get kind(){return selected},
   get gripErrors(){return {...lastError}}};
 }
