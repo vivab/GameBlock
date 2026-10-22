@@ -22,6 +22,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
 byId('world').append(renderer.domElement);
 const weaponContainer=new THREE.Group();
 camera.add(weaponContainer);scene.add(camera);
+const bombView=bombMesh();
+bombView.position.set(.32,-.25,-.72);
+bombView.rotation.set(-.18,-.21,-.14);
+bombView.scale.setScalar(.85);
+bombView.visible=false;
+camera.add(bombView);
 // Reuse Game1's entire finger rig, weapon loader, inspect and reload code.
 window.weaponContainer=weaponContainer;
 window.camera=camera;
@@ -37,7 +43,7 @@ let selectedGrenade='he',firing=false,jumping=false,crouched=false;
 let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPlantCrouch=false;
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
 const joy={x:0,y:0,id:null},keys=new Set(),pointers=new Map();
-let activeGrenades=[],smokes=[],bombObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
+let activeGrenades=[],smokes=[],bombObject=null,bombDropObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
 const SITES=[
  {id:'A',x:-21,z:-18,radius:7,color:0xffc777},
  {id:'B',x:22,z:17,radius:7,color:0x7ac6fb}
@@ -188,6 +194,7 @@ function resetPositions(){
  activeGrenades.forEach(g=>scene.remove(g.mesh));activeGrenades=[];
  smokes.forEach(s=>scene.remove(s.mesh));smokes=[];
  if(bombObject){scene.remove(bombObject);bombObject=null}
+ if(bombDropObject){scene.remove(bombDropObject);bombDropObject=null}
  for(const p of players)if(!p.isPlayer){
   const money=p.money;
   const plan=money>=4000?'awp':money>=3000?(Math.random()<.5?'m4a4':'rifle'):money>=1000?'m870':null;
@@ -226,7 +233,8 @@ function equipCurrent(){
   currentSlot==='primary'?me.weapons.primary:
   currentSlot==='knife'?me.weapons.knife:null;
  if(id&&window.HW_set)window.HW_set(id);
- if(currentSlot==='bomb'&&window.HW_visible)window.HW_visible(false);
+ bombView.visible=currentSlot==='bomb';
+ if(window.HW_visible)window.HW_visible(currentSlot!=='bomb');
 }
 function setSlot(slot){
  if(!me)return;
@@ -304,6 +312,10 @@ function damaged(actor,amount,killer=null){
  if(actor.hasBomb&&!game.planted){
   actor.hasBomb=false;game.bombCarrier=null;
   game.bombDropped={x:actor.x,y:actor.y,z:actor.z};
+  if(bombDropObject)scene.remove(bombDropObject);
+  bombDropObject=bombMesh();
+  bombDropObject.position.set(actor.x,actor.y+.08,actor.z);
+  scene.add(bombDropObject);
  }
  if(actor.mesh)actor.mesh.visible=false;
  if(actor.isPlayer){firing=false;holdAction=false;stopScope();setMessage('Ты погиб · ожидай следующего раунда',4)}
@@ -413,6 +425,7 @@ function plantBomb(actor,site){
  game.planted=true;game.phase='planted';game.site=site.id;game.time=BOMB_RULES.bombSeconds;
  game.bombPosition={x:actor.x,y:actor.y,z:actor.z};
  actor.hasBomb=false;game.bombCarrier=null;game.bombDropped=null;
+ if(bombDropObject){scene.remove(bombDropObject);bombDropObject=null}
  actor.hasPlanted=true;
  bombObject=bombMesh();bombObject.position.set(actor.x,actor.y+.03,actor.z);scene.add(bombObject);
  setMessage('БОМБА УСТАНОВЛЕНА · '+site.id+' · 40 СЕКУНД',4);
@@ -432,6 +445,7 @@ function pickupDropped(){
   if(actor.side!=='t'||!actor.alive)continue;
   if(Math.hypot(actor.x-game.bombDropped.x,actor.z-game.bombDropped.z)<1.6){
    actor.hasBomb=true;game.bombCarrier=actor.id;game.bombDropped=null;
+   if(bombDropObject){scene.remove(bombDropObject);bombDropObject=null}
    if(actor.isPlayer)setMessage('Ты подобрал C4 · четвёртый слот',3);
    break;
   }
@@ -697,6 +711,8 @@ function screen(dt){
   bombObject.userData.led.visible=Math.sin(now*12)>0;
   if(now-bombBeep>.8){bombBeep=now}
  }
+ if(bombDropObject?.userData.led)bombDropObject.userData.led.visible=Math.sin(now*5)>0;
+ if(bombView?.userData.led)bombView.userData.led.visible=Math.sin(now*4)>0;
  for(let i=tracers.length-1;i>=0;i--)if(tracers[i].t<now){
   scene.remove(tracers[i].mesh);tracers[i].mesh.geometry.dispose();tracers[i].mesh.material.dispose();tracers.splice(i,1);
  }
