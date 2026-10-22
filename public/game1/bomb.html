@@ -59,7 +59,8 @@
 #weapons button[data-slot="primary"]{bottom:7px;left:68px}
 #weapons button.active,#weapons button.hovered{background:#d4a254;color:#1e2832;border-color:#ffe1a6}
 #weapons button.unavailable{opacity:.28}
-#shopOpen{border-radius:20px}
+#shopOpen{width:64px;height:64px;min-width:64px;left:12px;top:64px;border-radius:50%;font-size:0;padding:0;display:grid;place-items:center;box-shadow:0 3px 12px #0008}
+#shopOpen:before{content:'🛒';font-size:27px}
 @media(max-height:450px){
  #fire{bottom:103px;width:70px;height:70px}
  #plant{bottom:178px;width:72px;height:72px}
@@ -87,7 +88,7 @@
     <button data-slot="knife" aria-label="Нож">НОЖ</button>
     <button data-slot="primary" aria-label="Основное оружие">АК</button>
   </div>
-  <button id="shopOpen">🛒 МАГАЗИН</button>
+  <button id="shopOpen" aria-label="Открыть магазин оружия">🛒 МАГАЗИН</button>
   <div id="progress"><i></i></div>
 </div>
 <div id="flash"></div><div id="scope"></div>
