@@ -40,7 +40,7 @@
     glock:  Object.assign({ file: 'glock.glb', len: 0.3 }, PIS),
     deagle: Object.assign({ file: 'low-poly_desert_eagle.glb', len: 0.27 }, PIS, { ndcX: 0.245 }),
     knife:  { file: 'knife_default_t__cs2.glb', len: 0.46, knife: 1, ndcX: 0.441, sY: -0.165, sZ: -0.38, R: [0, 0], L: [0, 0] },
-    m4a4:    { file: 'm4a4_low_poly.glb', len: 0.9, fix: 1, robust: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
+    m4a4:    { file: 'rifle__m4a4_weapon_model_cs2.glb', len: 0.9, fix: 1, robust: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     m16:     { file: 'low-poly_m16a4_acog.glb', len: 0.95, fix: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     m249:    { file: 'low-poly_m249_saw.glb', len: 1.0, fix: 1, robust: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
     mossberg:{ file: 'low-poly_mossberg_590.glb', len: 0.95, fix: 1, pump: 1, ndcX: 0.207, sY: -0.079, sZ: -0.93, muz: -0.07, yaw: 0, R: [-0.076, 0.51], L: [-0.076, 0.19] },
@@ -65,28 +65,38 @@
     const root = new THREE.Group();
     root.position.set(x, y, z); root.rotation.order = 'YXZ'; root.rotation.y = yaw;
     let parent = root;
+    const joints=[];
     lens.forEach((len, i) => {
       const j = new THREE.Group();
       j.rotation.x = curls[i] * k * DEG;
+      j.userData.restCurl=j.rotation.x;
+      joints.push(j);
       if (i) j.position.z = -lens[i - 1];
       const m = new THREE.Mesh(new THREE.BoxGeometry(t, t, len * 0.96), mats[i]);
       m.position.z = -len / 2; j.add(m); parent.add(j); parent = j;
     });
+    root.userData.joints=joints;
     return root;
   }
   // Рука в перчатке без кончиков пальцев: ладонь в нуле, пальцы вперёд (−z), предплечье назад (+z)
   function makeHand(side, pose, u, k) {
     const sx = side === 'R' ? -1 : 1, P = POSES[pose], g = new THREE.Group();
     g.rotation.order = 'YXZ';
-    const hand = new THREE.Group(), arm = new THREE.Group();            // кисть и предплечье двигаются отдельно (осмотр ножа)
+    const hand = new THREE.Group(), arm = new THREE.Group();
+    hand.userData.fingerChains=[];            // кисть и предплечье двигаются отдельно (осмотр ножа)
     hand.matrixAutoUpdate = arm.matrixAutoUpdate = false; g.add(hand); g.add(arm);
     g.userData.hand = hand; g.userData.arm = arm; g.userData.wr = new V(0, 0, 0.5 * u); g.userData.el = new V(0, 0, 7 * u);   // запястье и локоть (в системе руки)
     hand.add(new THREE.Mesh(new THREE.BoxGeometry(0.95 * u, 0.38 * u, 1.05 * u), GLOVE));
     const pad = new THREE.Mesh(new THREE.BoxGeometry(0.7 * u, 0.12 * u, 0.6 * u), PAD);
     pad.position.set(0, 0.22 * u, -0.1 * u); hand.add(pad);
     const lens = [[0.5, 0.35, 0.28], [0.55, 0.4, 0.3], [0.5, 0.37, 0.28], [0.4, 0.28, 0.24]];
-    for (let i = 0; i < 4; i++) hand.add(chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i], P.sp ? -sx * P.sp[i] : 0, k, [GLOVE, GLOVE, SKIN]));
-    hand.add(chain(sx * 0.5 * u, -0.02 * u, 0.2 * u, [0.55 * u, 0.42 * u], 0.24 * u, P.th, -sx * 0.5, k, [GLOVE, SKIN]));
+    for (let i = 0; i < 4; i++) {
+      const finger=chain(sx * (0.33 - i * 0.22) * u, 0, -0.52 * u, lens[i].map(v => v * u), 0.2 * u, P.f[i], P.sp ? -sx * P.sp[i] : 0, k, [GLOVE, GLOVE, SKIN]);
+      hand.userData.fingerChains.push(finger.userData.joints);
+      hand.add(finger);
+    }
+    const thumb=chain(sx * 0.5 * u, -0.02 * u, 0.2 * u, [0.55 * u, 0.42 * u], 0.24 * u, P.th, -sx * 0.5, k, [GLOVE, SKIN]);
+    hand.userData.thumbChain=thumb.userData.joints;hand.add(thumb);
     const part = (a, b, w, h, m) => { const p = new THREE.Mesh(new THREE.BoxGeometry(w * u, h * u, (b - a) * u), m); p.position.z = (a + b) / 2 * u; arm.add(p); };
     part(0.5, 1.5, 0.95, 0.62, CUFF); part(1.5, 7, 0.85, 0.75, SKIN);
     return g;
@@ -207,7 +217,15 @@
       s.traverse(o => {
         if (!o.isMesh) return;
         (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.metalness > 0.4) m.metalness = 0.3; m.side = THREE.DoubleSide;
-        if (name !== 'rifle') { m.metalness = 0; m.roughness = 0.7; if (m.emissive) { m.emissive.set(name === 'awp' ? 0x9a9a9a : w.fix ? 0xb4b4b4 : 0x555555); if (m.map) m.emissiveMap = m.map; } else if (m.color) m.color.setRGB(w.fix ? 2.2 : 1.6, w.fix ? 2.2 : 1.6, w.fix ? 2.2 : 1.6); m.needsUpdate = true; } });
+        // Preserve original GLB paint and textures; glowing emissive maps
+        // washed colored weapons out to almost pure white.
+        if (name !== 'rifle') {
+          m.metalness = Math.min(.42,Math.max(0,m.metalness || 0));
+          m.roughness = Math.max(.35,Math.min(.88,m.roughness || .7));
+          if (m.emissive) m.emissive.set(0x000000);
+          m.emissiveMap=null;
+          m.needsUpdate=true;
+        } });
         const p = o.geometry.attributes.position;
         for (let i = 0; i < p.count; i += 2) P.push(new V().fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld));
       });
@@ -330,13 +348,13 @@
     heavy: kf([0, Z], [0.65, UP], [1.4, LEFT], [2.4, LEFT], [3.2, UP], [3.9, Z]),                       // автомат и AWP: так же, как у USP — смотрим левую сторону
     // нож (как в Block Strike): рука остаётся на одном уровне, нож ложится ребром, затем клинок встаёт вертикально и всё возвращается; левая рука неподвижна
     knife: kf([0, [0, 0, 0, 0, 0]], [0.55, [0, 0.05, -0.12, 0.1, -1.15]], [1.3, [-0.02, 0.06, 0, -1.8, 0]], [2.1, [-0.02, 0.06, 0, -1.75, 0]], [3.0, [0, 0, 0, 0, 0]]),   // как в Block Strike, рука остаётся на уровне: нож ложится ребром → клинок встаёт вертикально → пауза → возврат. [локоть вниз, локоть влево, сгиб кисти, крен кисти (минус — острие вверх), вращение ножа]
-    // Wrist-only karambit inspect: raise the gloved palm, rotate the ring
-    // between its fingers, then lower the palm without lifting the forearm.
-    // columns: [wrist tilt, wrist yaw, hand lift, depth, blade ring spin, wrist roll]
-    kar: kf([0,[0,0,0,0,0,0]], [.35,[.05,.08,.10,0,.1,0]],
-      [.65,[.12,.30,.15,0,1.1,0]], [1.12,[.12,.15,.16,0,3.2,0]],
-      [1.60,[.08,-.12,.16,0,5.3,0]], [2.05,[.02,0,.13,0,6.283,0]],
-      [2.50,[0,0,.055,0,6.283,0]], [2.90,[0,0,0,0,0,0]]),
+    // Palm rises without shifting elbow; fingers curl as the ring spins once.
+    // [wrist tilt, wrist yaw, hand lift, depth, ring rotation, wrist roll]
+    kar: kf([0,[0,0,0,0,0,0]], [.36,[.06,.10,.14,0,0,0]],
+      [.65,[.09,.18,.21,0,.18,0]], [1.05,[.10,.15,.22,0,1.65,0]],
+      [1.45,[.10,.08,.22,0,4.1,0]], [1.85,[.09,0,.21,0,6.283185307,0]],
+      [2.20,[.05,-.06,.17,0,6.283185307,0]],
+      [2.65,[0,0,.04,0,6.283185307,0]], [2.9,[0,0,0,0,0,0]]),
     rel: {            // перезарядка (время 0..1 от длительности)
       rifle: kf([0, Z], [0.18, [0.02, -0.1, 0, -0.45, 0, 0.35, 0]], [0.6, [0.02, -0.1, 0, -0.45, 0.05, 0.4, 0]], [0.8, [0, -0.08, 0.03, -0.38, 0, 0.3, 0]], [0.88, [0, -0.04, -0.01, -0.15, 0, 0.1, 0]], [1, Z]),
       pistol: kf([0, Z], [0.2, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.62, [0.03, -0.08, 0, -0.35, 0.2, 0.55, 0]], [0.82, [0, -0.05, 0.02, -0.2, 0, 0.2, 0]], [1, Z]),
@@ -407,7 +425,15 @@
         const lift = kw ? kw[2] : 0;
         const yaw = kw ? kw[1] * 0.25 : 0;
         const roll = kw ? kw[0] * 0.55 : 0;
-        gR.userData.arm.matrix.identity();
+        const fold=kw ? Math.sin(Math.PI*Math.min(1,(ms-ins.t0)/2900)) : 0;
+         const chains=gR.userData.hand.userData.fingerChains || [];
+         chains.forEach((joints,index)=>joints.forEach((joint,j)=>{
+           joint.rotation.x=joint.userData.restCurl+(index===0?.46:.17)*fold/(j+1);
+         }));
+         (gR.userData.hand.userData.thumbChain || []).forEach((joint,j)=>{
+           joint.rotation.x=joint.userData.restCurl-.18*fold/(j+1);
+         });
+         gR.userData.arm.matrix.identity();
         gR.userData.hand.matrix.makeTranslation(0,lift,0)
           .multiply(m1.makeTranslation(Wr.x,Wr.y,Wr.z))
           .multiply(m2.makeRotationY(yaw))
