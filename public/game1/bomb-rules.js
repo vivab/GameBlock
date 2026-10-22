@@ -13,7 +13,7 @@ export const BOMB_WEAPONS = Object.freeze({
   p250:    {name:'P250',slot:'pistol',price:400,mag:13,reserve:52,damage:28,delay:.20,file:'sig_sauer_p250_low-poly.glb'},
   deagle:  {name:'Desert Eagle',slot:'pistol',price:700,mag:7,reserve:42,damage:54,delay:.36,file:'low-poly_desert_eagle.glb'},
   rifle:   {name:'AK-47',slot:'primary',price:3000,mag:30,reserve:120,damage:31,delay:.115,file:'ak-47_low_poly.glb'},
-  m4a4:    {name:'M4A4',slot:'primary',price:3000,mag:30,reserve:120,damage:28,delay:.10,file:'m4a4_low_poly.glb'},
+  m4a4:    {name:'M4A4',slot:'primary',price:3000,mag:30,reserve:120,damage:28,delay:.10,file:'rifle__m4a4_weapon_model_cs2.glb'},
   m16:     {name:'M16A4',slot:'primary',price:3200,mag:30,reserve:120,damage:30,delay:.115,file:'low-poly_m16a4_acog.glb',scope:true},
   mossberg:{name:'Mossberg 590',slot:'primary',price:1000,mag:7,reserve:42,damage:22,delay:.78,pellets:7,file:'low-poly_mossberg_590.glb'},
   m870:   {name:'M870',slot:'primary',price:1000,mag:7,reserve:42,damage:22,delay:.75,pellets:7,file:'low_poly_shotgun-m870.glb'},
