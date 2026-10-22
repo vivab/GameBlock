@@ -110,6 +110,7 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  const change=values=>target==='weapon'?gear.setMount(currentKind(),values):gear.setGripEdit(currentKind(),target,values);
  const reset=()=>target==='weapon'?gear.resetMount(currentKind()):gear.resetGripEdit(currentKind(),target);
  function refreshTarget(){
+  gear.setEditorTarget?.(target);
   $('weTargetDescription').textContent=descriptions[target];
   for(const button of $('weTargets').querySelectorAll('[data-target]'))
    button.setAttribute('aria-pressed',String(button.dataset.target===target));
@@ -159,13 +160,13 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
   panel.classList.toggle('weMin');
   $('weMinimize').textContent=panel.classList.contains('weMin')?'▣':'—';
  });
- $('weClose').addEventListener('click',()=>panel.hidden=true);
+ $('weClose').addEventListener('click',()=>{panel.hidden=true;gear.setEditorTarget?.(null)});
  launcher.addEventListener('click',()=>{
   if(panel.hidden){
-   panel.hidden=false;panel.classList.remove('weMin');
+   panel.hidden=false;gear.setEditorTarget?.(target);panel.classList.remove('weMin');
   }else if(panel.classList.contains('weMin')){
    panel.classList.remove('weMin');
-  }else panel.hidden=true;
+  }else {panel.hidden=true;gear.setEditorTarget?.(null)};
   $('weMinimize').textContent=panel.classList.contains('weMin')?'▣':'—';
   if(!panel.hidden){const bounds=panel.getBoundingClientRect();place(bounds.left,bounds.top);refresh()}
  });
@@ -269,8 +270,8 @@ export function installWeaponMountEditor({gear,getKind=()=>gear.kind,setKind=()=
  if(selected==='rifle'||selected==='pistol')kindSelect.value=selected;
  refreshTarget();
  return {element:panel,launcher,show(){
-    panel.hidden=false;panel.classList.remove('weMin');$('weMinimize').textContent='—';
+    panel.hidden=false;gear.setEditorTarget?.(target);panel.classList.remove('weMin');$('weMinimize').textContent='—';
     const bounds=panel.getBoundingClientRect();place(bounds.left,bounds.top);refresh();
-   },hide(){panel.hidden=true},
-  select,refresh,dispose(){launcher.remove();panel.remove();css.remove()}};
+   },hide(){panel.hidden=true;gear.setEditorTarget?.(null)},
+  select,refresh,dispose(){gear.setEditorTarget?.(null);launcher.remove();panel.remove();css.remove()}};
 }
