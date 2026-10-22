@@ -411,16 +411,41 @@ function finishReloads(){
   }
  }
 }
+// Lightweight C4 render fallback: recognizable keypad, clock, wires and LED.
+// The user-provided bomb GLB can replace this when present in Game1 assets.
 function bombMesh(){
  const box=new THREE.Group();
- const core=new THREE.Mesh(new THREE.BoxGeometry(.38,.16,.26),new THREE.MeshStandardMaterial({color:0x24282c,roughness:.75}));
+ const shell=new THREE.MeshStandardMaterial({color:0x242b2b,metalness:.18,roughness:.72});
+ const black=new THREE.MeshStandardMaterial({color:0x101719,roughness:.83});
+ const strap=new THREE.MeshStandardMaterial({color:0x51534d,roughness:.96});
+ const core=new THREE.Mesh(new THREE.BoxGeometry(.43,.18,.29),shell);
  core.position.y=.11;box.add(core);
- for(let i=0;i<4;i++){
-  const pad=new THREE.Mesh(new THREE.BoxGeometry(.08,.022,.055),new THREE.MeshBasicMaterial({color:0xddddcc}));
-  pad.position.set((i-1.5)*.084,.2,.02);box.add(pad);
+ for(const z of [-.12,.12]){
+  const band=new THREE.Mesh(new THREE.BoxGeometry(.46,.21,.036),strap);
+  band.position.set(0,.12,z);box.add(band);
  }
- const led=new THREE.Mesh(new THREE.SphereGeometry(.025,8,8),new THREE.MeshBasicMaterial({color:0xff2828}));
- led.position.set(.13,.21,-.065);box.add(led);box.userData.led=led;
+ const screen=new THREE.Mesh(new THREE.BoxGeometry(.16,.017,.083),
+  new THREE.MeshBasicMaterial({color:0x173d25}));
+ screen.position.set(-.094,.211,-.064);box.add(screen);
+ const screenGlow=new THREE.Mesh(new THREE.BoxGeometry(.095,.019,.01),
+  new THREE.MeshBasicMaterial({color:0x7ddc86}));
+ screenGlow.position.set(-.095,.223,-.064);box.add(screenGlow);
+ const keyMat=new THREE.MeshStandardMaterial({color:0xd2d4c8,roughness:.7});
+ for(let r=0;r<4;r++)for(let c=0;c<3;c++){
+  const pad=new THREE.Mesh(new THREE.BoxGeometry(.044,.023,.032),keyMat);
+  pad.position.set(.035+c*.051,.209,-.093+r*.047);box.add(pad);
+ }
+ for(const [color,offset] of [[0xd55b46,-.054],[0x5a84bc,.042]]){
+  const line=new THREE.CatmullRomCurve3([
+   new V(-.21,.177,offset),new V(-.14,.285,offset+.04),
+   new V(.075,.28,offset+.09),new V(.21,.167,offset+.06)
+  ]);
+  box.add(new THREE.Mesh(new THREE.TubeGeometry(line,13,.006,5,false),
+   new THREE.MeshStandardMaterial({color,roughness:.5})));
+ }
+ const led=new THREE.Mesh(new THREE.SphereGeometry(.025,8,8),
+  new THREE.MeshBasicMaterial({color:0xff2828}));
+ led.position.set(.18,.24,.099);box.add(led);box.userData.led=led;
  return box;
 }
 function plantBomb(actor,site){
