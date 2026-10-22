@@ -263,7 +263,8 @@ window.GAME_SET=id=>{
 function stopScope(){
  if(!aiming)return;
  aiming=false;camera.fov=75;camera.updateProjectionMatrix();byId('scope').style.display='none';
- if(window.HW_visible)window.HW_visible(true);
+ byId('crosshair').style.visibility='visible';
+ if(window.HW_visible)window.HW_visible(currentSlot!=='bomb');
 }
 function toggleScope(){
  if(aiming){stopScope();return}
@@ -272,6 +273,7 @@ function toggleScope(){
  aiming=true;camera.fov=item===BOMB_WEAPONS.awp?23:47;camera.updateProjectionMatrix();
  byId('scope').classList.toggle('red',item===BOMB_WEAPONS.m16);
  byId('scope').style.display='block';
+ byId('crosshair').style.visibility='hidden';
  if(window.HW_visible)window.HW_visible(false);
 }
 function groundLOS(a,b){
@@ -515,10 +517,13 @@ function grenadeEffect(grenade){
    if(!actor.alive)continue;
    const d=Math.hypot(actor.x-center.x,actor.z-center.z);
    if(d>28)continue;
-   const forward=direction(actor.isPlayer?lookYaw:actor.yaw);
-   const to=new V(center.x-actor.x,0,center.z-actor.z).normalize();
+   // A flash only blinds someone actually looking toward its explosion.
+   // Use camera pitch too: staring at the floor cannot be a direct flash hit.
+   const eye=new V(actor.x,actor.y+(actor.isPlayer?(crouched?1.03:1.62):1.5),actor.z);
+   const forward=actor.isPlayer?camera.getWorldDirection(new V()):direction(actor.yaw);
+   const to=center.clone().sub(eye).normalize();
    const facing=forward.dot(to);
-   if(facing>.35&&groundLOS(new V(actor.x,actor.y+1.5,actor.z),center)){
+   if(facing>.38&&groundLOS(eye,center)){
     if(actor.isPlayer){flashStarted=performance.now()/1000;flashDuration=5}
     else actor.flashUntil=performance.now()/1000+BOMB_RULES.flashSeconds;
    }
