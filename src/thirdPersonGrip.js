@@ -20,6 +20,20 @@ export const GRIP_EDITOR_STORAGE='gameblock:grip-pose-editor-v2';
 export const GRIP_EDITOR_TARGETS=Object.freeze(['weapon','right','left','all']);
 export const WEAPON_MOUNT_FIELDS=Object.freeze(['x','y','z','rx','ry','rz','scale']);
 const defaultMount=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
+export const USER_WEAPON_PRESETS=Object.freeze({
+ pistol:{
+  weapon:{x:.005,y:.145,z:.285,rx:0,ry:0,rz:0,scale:2.3},
+  right:{x:.05,y:.07,z:0,rx:0,ry:0,rz:0,scale:1},
+  left:{x:-.065,y:.045,z:-.065,rx:-5,ry:81,rz:0,scale:1.1},
+  all:{x:.015,y:-.035,z:-.015,rx:0,ry:0,rz:0,scale:1}
+ },
+ rifle:{
+  weapon:{x:.04,y:-.045,z:.4,rx:0,ry:0,rz:0,scale:1.4},
+  right:{x:.01,y:.095,z:.145,rx:0,ry:0,rz:0,scale:1},
+  left:{x:.4,y:0,z:-.75,rx:0,ry:-111,rz:8,scale:.35},
+  all:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}
+ }
+});
 const cleanMount=(data={})=>{
  const result=defaultMount();
  for(const key of WEAPON_MOUNT_FIELDS){
@@ -179,10 +193,10 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   for(const part of item.proxyParts)part.visible=false;
   return {imported:true,length:desired};
  }
- const mounts={rifle:defaultMount(),pistol:defaultMount()};
+ const mounts={rifle:{...USER_WEAPON_PRESETS.rifle.weapon},pistol:{...USER_WEAPON_PRESETS.pistol.weapon}};
  const gripEdits={
-  rifle:{right:defaultMount(),left:defaultMount(),all:defaultMount()},
-  pistol:{right:defaultMount(),left:defaultMount(),all:defaultMount()}
+  rifle:{right:{...USER_WEAPON_PRESETS.rifle.right},left:{...USER_WEAPON_PRESETS.rifle.left},all:{...USER_WEAPON_PRESETS.rifle.all}},
+  pistol:{right:{...USER_WEAPON_PRESETS.pistol.right},left:{...USER_WEAPON_PRESETS.pistol.left},all:{...USER_WEAPON_PRESETS.pistol.all}}
  };
  try{
   const saved=JSON.parse(localStorage.getItem(GRIP_EDITOR_STORAGE)||'{}');
@@ -206,6 +220,9 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
  try{
   const saved=JSON.parse(localStorage.getItem(WEAPON_MOUNT_STORAGE)||'{}');
   for(const kind of Object.keys(mounts))if(saved?.[kind])mounts[kind]=cleanMount(saved[kind]);
+  // Old editor calibration had 180° yaw, turning the muzzle back at the character.
+  // Migrate only this known reversed orientation, retaining all positional tuning.
+  if(Math.abs(Math.abs(mounts.rifle.ry)-180)<.5){mounts.rifle.ry=0;saveMounts();}
  }catch{}
  function saveMounts(){
   try{localStorage.setItem(WEAPON_MOUNT_STORAGE,JSON.stringify(mounts))}catch{}
