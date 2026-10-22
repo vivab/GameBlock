@@ -24,6 +24,49 @@
 #shop{position:fixed;inset:0;z-index:60;background:#07101de9;padding:15px;overflow:auto;touch-action:pan-y}#shop .card{margin:auto}.shopRows{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0}.shopRows button{text-align:left;padding:9px;font-size:11px}.shopRows button strong{display:block;color:#fbd19a;font-size:12px}#shopStatus{min-height:20px;color:#d6dc9a;font-size:12px}
 #statusLine{font-size:11px;opacity:.9;margin-top:10px}#mapStatus{font-size:11px;color:#a8d9be}#frag{position:fixed;right:10px;top:70px;font-size:10px;text-align:right;pointer-events:none}
 @media(max-width:650px){#weapons{bottom:70px;left:51%}#money{font-size:14px}#top{font-size:11px}#top small{font-size:9px}#grenade{right:102px;bottom:138px}#grenadeType{right:191px;bottom:138px}#aim{right:112px;bottom:199px}#hp{bottom:8px;font-size:11px;padding:6px 8px}#weapons button{padding:6px}}
+
+/* Mobile-first circular action controls and hold-and-drag weapon selector. */
+#fire,#actionRow button,#grenade,#grenadeType,#aim,#plant,#weaponToggle{
+ border-radius:50%;display:grid;place-items:center;text-align:center;padding:0;
+ box-shadow:0 3px 12px #0009;backdrop-filter:blur(3px);
+}
+#fire{width:78px;height:78px;font-size:15px;border:2px solid #f0b6b6a8}
+#actionRow{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));gap:9px}
+#actionRow button{width:54px;height:54px;min-width:54px;min-height:54px;font-size:25px}
+#actionRow #crouch{font-size:11px;letter-spacing:.02em}
+#plant{width:88px;height:88px;right:max(14px,env(safe-area-inset-right));bottom:205px;font-size:10px;line-height:1.25;padding:8px}
+#grenade{width:56px;height:56px;right:108px;bottom:145px;font-size:10px}
+#grenadeType{width:50px;height:50px;right:172px;bottom:150px;font-size:10px}
+#aim{width:55px;height:55px;right:113px;bottom:211px;font-size:10px}
+#weaponToggle{position:absolute;right:182px;bottom:13px;width:62px;height:62px;
+ font-size:29px;background:#314c5ddc;border:2px solid #bfd0d0a8;pointer-events:auto;z-index:6}
+#weaponToggle.active{border-color:#f0c983;background:#9b7744}
+#weapons{position:absolute;right:140px;bottom:80px;left:auto;transform:scale(.82);
+ width:198px;height:198px;display:block;gap:0;z-index:5;opacity:0;visibility:hidden;
+ pointer-events:none;border-radius:50%;border:2px solid #d0dfd4c2;
+ background:conic-gradient(from 45deg,#263c4ceb 0 25%,#162b39f5 25% 50%,#263c4ceb 50% 75%,#162b39f5 75% 100%);
+ box-shadow:0 6px 30px #000c;transition:opacity .1s,transform .1s,visibility .1s;
+ touch-action:none}
+#weapons.open{opacity:1;visibility:visible;transform:scale(1);pointer-events:auto}
+#weapons:before{content:"";position:absolute;inset:64px;border-radius:50%;border:1px solid #b8cbd171;background:#0b1c28bb;pointer-events:none}
+#wheelCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:8px;letter-spacing:.08em;color:#cfdbe2;pointer-events:none}
+#weapons button{position:absolute;width:58px;height:58px;min-width:0;border-radius:50%;
+ display:grid;place-items:center;padding:0;font-size:13px;touch-action:none;
+ border:1px solid #d0e0e0bb;background:#354f62ee;color:white}
+#weapons button[data-slot="bomb"]{top:7px;left:68px}
+#weapons button[data-slot="pistol"]{top:69px;left:6px}
+#weapons button[data-slot="knife"]{top:69px;right:6px}
+#weapons button[data-slot="primary"]{bottom:7px;left:68px}
+#weapons button.active,#weapons button.hovered{background:#d4a254;color:#1e2832;border-color:#ffe1a6}
+#weapons button.unavailable{opacity:.28}
+#shopOpen{border-radius:20px}
+@media(max-height:450px){
+ #fire{bottom:103px;width:70px;height:70px}
+ #plant{bottom:178px;width:72px;height:72px}
+ #weaponToggle{right:183px;bottom:10px;width:56px;height:56px}
+ #weapons{right:145px;bottom:64px}
+ #grenade{bottom:125px}#grenadeType{bottom:130px}
+}
 </style>
 </head>
 <body>
@@ -35,8 +78,15 @@
   <div id="crosshair">+</div><div id="hp">♥ 100 · USP-S 12/72</div>
   <div id="joystick"><div id="stick"></div></div>
   <button id="fire">ОГОНЬ</button><button id="plant">ЗАЖМИ · C4 / САПЁР</button><button id="grenadeType">ТИП</button><button id="grenade">БРОСИТЬ</button><button id="aim">ПРИЦЕЛ</button>
-  <div id="actionRow"><button id="reload">↻</button><button id="crouch">ПРИСЕСТЬ</button><button id="jump">↑</button></div>
-  <div id="weapons"><button data-slot="knife">1 Нож</button><button data-slot="pistol" class="active">2 П</button><button data-slot="primary">3 А</button><button data-slot="bomb">4 C4</button></div>
+  <div id="actionRow"><button id="reload" aria-label="Перезарядка или осмотр">↻</button><button id="crouch" aria-label="Присесть">СЕСТЬ</button><button id="jump" aria-label="Прыгнуть">↑</button></div>
+  <button id="weaponToggle" aria-label="Круговой выбор оружия" aria-expanded="false">◉</button>
+  <div id="weapons" role="group" aria-label="Круговое меню оружия">
+    <span id="wheelCenter">ОРУЖИЕ</span>
+    <button data-slot="bomb" aria-label="Бомба C4">C4</button>
+    <button data-slot="pistol" class="active" aria-label="Пистолет">П</button>
+    <button data-slot="knife" aria-label="Нож">НОЖ</button>
+    <button data-slot="primary" aria-label="Основное оружие">АК</button>
+  </div>
   <button id="shopOpen">🛒 МАГАЗИН</button>
   <div id="progress"><i></i></div>
 </div>
