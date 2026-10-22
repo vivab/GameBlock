@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {readFileSync} from 'node:fs';
-import {MOVE_SPEEDS,weaponMoveSpeed,BOT_MOVEMENT_FACTOR} from '../src/movementSpeed.js';
+import {MOVE_SPEEDS,weaponMoveSpeed,BOT_MOVEMENT_FACTOR,joystickIntensity,joystickPace,JOYSTICK_DEADZONE,JOYSTICK_WALK_THRESHOLD} from '../src/movementSpeed.js';
 import {Match} from '../src/combat.js';
 import {createBlockFighter} from '../src/blockFighter.js';
 import {attachBlockFighterGLB} from '../src/blockFighterGLB.js';
@@ -16,9 +16,10 @@ test('knife > pistol > AK rifle > future machinegun for player and bot',()=>{
   assert.ok(speeds.every(x=>Number.isFinite(x)&&x>0));
   for(let i=1;i<speeds.length;i++)assert.ok(speeds[i-1]>speeds[i]);
  }
- assert.ok(MOVE_SPEEDS.rifle>4.2,'new rifle pace must be above former player pace');
+ assert.ok(MOVE_SPEEDS.rifle<4.2,'new rifle pace must be slower than original game');
+ assert.ok(MOVE_SPEEDS.knife<7,'knife speed should not feel like flying');
  assert.ok(weaponMoveSpeed('rifle',{bot:true})>2.7,
-  'ranged NPCs are faster than the original 2.7 m/s');
+  'bots remain active and responsive without sprinting at previous speeds');
  assert.ok(BOT_MOVEMENT_FACTOR>0&&BOT_MOVEMENT_FACTOR<1);
  assert.ok(weaponMoveSpeed('pistol',{crouch:true})<MOVE_SPEEDS.pistol);
  assert.ok(weaponMoveSpeed('pistol',{reloading:true})<MOVE_SPEEDS.pistol);
@@ -79,7 +80,7 @@ test('thicker first- and third-person fingers still belong to articulated joints
  const fighter=createBlockFighter();
  const fingers=fighter.parts.filter(p=>p.name.startsWith('FingerSegment'));
  assert.equal(fingers.length,6);
- assert.ok(fingers.every(p=>p.size[0]>=.055));
+ assert.ok(fingers.every(p=>p.size[0]>=.07));
  assert.ok(fighter.joints.includes('Finger_R_0'));
  fighter.dispose();
 });
@@ -88,4 +89,33 @@ test('both live mount menus provide dedicated smaller/bigger weapon buttons',()=
  const first=readFileSync(new URL('../src/calibration.js',import.meta.url),'utf8');
  for(const id of ['weSmaller','weBigger'])assert.match(ui,new RegExp(id));
  for(const id of ['calSmaller','calBigger'])assert.match(first,new RegExp(id));
+});
+
+
+test('analog touch stick eases from silent walking to fast edge run',()=>{
+ assert.ok(JOYSTICK_DEADZONE>.04&&JOYSTICK_DEADZONE<.18);
+ assert.ok(JOYSTICK_WALK_THRESHOLD>.4&&JOYSTICK_WALK_THRESHOLD<.7);
+ assert.equal(joystickIntensity(0,48),0);
+ assert.equal(joystickIntensity(2,48),0,'tiny thumb drift must not move the player');
+ const light=joystickIntensity(12,48);
+ const medium=joystickIntensity(24,48);
+ const strong=joystickIntensity(39,48);
+ const full=joystickIntensity(48,48);
+ assert.ok(0<light&&light<medium&&medium<strong&&strong<full);
+ assert.ok(medium<.45,'half-stick must produce walking speed, not a sprint');
+ assert.equal(joystickPace(light),'walk');
+ assert.equal(joystickPace(medium),'walk');
+ assert.equal(joystickPace(strong),'run');
+ assert.equal(joystickPace(full),'run');
+ assert.equal(joystickIntensity(250,48),1,'overshooting edge must clamp');
+ assert.equal(joystickIntensity(Number.NaN,48),0);
+});
+test('player touch UI preserves partial stick magnitude and walking label',()=>{
+ const main=readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ assert.match(main,/move\.x=nx\*intensity;move\.y=nz\*intensity/);
+ assert.match(main,/const length = Math\.max\(1, Math\.hypot\(mx, mz\)\)/);
+ assert.match(main,/const pace=joystickPace\(intensity\)/);
+ assert.match(html,/id="joyMode"/);
+ assert.match(html,/data-pace="idle"/);
 });
