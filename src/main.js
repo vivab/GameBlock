@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
+import {installArmory} from './armory.js';
 import {attachBlockFighterGLB} from './blockFighterGLB.js';
 import {weaponMoveSpeed,joystickIntensity,joystickPace} from './movementSpeed.js';
 import {createThirdPersonLoadout} from './thirdPersonGrip.js';
@@ -292,9 +293,21 @@ function selectWeapon(name) {
   inspection.cancel();
   weapon = name; recoil = 0; firing = false;
   views[name].draw(performance.now() / 1000); // Game1 draw animation on every switch
-  $('weaponLabel').textContent = { pistol: 'Glock 18', rifle: 'AK-47', knife: 'Нож' }[name];
+  $('weaponLabel').textContent = name==='knife'?'Нож':
+    (ARMORY_LABELS[name] || {pistol:'Glock 18',rifle:'AK-47'}[name]);
   $('weaponWheel').classList.remove('open');
 }
+// Keep the test armory accessible from the live arena, including on phones.
+const ARMORY_LABELS={};
+const armory=installArmory({
+ views,
+ selectWeapon:name=>selectWeapon(name),
+ baseUrl:import.meta.env.BASE_URL,
+ onSelection:item=>{
+  ARMORY_LABELS[item.slot]=item.label;
+  $('weaponLabel').textContent=item.label;
+ }
+});
 function inspect() {
   if (!canControl()) return;
   firing = false;
