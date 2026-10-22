@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createBlockFighter} from './blockFighter.js';
+import {weaponMoveSpeed} from './movementSpeed.js';
 import {createThirdPersonLoadout} from './thirdPersonGrip.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createWeaponView } from './viewmodels.js';
@@ -19,8 +20,8 @@ import { JUMP_IMPULSE, GRAVITY } from './jumpPhysics.js';
 import { rotateAim } from './aim.js';
 import { Match, TEAMS, ARENA_WALLS, MATCH_SECONDS, WEAPONS, canSee } from './combat.js';
 
-// Inspection build: NPCs stand at their spawn points, without movement or AI fire.
-const match = new Match(Math.random, { staticBots: true });
+// Full TDM: bots patrol, chase, shoot, reload and obey weapon weight.
+const match = new Match(Math.random, { staticBots: false });
 match.phase = 'home';
 document.body.dataset.phase = 'home';
 const scene = new THREE.Scene();
@@ -671,7 +672,8 @@ function movePlayer(dt) {
   const mz = move.y + (keys.has('KeyS') ? 1 : 0) - (keys.has('KeyW') ? 1 : 0);
   const length = Math.max(1, Math.hypot(mx, mz));
   const crouched = player.crouch || keys.has('ControlLeft');
-  const speed = (crouched ? 2 : 4.2) * (player.jumps > 1 ? Math.max(0.72, 1 - player.jumps * 0.055) : 1);
+  const speed=weaponMoveSpeed(player.weapon,{crouch:crouched,reloading:!!player.reloadingUntil}) *
+    (player.jumps>1?Math.max(.72,1-player.jumps*.055):1);
   match.move(player, (mx * Math.cos(player.yaw) + mz * Math.sin(player.yaw)) / length * speed * dt,
     (-mx * Math.sin(player.yaw) + mz * Math.cos(player.yaw)) / length * speed * dt);
   player.vy -= GRAVITY * dt; player.y += player.vy * dt;
