@@ -240,12 +240,16 @@ function setSlot(slot){
 }
 window.GAME_SET=id=>{
  const def=BOMB_WEAPONS[id];if(!def||!me)return;
+ // The Game1 pose editor may switch among owned guns for preview, but
+ // cannot mint expensive weapons for free during the bomb-economy match.
  if(def.slot==='primary'||def.slot==='pistol'||def.slot==='knife'){
-  me.weapons[def.slot]=id;
-  if(!me.ammo[id]&&def.mag)me.ammo[id]={mag:def.mag,reserve:def.reserve};
+  if(me.weapons[def.slot]!==id){
+   setMessage('Сначала купи '+def.name+' в магазине закладки бомбы',2);
+   equipCurrent();return;
+  }
   currentSlot=def.slot;
   updateHud();
-  if(window.HW_set)window.HW_set(id);
+  window.HW_set?.(id);
  }
 };
 function stopScope(){
@@ -376,6 +380,7 @@ function reloadActor(actor,id){
  if(!item?.mag||!ammo||ammo.mag===item.mag||!ammo.reserve||performance.now()/1000<actor.reloadingUntil)return;
  const seconds=item===BOMB_WEAPONS.awp?2.5:item===BOMB_WEAPONS.m249?3.7:1.6;
  actor.reloadingUntil=performance.now()/1000+seconds;
+ actor.reloadingWeapon=id;
  if(actor.isPlayer)window.HW_reload?.(seconds*1000);
 }
 function finishReloads(){
@@ -383,7 +388,7 @@ function finishReloads(){
  for(const actor of players){
   if(!actor.reloadingUntil||time<actor.reloadingUntil)continue;
   actor.reloadingUntil=0;
-  const id=actor.isPlayer?me.weapons[currentSlot]:actor.equipped;
+  const id=actor.reloadingWeapon;actor.reloadingWeapon=null;
   const item=BOMB_WEAPONS[id],ammo=actor.ammo[id];
   if(item?.mag&&ammo){
    const add=Math.min(item.mag-ammo.mag,ammo.reserve);
@@ -572,7 +577,14 @@ function aiStep(dt){
     const place=game.planted?game.bombPosition:SITES[bot.id.length%2];
     destination={x:place.x,z:place.z};
    }
-   if(destination)seekBot(bot,destination,dt,2.8);
+   if(destination){
+    if(!bot.botGoal||now>bot.nextDecision){
+     const scatter=bot.hasBomb?1.6:4;
+     bot.botGoal={x:destination.x+rng(-scatter,scatter),z:destination.z+rng(-scatter,scatter)};
+     bot.nextDecision=now+rng(2.2,4.5);
+    }
+    seekBot(bot,bot.botGoal,dt,2.8);
+   }
   }
   if(bot.hasBomb&&!game.planted){
    const site=findSite(bot.x,bot.z);
@@ -659,6 +671,9 @@ function updateHud(){
 function screen(dt){
  if(!game)return;
  const result=tickBombClock(game,dt,players);
+ if(result==='round-start'||result==='next-round'){
+  byId('shop').hidden=true;
+ }
  if(result==='next-round'){
   resetPositions();buildShop();roundSerial=game.round;
   setMessage(game.round===10?'СМЕНА СТОРОН · раунд 10':'Новый раунд · закупка 25 секунд',4);
@@ -697,7 +712,7 @@ let last=performance.now();
 function animate(now){
  requestAnimationFrame(animate);
  const dt=Math.min(.04,Math.max(0,(now-last)/1000));last=now;
- if(game&&byId('shop').hidden)screen(dt);
+ if(game)screen(dt);
  renderer.render(scene,camera);
 }
 requestAnimationFrame(animate);
@@ -727,12 +742,12 @@ byId('crouch').addEventListener('click',()=>{
 byId('aim').addEventListener('click',toggleScope);
 byId('weapons').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setSlot(b.dataset.slot)));
 byId('grenade').addEventListener('click',()=>{
- if(!me)return;
- if(!me.grenades[selectedGrenade]){
-  const types=['he','flash','smoke'];
-  selectedGrenade=types[(types.indexOf(selectedGrenade)+1)%3];
-  updateHud();
- }else addGrenade(selectedGrenade,me);
+ if(me)addGrenade(selectedGrenade,me);
+});
+byId('grenadeType').addEventListener('click',()=>{
+ const types=['he','flash','smoke'];
+ selectedGrenade=types[(types.indexOf(selectedGrenade)+1)%types.length];
+ updateHud();
 });
 byId('shopOpen').addEventListener('click',()=>{if(game?.phase==='buy'){byId('shop').hidden=false;buildShop()}});
 byId('shopClose').addEventListener('click',()=>byId('shop').hidden=true);
