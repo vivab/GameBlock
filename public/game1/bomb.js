@@ -92,50 +92,62 @@ function refreshLevelCollision(){
  groundCache.clear();
  levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
 }
-function makeFallbackMap(){
- const sand=new THREE.MeshStandardMaterial({color:0xcdb58a,roughness:1});
- const wallmat=new THREE.MeshStandardMaterial({color:0x8f7659,roughness:1});
- const floor=new THREE.Mesh(new THREE.BoxGeometry(104,.3,104),sand);
- floor.position.y=-.19;levelRoot.add(floor);
- const add=(x,z,w,d,h)=>{
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wallmat);
-  mesh.position.set(x,h/2,z);levelRoot.add(mesh);obstacles.push(mesh);
+// Original, lightweight Dust2-inspired layout, made from our own geometry.
+// The imported GLB is intentionally no longer loaded in bomb mode.
+function buildDust2(){
+ byId('mapStatus').textContent='Строим новую карту Dust2…';
+ const mat=(color)=>new THREE.MeshStandardMaterial({color,roughness:.95});
+ const sand=mat(0xc4aa7e),stone=mat(0xcdb28a),plaster=mat(0xe0c9a2);
+ const trim=mat(0x9c815d),dark=mat(0x76634f),wood=mat(0x795638);
+ const floor=new THREE.Mesh(new THREE.BoxGeometry(100,.4,100),sand);
+ floor.position.y=-.2;levelRoot.add(floor);
+ const solid=(x,z,w,d,h,m=stone)=>{
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  mesh.position.set(x,h/2,z);levelRoot.add(mesh);obstacles.push(mesh);return mesh;
  };
- add(-50,0,2,100,9);add(50,0,2,100,9);add(0,-50,100,2,9);add(0,50,100,2,9);
- for(const [x,z,w,d,h] of [[-8,4,12,3,4],[7,3,11,3,4],[-16,-9,3,16,5],[14,10,4,18,5],
-   [-27,20,12,5,5],[30,-20,13,5,5],[0,-29,5,12,4],[0,27,5,12,4]])add(x,z,w,d,h);
- levelMeshes=[floor,...obstacles];mapTop=45;refreshLevelCollision();
- mapLoaded=true;onMapReady('Резервная тренировочная карта (de_dust2 пока недоступна)');
-}
-function loadDust2(){
- byId('mapStatus').textContent='Читаем оригинальный de_dust2 из Game1…';
- loader.load('de_dust2_-_cs_map.glb',g=>{
-  try{
-   const root=g.scene;
-   root.updateMatrixWorld(true);
-   let box=new THREE.Box3().setFromObject(root);
-   let size=box.getSize(new V());
-   // Detect clearly Z-up exports instead of standing a whole map vertically.
-   if(size.y>Math.max(size.x,size.z)*1.2 && size.z<size.y*.65){
-    root.rotation.x=-Math.PI/2;
-    root.updateMatrixWorld(true);box.setFromObject(root);size=box.getSize(new V());
-   }
-   const scale=96/Math.max(size.x,size.z,1);
-   root.scale.setScalar(scale);
-   const center=box.getCenter(new V());
-   root.position.set(-center.x*scale,-box.min.y*scale,-center.z*scale);
-   levelRoot.add(root);
-   root.updateMatrixWorld(true);
-   const worldBox=new THREE.Box3().setFromObject(root);
-   mapTop=Math.max(35,worldBox.max.y);
-   const meshes=[];root.traverse(o=>{if(o.isMesh){meshes.push(o);o.frustumCulled=true;o.castShadow=false;o.receiveShadow=false}});
-   if(!meshes.length)throw Error('No GLB map geometry');
-   levelMeshes=meshes;refreshLevelCollision();mapLoaded=true;
-   onMapReady('Оригинальная de_dust2 из Game1 загружена');
-  }catch(e){console.warn(e);makeFallbackMap()}
- },e=>{
-  if(e.lengthComputable)byId('mapStatus').textContent='Загрузка de_dust2: '+Math.round(100*e.loaded/e.total)+'%';
- },e=>{console.warn('Dust2 asset:',e);makeFallbackMap()});
+ const deco=(x,y,z,w,h,d,m)=>{
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
+  mesh.position.set(x,y,z);levelRoot.add(mesh);return mesh;
+ };
+ // Outer bounds, T spawn south-west, CT spawn north-east.
+ solid(-49,0,2,100,9);solid(49,0,2,100,9);
+ solid(0,-49,100,2,9);solid(0,49,100,2,9);
+ // Long A route: courtyard, double-door passage and long corridor.
+ solid(-36,-4,3,50,6,plaster);solid(-18,-39,42,3,6,stone);
+ solid(-13,-22,3,28,6);solid(-31,-18,12,3,5);
+ solid(-30,-29,5,6,3,trim);solid(-23,-30,4,7,3,wood);
+ // A site upper courtyard with short approach and cover.
+ solid(-6,-14,22,3,5,plaster);solid(-8,-27,3,16,5);
+ solid(-27,-8,10,3,4);solid(-20,-11,3,10,4);
+ solid(-24,-22,3,3,2,wood);solid(-16,-20,3,3,2,wood);
+ // Mid: two opposing lanes and staggered door openings.
+ solid(-7,3,3,19,5);solid(8,-5,3,22,5);
+ solid(-1,15,22,3,5,plaster);solid(16,10,3,14,5);
+ solid(-17,11,13,3,5);solid(-26,19,3,17,5);
+ solid(0,-3,5,3,2.6,wood);solid(3,6,4,3,2.8,trim);
+ // B tunnels, upper entrance and open bomb courtyard.
+ solid(24,32,3,24,6);solid(39,14,3,45,6);
+ solid(21,3,25,3,5);solid(27,-12,3,24,5);
+ solid(29,29,17,3,5);solid(11,36,25,3,5);
+ solid(15,22,4,4,3,wood);solid(32,17,4,4,3,wood);
+ // Solid props that give cover without huge polygon overhead.
+ for(const [x,z] of [[-24,-17],[-19,-25],[21,16],[27,21],[0,24],[13,-20]]){
+  solid(x,z,2.4,2.4,1.45,wood);
+  deco(x,1.52,z,2.55,.13,2.55,trim);
+ }
+ // Architectural silhouettes are decorative, not physical ceilings above spawn.
+ for(const [x,z,w,d,h] of [[-41,27,12,15,8],[39,-29,14,18,8],[-40,-37,12,10,7],[42,38,12,12,7]]){
+  solid(x,z,w,d,h,plaster);
+  deco(x,h+.15,z,w+.3,.3,d+.3,trim);
+ }
+ // In-world paint on the ground to make each bombsite immediately readable.
+ for(const site of SITES){
+  const paint=new THREE.Mesh(new THREE.RingGeometry(3.2,3.5,36),
+   new THREE.MeshBasicMaterial({color:site.color,side:THREE.DoubleSide,transparent:true,opacity:.75}));
+  paint.rotation.x=-Math.PI/2;paint.position.set(site.x,.018,site.z);levelRoot.add(paint);
+ }
+ levelMeshes=[floor,...obstacles];mapTop=15;refreshLevelCollision();
+ mapLoaded=true;onMapReady('Новая собственная карта Dust2 готова');
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
@@ -155,7 +167,7 @@ function onMapReady(message){
   sprite.position.set(site.x,y+4,site.z);sprite.scale.set(3,3,1);scene.add(sprite);
  }
 }
-loadDust2();
+buildDust2();
 const materials={
  ct:new THREE.MeshStandardMaterial({color:0x325675,roughness:.85}),
  t:new THREE.MeshStandardMaterial({color:0x77713d,roughness:.9}),
