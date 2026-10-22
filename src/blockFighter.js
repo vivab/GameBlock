@@ -203,7 +203,7 @@ export function createBlockFighter(options={}){
   let rec=manual.get(name);if(!rec){rec={x:0,y:0,z:0};manual.set(name,rec);}
   rec[axis]=THREE.MathUtils.degToRad(degrees);return true;
  };
- function update(time=0,mode=defaultMode){
+ function update(time=0,mode=defaultMode,{armed=false}={}){
   const t=Number.isFinite(time)?time:0;
   for(const b of order){
    b.position.copy(base[b.name].p);
@@ -229,7 +229,9 @@ export function createBlockFighter(options={}){
    }
    ROT('Thumb_'+side,-.14,0,s*.13);
   }
-  const aim=()=>{
+  // Combat locomotion separates arm aiming from leg motion. An armed NPC
+  // can walk and run without swinging its rifle and hands into a T-pose.
+  const combatUpperBody=()=>{
    ROT('Spine_01',-.025+.006*breath,0,0);
    ROT('Spine_02',-.018,0,0);
    ROT('Head',.11,0,0);
@@ -241,6 +243,9 @@ export function createBlockFighter(options={}){
    ROT('UpperArm_L',-1.03,0,.12);
    ROT('Forearm_L',-.91,0,.10);
    ROT('Hand_L',.18,0,.05);
+  };
+  const aim=()=>{
+   combatUpperBody();
    ROT('Thigh_L',-.105,0,.08);
    ROT('Thigh_R',-.025,0,-.08);
    ROT('Calf_L',.17,0,0);
@@ -260,6 +265,7 @@ export function createBlockFighter(options={}){
    ROT('Spine_01',fast?-.065:-.035,0,.018*s);
    bones.Root.position.y=Math.abs(s)*(fast?.019:.010);
    bones.Root.position.z=.009*Math.sin(t*(fast?3.0:1.8));
+   if(armed)combatUpperBody();
   }
   if(action==='aim'||action==='shoot'||action==='reload')aim();
   if(action==='shoot'){
