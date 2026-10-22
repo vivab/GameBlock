@@ -14,7 +14,7 @@ const DEFAULT={pistol:'g18',rifle:'ak47'};
 const load=()=>{try{return JSON.parse(localStorage.getItem(STORE)||'{}')||{}}catch{return {}}};
 const save=data=>{try{localStorage.setItem(STORE,JSON.stringify(data))}catch{}};
 const copy=value=>JSON.parse(JSON.stringify(value));
-export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>{},baseUrl='/'}) {
+export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>{},onOpen=()=>{},baseUrl='/'}) {
  const loader=new GLTFLoader();
  const cache=new Map();
  const stored=load();
@@ -70,7 +70,7 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>
  const rows=overlay.querySelector('#gbArmoryRows');
  const status=overlay.querySelector('#gbArmoryStatus');
  const file=overlay.querySelector('#gbArmoryFile');
- const open=()=>{overlay.hidden=false;refresh();};
+ const open=()=>{onOpen();overlay.hidden=false;refresh();};
  const close=()=>{overlay.hidden=true;};
  function refresh(){
   rows.replaceChildren();
@@ -109,7 +109,7 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>
    if(previous!==item.id)restoreGrip(item);
    chosen[item.slot]=item.id;active=item;persist();refresh();
    if(activate)selectWeapon(item.slot);
-   onSelection(item);
+   onSelection(item,scene);
    status.textContent='✓ '+item.label+' установлен. Можно играть и настраивать руки.';
    return true;
   }catch(e){
@@ -141,7 +141,7 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>
    views[slot].setModel(result.scene);
    cache.set(active.id,result.scene);
    if(chosen[slot]!==active.id)snapshot(chosen[slot],slot);
-   chosen[slot]=active.id;persist();refresh();selectWeapon(slot);onSelection(active);
+   chosen[slot]=active.id;persist();refresh();selectWeapon(slot);onSelection(active,result.scene);
    status.textContent='✓ Модель из телефона загружена для текущей сессии.';
   }catch(error){status.textContent='Не удалось прочитать GLB: '+error.message;}
   finally{busy=false;file.value='';}
