@@ -122,7 +122,10 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>
  async function restore(){
   for(const slot of ['pistol','rifle']){
    const item=ARMORY_ITEMS.find(i=>i.id===chosen[slot]);
-   if(item&&item.id!==DEFAULT[slot])await equip(item,{activate:false});
+   if(item&&item.id!==DEFAULT[slot]){
+    await equip(item,{activate:false});
+    restoreGrip(item);
+   }
    else onSelection(ARMORY_ITEMS.find(i=>i.id===DEFAULT[slot]));
   }
  }
@@ -132,7 +135,8 @@ export function installArmory({views,selectWeapon,onSelection=()=>{},onPlay=()=>
   if(!selected.name.toLowerCase().endsWith('.glb')){status.textContent='Требуется формат GLB';return;}
   busy=true;status.textContent='Читаем '+selected.name+'…';
   try{
-   const result=await new Promise((resolve,reject)=>loader.parse(await selected.arrayBuffer(),'',resolve,reject));
+   const bytes=await selected.arrayBuffer();
+   const result=await new Promise((resolve,reject)=>loader.parse(bytes,'',resolve,reject));
    const slot=active.slot;
    views[slot].setModel(result.scene);
    cache.set(active.id,result.scene);
