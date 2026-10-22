@@ -65,6 +65,10 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
         </select></label>
         <small>Перчатки независимы от оружия: одна расцветка на Glock, AK и нож.</small>
       </div>
+      <div class="cal-actions" id="calWeaponScaleButtons">
+        <button id="calSmaller" type="button">− Меньше оружие</button>
+        <button id="calBigger" type="button">＋ Больше оружие</button>
+      </div>
       <div id="calSliders"></div>
       <div class="cal-actions">
         <button id="calReset" type="button">Сбросить</button>
@@ -111,6 +115,8 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
     #calibrationPanel .cal-row input{width:100%;accent-color:#e5b771}
     #calibrationPanel .cal-row output{font-size:10px;text-align:right}
     #calibrationPanel .cal-actions{display:flex;gap:5px;margin:11px 0}
+    #calibrationPanel .cal-actions[hidden]{display:none!important}
+    #calWeaponScaleButtons button{flex:1;background:#8a693d!important;font-weight:800}
     #calibrationPanel textarea{background:#071621;border:1px solid #617987;
       font-size:10px;padding:5px;width:100%;height:48px;user-select:text}
     #calibrationPanel small{font-size:10px;color:#b7c2c2;font-weight:400}
@@ -151,6 +157,7 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
   }
   function display(){
     const hand=part.value!=='weapon';$('calPoseRow').hidden=!hand;
+    $('calWeaponScaleButtons').hidden=hand;
     if(hand)pose.value=value().pose;
     const sliders=$('calSliders');sliders.replaceChildren();
     for(const [key,label,min,max,step] of hand?HAND:WEAPON){
@@ -220,6 +227,15 @@ export function setupWeaponCalibration({views,getWeapon,setWeapon=()=>{}}){
     if(part.value==='weapon')return;
     view().calibrateHand(part.value,{pose:pose.value});remember();output();
   });
+  for(const [button,delta] of [['calSmaller',-.1],['calBigger',.1]]){
+    $(button).addEventListener('click',()=>{
+      if(part.value!=='weapon'){part.value='weapon'}
+      const current=view().calibration.scale;
+      const next=Math.round(Math.max(.35,Math.min(2.5,current+delta))*100)/100;
+      view().calibrate({scale:next});remember();display();
+      $('calStatus').textContent='✓ Размер оружия: '+next.toFixed(2)+'×';
+    });
+  }
   $('calReset').addEventListener('click',()=>{
     if(part.value==='weapon')view().calibrate(WEAPON_DEFAULTS[wp.value]);
     else view().calibrateHand(part.value,HAND_DEFAULTS[wp.value][part.value]);
