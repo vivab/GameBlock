@@ -230,8 +230,8 @@ export function createBlockFighter(options={}){
    ROT('Thumb_'+side,-.14,0,s*.13);
   }
   const aim=()=>{
-   ROT('Spine_01',-.105+.012*breath,0,0);
-   ROT('Spine_02',-.078,0,0);
+   ROT('Spine_01',-.025+.006*breath,0,0);
+   ROT('Spine_02',-.018,0,0);
    ROT('Head',.11,0,0);
    ROT('Clavicle_R',-.22,0,-.06);
    ROT('UpperArm_R',-.95,0,-.10);
@@ -247,26 +247,26 @@ export function createBlockFighter(options={}){
    ROT('Calf_R',.13,0,0);
   };
   if(action==='walk'||action==='run'){
-   const fast=action==='run',stride=t*(fast?9.5:5.2),s=Math.sin(stride);
-   const amp=fast?.56:.31;
+   const fast=action==='run',stride=t*(fast?6.7:4.0),s=Math.sin(stride);
+   const amp=fast?.32:.19;
    ROT('Thigh_L',-.07+amp*s,0,.06);
    ROT('Thigh_R',-.07-amp*s,0,-.06);
-   ROT('Calf_L',.13+Math.max(0,-s)*(fast?.68:.32),0,0);
-   ROT('Calf_R',.13+Math.max(0,s)*(fast?.68:.32),0,0);
-   ROT('UpperArm_L',-.12-amp*s*.75,0,.13);
-   ROT('UpperArm_R',-.12+amp*s*.75,0,-.13);
+   ROT('Calf_L',.13+Math.max(0,-s)*(fast?.34:.19),0,0);
+   ROT('Calf_R',.13+Math.max(0,s)*(fast?.34:.19),0,0);
+   ROT('UpperArm_L',-.12-amp*s*.42,0,.13);
+   ROT('UpperArm_R',-.12+amp*s*.42,0,-.13);
    ROT('Forearm_L',-.42,0,0);
    ROT('Forearm_R',-.42,0,0);
-   ROT('Spine_01',fast?-.14:-.055,0,.045*s);
-   bones.Root.position.y=Math.abs(s)*(fast?.052:.025);
-   bones.Root.position.z=.025*Math.sin(t*(fast?4.2:2.1));
+   ROT('Spine_01',fast?-.065:-.035,0,.018*s);
+   bones.Root.position.y=Math.abs(s)*(fast?.019:.010);
+   bones.Root.position.z=.009*Math.sin(t*(fast?3.0:1.8));
   }
   if(action==='aim'||action==='shoot'||action==='reload')aim();
   if(action==='shoot'){
    const recoil=Math.exp(-((t*.9)%1)*11);
-   ROT('UpperArm_R',-.95-.11*recoil,0,-.10);
-   ROT('UpperArm_L',-1.03-.075*recoil,0,.12);
-   ROT('Spine_02',-.078+.022*recoil,0,0);
+   ROT('UpperArm_R',-.95-.045*recoil,0,-.10);
+   ROT('UpperArm_L',-1.03-.035*recoil,0,.12);
+   ROT('Spine_02',-.018,0,0);
   }
   if(action==='reload'){
    const cycle=(t%2.3)/2.3;
