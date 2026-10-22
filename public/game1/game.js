@@ -285,19 +285,19 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   }
   // ======================= каталог оружия: доступно ОБЕИМ сторонам =======================
   const PRIM = {
-    rifle:    { name: 'AK-47',        mag: 30,  res: 90,  int: 110,  spd: 6.2 },
-    awp:      { name: 'AWP',          mag: 5,   res: 20,  int: 1400, spd: 6.2 },
-    m4a4:     { name: 'M4A4',         mag: 30,  res: 90,  int: 90,   spd: 6.2 },
-    m16:      { name: 'M16A4',        mag: 30,  res: 90,  int: 95,   spd: 6.1 },
-    m249:     { name: 'M249',         mag: 100, res: 200, int: 70,   spd: 4.8 },
-    mossberg: { name: 'Mossberg 590', mag: 5,   res: 25,  int: 750,  spd: 6.0, pellets: 8 },
-    m870:     { name: 'M870',         mag: 6,   res: 24,  int: 700,  spd: 6.0, pellets: 8 }
+    rifle:    { name:'AK-47',mag:30,res:120,int:110,spd:6.2 },
+    awp:      { name:'AWP',mag:5,res:30,int:1400,spd:6.2 },
+    m4a4:     { name:'M4A4',mag:30,res:120,int:90,spd:6.2 },
+    m16:      { name:'M16A4',mag:30,res:120,int:95,spd:6.1 },
+    m249:     { name:'M249',mag:100,res:200,int:70,spd:4.8 },
+    mossberg: { name:'Mossberg 590',mag:7,res:42,int:750,spd:6.0,pellets:8 },
+    m870:     { name:'M870',mag:7,res:42,int:700,spd:6.0,pellets:8 }
   };
   const PIST = {
-    usp:    { name: 'USP-S',        mag: 12, res: 36, int: 190, spd: 6.8 },
-    deagle: { name: 'Desert Eagle', mag: 12, res: 36, int: 190, spd: 6.8 },
-    glock:  { name: 'Glock',        mag: 12, res: 36, int: 190, spd: 6.8 },
-    p250:   { name: 'P250',         mag: 13, res: 39, int: 170, spd: 6.8 }
+    usp:    { name:'USP-S',mag:12,res:72,int:190,spd:6.8 },
+    deagle: { name:'Desert Eagle',mag:7,res:42,int:400,spd:6.8 },
+    glock:  { name:'Glock',mag:17,res:68,int:190,spd:6.8 },
+    p250:   { name:'P250',mag:13,res:52,int:170,spd:6.8 }
   };
   const KNV = { knife: { name: 'Нож' }, karambit: { name: 'Керамбит' } };
   const PRIM_T = { rifle: 1, awp: 1, m4a4: 1, m16: 1, m249: 1, mossberg: 1, m870: 1 };   // первичные (держатся двумя руками)
@@ -746,7 +746,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
   // ---------- оружие: колесо выбора, магазин на 10 секунд, хитмаркер ----------
   const WS = { rifle: { mag: 30, int: 110, name: 'AK-47', spd: 6.2 }, pistol: { mag: 12, int: 190, name: '', spd: 6.8 }, knife: { mag: 0, int: 550, name: 'НОЖ', spd: 7.8 } };   // spd — скорость бега
   const PN = { usp: 'USP-S', deagle: 'Desert Eagle', glock: 'Glock', p250: 'P250' };
-  const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: 30, res: 90 }, pistol: { mag: 12, res: 36 } };
+  const loadout = { pistol: 'usp', primary: 'rifle', knife: 'knife' }, store = { rifle: { mag: 30, res: 120 }, pistol: { mag: 12, res: 72 } };
   const wname = () => curW === 'pistol' ? PIST[loadout.pistol].name : curW === 'rifle' ? PRIM[loadout.primary].name : curW === 'knife' ? KNV[loadout.knife || 'knife'].name : WS[curW].name;
   function equip(slot) {
     unscope();
@@ -762,7 +762,7 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
     if (PN[n]) { loadout.pistol = n; if (curW === 'pistol') { document.getElementById('weapon-name').innerText = wname(); document.getElementById('wsw').textContent = wname(); if (window.HW_set) window.HW_set(n); } else equip('pistol'); }
     else if (n !== curW) equip(n); else if (window.HW_set) window.HW_set(n);
   };
-  function resetLoadout() { store.rifle = { mag: 30, res: 90 }; store.pistol = { mag: 12, res: 36 }; curW = 'knife'; equip('rifle'); }
+  function resetLoadout() { store.rifle = { mag: PRIM[loadout.primary].mag, res: PRIM[loadout.primary].res }; store.pistol = { mag: PIST[loadout.pistol].mag, res: PIST[loadout.pistol].res }; curW = 'knife'; equip('rifle'); }
   window.updateUI = function () {
     document.getElementById('hp-val').innerText = Math.round(player.hp);
     document.getElementById('hp-bar-fill').style.width = player.hp + '%';
@@ -1014,6 +1014,9 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       const css = document.createElement('style');
       css.textContent = '#scope{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;display:none;pointer-events:none;background:radial-gradient(circle at 50% 50%,rgba(0,0,0,0) 0,rgba(0,0,0,0) 30vh,#000 31vh)}' +
         '#scope::before,#scope::after{content:"";position:absolute;background:#000}#scope::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}#scope::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}' +
+        '#scope.m16-dot{background:radial-gradient(circle at center,transparent 0,transparent 42%,rgba(0,0,0,.35) 68%,rgba(0,0,0,.65) 100%)}' +
+        '#scope.m16-dot::before{left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#ff2434;box-shadow:0 0 6px 3px #fb2439,0 0 18px #f44336}' +
+        '#scope.m16-dot::after{display:none}' +
         '#scb{position:absolute;right:150px;bottom:120px;z-index:30;width:56px;height:56px;border-radius:50%;border:1px solid rgba(255,255,255,.5);background:rgba(15,23,42,.78);color:#fff;font:700 10px sans-serif;display:none;align-items:center;justify-content:center;padding:0}';
       document.head.appendChild(css);
       scopeEl = document.createElement('div'); scopeEl.id = 'scope'; document.body.appendChild(scopeEl);
@@ -1021,12 +1024,13 @@ document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples
       scopeBtn.addEventListener('touchstart', e => { e.preventDefault(); toggleScope(); }, { passive: false });
       scopeBtn.addEventListener('click', toggleScope);
     }
-    scopeBtn.style.display = (started && curW === 'rifle' && loadout.primary === 'awp' && !player.dead) ? 'flex' : 'none';
+    scopeBtn.style.display = (started && curW === 'rifle' && (loadout.primary === 'awp' || loadout.primary === 'm16') && !player.dead) ? 'flex' : 'none';
   }
   function toggleScope() {
     if (scoped) { unscope(); return; }
-    if (!(curW === 'rifle' && loadout.primary === 'awp') || player.dead || player.isReloading) return;
-    scoped = true; lookScale = 0.35; camera.fov = 22; camera.updateProjectionMatrix();
+    if (!(curW === 'rifle' && (loadout.primary === 'awp' || loadout.primary === 'm16')) || player.dead || player.isReloading) return;
+    scoped = true; lookScale = loadout.primary === 'm16' ? .65 : .35; camera.fov = loadout.primary === 'm16' ? 48 : 22; camera.updateProjectionMatrix();
+    scopeEl.classList.toggle('m16-dot',loadout.primary==='m16');
     scopeEl.style.display = 'block'; const ch = document.getElementById('crosshair'); if (ch) ch.style.display = 'none';
     if (window.HW_visible) window.HW_visible(false);
   }
