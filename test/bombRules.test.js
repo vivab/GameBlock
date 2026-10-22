@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {
  BOMB_RULES,BOMB_WEAPONS,BOMBSHOP_GEAR,actualSide,heDamage,flashAlpha,
  canPlant,canDefuse,defuseDuration,makeBombPlayer,makeBombMatch,buyBombItem,
@@ -98,4 +100,16 @@ test('Bomb UI loads Game1 weapon hands and de_dust2 model and exposes independen
  for(const token of ['window.loadGLTFModels','positionGround','tickHold','grenadeEffect',
   'segmentPassesSmoke','aiming','roundSerial','checkElimination','plantBomb'])
   assert.ok(js.includes(token),token);
+});
+
+test('Every imported Game1 gameplay script parses and bomb UI controls exist',()=>{
+ for(const path of ['../public/game1/bomb.js','../public/game1/bomb-rules.js',
+   '../public/game1/game.js','../public/game1/hands.js']){
+  const url=new URL(path,import.meta.url);
+  assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',fileURLToPath(url)],{stdio:'pipe'}),path);
+ }
+ const html=readFileSync(new URL('../public/game1/bomb.html',import.meta.url),'utf8');
+ const code=readFileSync(new URL('../public/game1/bomb.js',import.meta.url),'utf8');
+ const used=new Set([...code.matchAll(/byId\\('([^']+)'\\)/g)].map(x=>x[1]));
+ for(const id of used)assert.ok(html.includes('id="'+id+'"'),'bomb.html missing #'+id);
 });
