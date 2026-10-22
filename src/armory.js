@@ -7,7 +7,7 @@ export const ARMORY_ITEMS=Object.freeze([
  {id:'usp',label:'USP-S',slot:'pistol',path:'models/usp-s.glb',type:'Пистолет с глушителем'},
  {id:'ak47',label:'AK-47',slot:'rifle',path:'models/ak47.glb',type:'Автомат'},
  {id:'ak74',label:'AK-74',slot:'rifle',path:'models/low-poly_ak-74.glb',type:'Автомат'},
- {id:'m4',label:'M4A4',slot:'rifle',path:'models/m4a4_low_poly.glb',type:'Автомат'}
+ {id:'m4',label:'M4A4',slot:'rifle',path:'game1/rifle__m4a4_weapon_model_cs2.glb',type:'Автомат'}
 ]);
 const STORE='gameblock:armory-v3';
 const DEFAULT={pistol:'g18',rifle:'ak47'};
