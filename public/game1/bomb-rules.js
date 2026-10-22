@@ -55,7 +55,9 @@ export function buyBombItem(actor,id,phase){
  if(!info)return {ok:false,reason:'Неизвестный предмет'};
  if(info.side&&actor.side!==info.side)return {ok:false,reason:'Только для спецназа'};
  if(info.price>actor.money)return {ok:false,reason:'Недостаточно денег'};
- if(info.slot==='knife')return {ok:false,reason:'Нож выдаётся бесплатно'};
+ // Both default knife and karambit are free cosmetic choices in bomb mode.
+ // They never take away the $800 starting balance.
+ if(info.slot==='knife'){actor.weapons.knife=id;return {ok:true,item:id,cost:0}}
  if(id==='kit'&&actor.hasKit)return {ok:false,reason:'Набор уже куплен'};
  if(['he','flash','smoke'].includes(id)&&actor.grenades[id]>=2)
   return {ok:false,reason:'Не больше двух гранат этого типа'};
