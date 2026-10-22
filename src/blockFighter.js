@@ -66,7 +66,7 @@ export function createBlockFighter(options={}){
   joint('Toe_'+side,foot,0,-.036,.145);
   // Independent fingers are joints rather than painted detail.
   for(let i=0;i<3;i++){
-   const finger=joint('Finger_'+side+'_'+i,hand,(i-1)*.055,-.085,.05);
+   const finger=joint('Finger_'+side+'_'+i,hand,(i-1)*.066,-.085,.05);
    joint('FingerTip_'+side+'_'+i,finger,0,-.055,0);
   }
   joint('Thumb_'+side,hand,-s*.096,-.02,.064);
@@ -124,10 +124,10 @@ export function createBlockFighter(options={}){
   box('Glove'+side,hand,'glove',[0,-.054,.009],[.196,.147,.191]);
   box('PalmGrip'+side,hand,'glovePalm',[0,-.083,.101],[.136,.060,.012]);
   for(let i=0;i<3;i++){
-   box('FingerSegment'+side+i,'Finger_'+side+'_'+i,'glove',[(i-1)*.004,-.031,.005],[.056,.084,.075]);
-   box('FingerTip'+side+i,'FingerTip_'+side+'_'+i,'glovePalm',[0,-.024,.005],[.053,.055,.067]);
+   box('FingerSegment'+side+i,'Finger_'+side+'_'+i,'glove',[(i-1)*.004,-.034,.005],[.071,.089,.083]);
+   box('FingerTip'+side+i,'FingerTip_'+side+'_'+i,'glovePalm',[0,-.025,.005],[.067,.059,.075]);
   }
-  box('ThumbBlock'+side,'Thumb_'+side,'glove',[-s*.018,-.025,.004],[.073,.102,.078]);
+  box('ThumbBlock'+side,'Thumb_'+side,'glove',[-s*.018,-.025,.004],[.088,.112,.087]);
   box('ThighPants'+side,thigh,'pants',[0,-.173,0],[.249,.366,.28]);
   box('KneeBrace'+side,calf,'pantsEdge',[0,-.012,.063],[.232,.085,.208]);
   box('ShinPants'+side,calf,'pants',[0,-.182,0],[.222,.36,.25]);
