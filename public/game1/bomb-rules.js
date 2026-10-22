@@ -1,7 +1,7 @@
 // Bomb-planting rules shared by the live mode and its tests.
 // Money applies ONLY in bomb mode. Game1 team deathmatch stays free.
 export const BOMB_RULES = Object.freeze({
-  buySeconds:25, roundSeconds:130, bombSeconds:40,
+  buySeconds:10, shopSeconds:25, roundSeconds:130, bombSeconds:40,
   plantSeconds:4, defuseSeconds:10, kitDefuseSeconds:5,
   grenadeFuse:3, smokeSeconds:20, flashSeconds:5, flashWhiteSeconds:2,
   heRadius:8, heMaxDamage:95,
@@ -73,6 +73,7 @@ export function nextBombRound(game,actors,random=Math.random){
  game.round++;
  game.phase='buy';
  game.time=BOMB_RULES.buySeconds;
+ game.shopRemaining=BOMB_RULES.shopSeconds;
  game.planted=false;game.plantedAt=0;game.bombPosition=null;
  game.bombCarrier=null;game.winner=null;game.site=null;
  game.bombExploded=false;game.bombDropped=null;
@@ -110,6 +111,7 @@ export function awardBombRound(game,actors,winner){
 }
 export function tickBombClock(game,dt,actors){
  if(game.phase==='finished')return null;
+ if(game.phase==='buy'||game.phase==='live')game.shopRemaining=Math.max(0,(game.shopRemaining??BOMB_RULES.shopSeconds)-dt);
  game.time=Math.max(0,game.time-dt);
  if(game.time>0)return null;
  if(game.phase==='buy'){game.phase='live';game.time=BOMB_RULES.roundSeconds;return 'round-start'}
