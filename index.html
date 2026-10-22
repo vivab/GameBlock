@@ -40,6 +40,11 @@
     #stats { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); white-space: nowrap; background: #10202ad9; border: 1px solid #ffffff33; border-radius: 12px; padding: 7px 12px; text-shadow: 0 1px 3px #000; font-size: 14px; }
     #joy { position: absolute; bottom: max(30px, env(safe-area-inset-bottom)); left: max(24px, env(safe-area-inset-left)); width: 122px; height: 122px; border: 2px solid #ffffff55; border-radius: 50%; background: #ffffff16; pointer-events: auto; touch-action: none; }
     #knob { position: absolute; left: 39px; top: 39px; width: 40px; height: 40px; border-radius: 50%; background: #ffffffaa; }
+    #joyMode{position:absolute;left:0;right:0;bottom:-19px;text-align:center;font:800 10px system-ui;
+      color:#b8e9ca;letter-spacing:.12em;pointer-events:none;text-shadow:0 1px 3px #000}
+    #joy[data-pace="walk"]{border-color:#9fddc4aa;background:#a1d8bc1c}
+    #joy[data-pace="run"]{border-color:#f3c083cc;background:#eac38319}
+    #joy[data-pace="run"] #joyMode{color:#ffcd8d}
     #controls button { display: flex; align-items: center; justify-content: center; position: absolute; pointer-events: auto; border: 1px solid #ffffff77; background: #253b52db; border-radius: 50%; width: 58px; height: 58px; font-size: 27px; font-weight: 800; }
     #controls button:active, #controls button.active { background: #4b7796; }
     button svg { width: 29px; height: 29px; stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -227,7 +232,7 @@
     <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
     <div id="stats">♥ 100 &nbsp; ▣ 30 / 90</div>
     <div id="controls">
-      <div id="joy" aria-label="Джойстик движения"><div id="knob"></div></div>
+      <div id="joy" aria-label="Джойстик: небольшой наклон — идти тихо, полный наклон — бежать" data-pace="idle"><div id="knob"></div><span id="joyMode" aria-live="off"></span></div>
       <button id="fire" aria-label="Стрелять"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9"/><path d="M16 2v7M16 23v7M2 16h7M23 16h7"/></svg></button>
       <button id="jump" aria-label="Прыжок"><svg viewBox="0 0 32 32"><path d="M16 27V5M7 14l9-9 9 9"/></svg></button>
       <button id="crouch" aria-label="Присесть"><svg viewBox="0 0 32 32"><circle cx="18" cy="7" r="3"/><path d="M17 12l-5 7 8 2 4 7M13 19l-8 5M20 21l-8 7"/></svg></button>
