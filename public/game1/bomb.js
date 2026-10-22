@@ -200,6 +200,7 @@ function resetPositions(){
   const plan=money>=4000?'awp':money>=3000?(Math.random()<.5?'m4a4':'rifle'):money>=1000?'m870':null;
   if(plan)buyBombItem(p,plan,'buy');
   if(p.side==='ct'&&p.money>=400&&Math.random()<.45)buyBombItem(p,'kit','buy');
+  if(p.money>=300&&Math.random()<.32)buyBombItem(p,'he','buy');
   p.equipped=p.weapons.primary||p.weapons.pistol;
  }
  const bombCarrier=players.find(p=>p.hasBomb);
@@ -557,17 +558,85 @@ function updateGrenades(dt){
   scene.remove(smokes[i].mesh);smokes.splice(i,1);
  }
 }
-function seekBot(bot,goal,dt,speed){
- let dx=goal.x-bot.x,dz=goal.z-bot.z;
- const d=Math.hypot(dx,dz);if(d<1)return;
- dx/=d;dz/=d;
- const origin=new V(bot.x,bot.y+1.2,bot.z);
- const ahead=origin.clone().add(new V(dx,0,dz).multiplyScalar(1.5));
- if(!groundLOS(origin,ahead)){
-  const nx=-dz,nz=dx;dx=dx*.25+nx*(bot.id.length%2?1:-1);dz=dz*.25+nz*(bot.id.length%2?1:-1);
+// Deterministic squad lanes give each agent a role instead of clustering
+// every ally or every enemy at exactly the same bombsite.
+function botIndex(bot){
+ const match=String(bot.id).match(/(\d+)$/);
+ return match?Number(match[1]):0;
+}
+function botObjective(bot){
+ const number=botIndex(bot);
+ if(bot.side==='ct'){
+  if(game.planted&&game.bombPosition)return game.bombPosition;
+  // Two CT anchors per site, fifth player rotates between A and B.
+  return SITES[number===4?game.round%2:number%2];
  }
- const nx=clamp(bot.x+dx*dt*speed,-46,46),nz=clamp(bot.z+dz*dt*speed,-46,46);
- bot.x=nx;bot.z=nz;bot.y=positionGround(nx,nz);bot.yaw=Math.atan2(-dx,-dz);
+ if(game.bombDropped)return game.bombDropped;
+ if(game.planted&&game.bombPosition)return game.bombPosition;
+ const carrier=players.find(p=>p.hasBomb&&p.side==='t'&&p.alive);
+ const site=SITES[game.round%2];
+ if(bot.hasBomb)return site;
+ // Two attackers escort C4, one flanks, one checks the other site.
+ if(number===3)return SITES[(game.round+1)%2];
+ if(carrier&&number<2)return {x:carrier.x,z:carrier.z};
+ return site;
+}
+function passableStep(bot,x,z){
+ const from=new V(bot.x,bot.y+1.12,bot.z);
+ const to=new V(x,positionGround(x,z)+1.12,z);
+ return groundLOS(from,to);
+}
+function seekBot(bot,goal,dt,speed){
+ const now=performance.now()/1000;
+ let target=goal;
+ const distanceGoal=Math.hypot(goal.x-bot.x,goal.z-bot.z);
+ if(distanceGoal<.8){bot.detour=null;return}
+ const blocked=now>(bot.routeCheck||0) ?
+  !passableStep(bot,goal.x,goal.z):bot.routeBlocked;
+ if(now>(bot.routeCheck||0)){
+  bot.routeCheck=now+.35;bot.routeBlocked=blocked;
+ }
+ if(!blocked)bot.detour=null;
+ else {
+  const d=bot.detour;
+  if(!d||now>(bot.detourUntil||0)||Math.hypot(d.x-bot.x,d.z-bot.z)<.85){
+   const a=Math.atan2(goal.z-bot.z,goal.x-bot.x);
+   const sign=botIndex(bot)%2?1:-1;
+   let best=null,score=Infinity;
+   // Sample navigable offset lanes to go around actual Dust2 geometry.
+   for(const radius of [3,6,10]){
+    for(const turn of [sign*.8,-sign*.8,sign*1.5,-sign*1.5]){
+     const x=clamp(bot.x+Math.cos(a+turn)*radius,-45,45);
+     const z=clamp(bot.z+Math.sin(a+turn)*radius,-45,45);
+     if(!passableStep(bot,x,z))continue;
+     const visible=groundLOS(new V(x,positionGround(x,z)+1.12,z),
+      new V(goal.x,positionGround(goal.x,goal.z)+1.12,goal.z));
+     const value=Math.hypot(goal.x-x,goal.z-z)+(visible?-7:3)+radius*.12;
+     if(value<score){score=value;best={x,z}}
+    }
+   }
+   bot.detour=best;
+   bot.detourUntil=now+2.6;
+  }
+  if(bot.detour)target=bot.detour;
+ }
+ let dx=target.x-bot.x,dz=target.z-bot.z;
+ const d=Math.hypot(dx,dz);
+ if(d<.05)return;
+ dx/=d;dz/=d;
+ let x=clamp(bot.x+dx*dt*speed,-45.5,45.5);
+ let z=clamp(bot.z+dz*dt*speed,-45.5,45.5);
+ if(!passableStep(bot,x,z)){
+  bot.routeCheck=0;bot.detour=null;
+  // Don't walk through meshes: try a short legal strafe or hold position.
+  const side=botIndex(bot)%2?1:-1;
+  const nx=clamp(bot.x-side*dz*dt*speed,-45.5,45.5);
+  const nz=clamp(bot.z+side*dx*dt*speed,-45.5,45.5);
+  if(!passableStep(bot,nx,nz))return;
+  x=nx;z=nz;
+ }
+ bot.x=x;bot.z=z;bot.y=positionGround(x,z);
+ bot.yaw=Math.atan2(-dx,-dz);
  bot.walkPhase+=dt*9;
 }
 function aiStep(dt){
@@ -583,26 +652,24 @@ function aiStep(dt){
    const dx=target.x-bot.x,dz=target.z-bot.z;
    bot.yaw=Math.atan2(-dx,-dz);
    const d=Math.hypot(dx,dz);
-   if(d>8)seekBot(bot,{x:target.x+Math.sin(now+bot.id.length)*4,z:target.z+Math.cos(now+bot.id.length)*4},dt,2.2);
-   if(d<35&&Math.random()<.95)fireGun(bot);
-  }else{
-   let destination;
-   if(bot.side==='t'){
-    const bombTarget=game.planted&&game.bombPosition?game.bombPosition:
-      game.bombDropped?game.bombDropped:
-      (bot.hasBomb?SITES[bot.id.length%2]:SITES[bot.id.length%2]);
-    destination={x:bombTarget.x+rng(-1,1),z:bombTarget.z+rng(-1,1)};
-   }else{
-    const place=game.planted?game.bombPosition:SITES[bot.id.length%2];
-    destination={x:place.x,z:place.z};
+   // Keep a little distance and strafe, instead of piling into enemies.
+   if(d>9)seekBot(bot,{x:target.x+Math.sin(now*.6+botIndex(bot))*4,
+      z:target.z+Math.cos(now*.6+botIndex(bot))*4},dt,2.35);
+   else if(d<4)seekBot(bot,{x:bot.x-dx*.45,z:bot.z-dz*.45},dt,2.1);
+   if(d<35)fireGun(bot);
+   if(bot.grenades.he&&d>9&&d<22&&now>(bot.nextGrenade||0)&&Math.random()<dt*.06){
+    addGrenade('he',bot);bot.nextGrenade=now+15;
    }
+  }else{
+   const destination=botObjective(bot);
    if(destination){
     if(!bot.botGoal||now>bot.nextDecision){
-     const scatter=bot.hasBomb?1.6:4;
-     bot.botGoal={x:destination.x+rng(-scatter,scatter),z:destination.z+rng(-scatter,scatter)};
-     bot.nextDecision=now+rng(2.2,4.5);
+     const scatter=bot.hasBomb?1.3:bot.side==='ct'?3:3.8;
+     bot.botGoal={x:clamp(destination.x+rng(-scatter,scatter),-44,44),
+       z:clamp(destination.z+rng(-scatter,scatter),-44,44)};
+     bot.nextDecision=now+rng(2.5,4.8);
     }
-    seekBot(bot,bot.botGoal,dt,2.8);
+    seekBot(bot,bot.botGoal,dt,2.7);
    }
   }
   if(bot.hasBomb&&!game.planted){
