@@ -231,6 +231,12 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   palm[side]=anchor;
  }
  let lastError={right:0,left:0};
+ let editorTarget=null;
+ function setEditorTarget(target){
+  if(target!==null&&!GRIP_EDITOR_TARGETS.includes(target))throw Error('Unknown editor target '+target);
+  editorTarget=target;
+ }
+
  function setKind(next){
   if(!THIRD_PERSON_GRIPS[next])throw Error('Unknown firearm '+next);
   selected=next;
@@ -274,8 +280,11 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
    targets[side]=gun.localToWorld(p);
   }
   const right=targets.R,left=targets.L;
-  const rightOk=armTo(fighter,'R',right,palm.R);
-  const leftOk=armTo(fighter,'L',left,palm.L);
+  // In WEAPON-only calibration, freeze both hands in their animation pose.
+  // Otherwise the IK solver would drag them after the gun, making it look
+  // as though every part was selected.
+  const rightOk=editorTarget==='weapon'?false:armTo(fighter,'R',right,palm.R);
+  const leftOk=editorTarget==='weapon'?false:armTo(fighter,'L',left,palm.L);
   for(const [side,ok] of [['R',rightOk],['L',leftOk]]){
    if(ok){
     const wrist=fighter.bones['Hand_'+side];
@@ -297,7 +306,7 @@ export function createThirdPersonLoadout(fighter,{kind='rifle'}={}){
   return {...lastError};
  }
  setKind(kind);
- return {root:base,palm,weapons,setKind,setModel,getMount,setMount,resetMount,getGripEdit,setGripEdit,resetGripEdit,update,
+ return {root:base,palm,weapons,setKind,setModel,getMount,setMount,resetMount,getGripEdit,setGripEdit,resetGripEdit,setEditorTarget,update,
   get kind(){return selected},
   get gripErrors(){return {...lastError}}};
 }
