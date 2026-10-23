@@ -28,6 +28,27 @@ export const BOMBSHOP_GEAR=Object.freeze({
  flash:{name:'Flashbang',price:200,file:'m84_stun_grenade_low-poly.glb'},
  smoke:{name:'Smoke',price:300,file:'m18_smoke_grenade_low-poly.glb'}
 });
+// Units per second. Reloading deliberately has no movement penalty.
+export const BOMB_MOVE_SPEED = Object.freeze({
+  knife:5.25, grenade:5.38, bomb:5.17, pistol:4.90,
+  rifle:4.55, sniper:3.70, machinegun:3.05
+});
+export function bombMoveSpeed(weaponId,{crouched=false,aiming=false,grenadeHeld=false}={}){
+  let type='rifle';
+  if(grenadeHeld)type='grenade';
+  else if(weaponId==='bomb')type='bomb';
+  else if(['knife','karambit'].includes(weaponId))type='knife';
+  else if(['usp','glock','p250','deagle'].includes(weaponId))type='pistol';
+  else if(weaponId==='awp')type='sniper';
+  else if(weaponId==='m249')type='machinegun';
+  const speed=BOMB_MOVE_SPEED[type];
+  return crouched?Math.min(2.55,speed*.50):aiming?speed*.70:speed;
+}
+export function canUseBombShop(game,actor,spawn,radius=11){
+  return !!(game&&actor?.alive&&spawn&&(game.phase==='buy'||game.phase==='live')&&
+    game.shopRemaining>0&&
+    Math.hypot(actor.x-spawn.x,actor.z-spawn.z)<=radius);
+}
 export const otherSide=team=>team==='ct'?'t':'ct';
 export const actualSide=(startingSide,round)=>round>9?otherSide(startingSide):startingSide;
 export const heDamage=distance=>distance>=BOMB_RULES.heRadius?0:
