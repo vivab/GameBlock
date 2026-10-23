@@ -182,7 +182,15 @@ export function buildSundownMap(THREE,root){
       meshBox(xx,3.4,z-2.5,.55,2.8,.55,trim);
       meshBox(xx,3.4,z+2.5,.55,2.8,.55,trim);
     }
-    // Open roof atrium; small ceiling beams do not occlude the camera.
+    // Walkable covered rooms: partial flat roofs shade the two outer wings,
+    // while a central skylight keeps the atrium visible and easy to navigate.
+    for(const wing of [-1,1]){
+      meshBox(x+wing*w*.31,h+.18,z,w*.29,.25,d-1.8,roof);
+      meshBox(x+wing*w*.22,h-.25,z-d*.32,.21,.95,.28,archStone);
+    }
+    // Interior stone floor pattern and a long rug, purely cosmetic/no ghost walls.
+    const carpet=new THREE.MeshLambertMaterial({color:0x835d46,side:THREE.DoubleSide});
+    meshBox(x,.018,z,2.6,.028,d*.42,carpet);
     for(const dz of [-d/2+2,d/2-2])
       meshBox(x,5.5,z+dz,w-2,.19,.3,trim);
     for(const xx of [x-3,x+3]){
