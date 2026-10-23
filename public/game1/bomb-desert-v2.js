@@ -3,9 +3,10 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke
 } from './bomb-rules.js';
+import {buildSundownMap,SUNDOWN_SITES,SUNDOWN_SPAWNS,findSundownPath} from './sundown-map.js';
 
 const THREE=window.THREE;
-console.info('[GameBlock] Desert Crossroads v2: original 5v5 map, no Dust2 GLB');
+console.info('[GameBlock] SUNDOWN: 5v5 map with two bombsites, Mid, Long and B tunnels');
 const byId=id=>document.getElementById(id);
 const V=THREE.Vector3;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
@@ -49,10 +50,7 @@ let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPl
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
 const joy={x:0,y:0,id:null},keys=new Set(),pointers=new Map();
 let activeGrenades=[],smokes=[],bombObject=null,bombDropObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
-const SITES=[
- {id:'A',x:-21,z:-18,radius:7,color:0xffc777},
- {id:'B',x:22,z:17,radius:7,color:0x7ac6fb}
-];
+const SITES=SUNDOWN_SITES.map(site=>({...site}));
 const levelRoot=new THREE.Group();scene.add(levelRoot);
 // Limit raycasting to the meshes whose bounding boxes the ray can reach.
 // This avoids costly full-map triangle queries for every AI movement step.
@@ -70,33 +68,13 @@ function refreshLevelCollision(){
  groundCache.clear();
  levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
 }
-// Original, lightweight Dust2-inspired layout, made from our own geometry.
-// The imported GLB is intentionally no longer loaded in bomb mode.
-function buildDust2(){
- byId('mapStatus').textContent='Новая карта: Desert Crossroads 5v5';
- const material=color=>new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide});
- const ground=material(0x947452),wall=material(0xa58a62),lightWall=material(0xb69c76),wood=material(0x684b32),dark=material(0x6e5941);
- const floor=new THREE.Mesh(new THREE.BoxGeometry(100,.4,100),ground);
- floor.position.y=-.2;levelRoot.add(floor);
- const solid=(x,z,w,d,h,m=wall)=>{
-  const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);
-  o.position.set(x,h/2,z);levelRoot.add(o);obstacles.push(o);
- };
- // Fresh open-air 5v5 arena: three lanes, two sites, no imported geometry.
- // Spawn courtyards are kept clear; all collision walls start at the ground.
- for(const [x,z,w,d] of [[-49,0,2,100],[49,0,2,100],[0,-49,100,2],[0,49,100,2]])solid(x,z,w,d,7,dark);
- // West / A lane: long passage with cover and a short flank.
- for(const q of [[-37,-12,3,55,6],[-17,-39,40,3,6],[-20,-25,3,19,5],[-30,2,15,3,5],[-13,-14,3,15,5],[-26,13,16,3,5]])solid(...q,lightWall);
- // East / B lane: tunnels with wide exits and defensive boxes.
- for(const q of [[37,12,3,55,6],[18,39,40,3,6],[20,25,3,19,5],[30,-2,15,3,5],[13,14,3,15,5],[26,-13,16,3,5]])solid(...q,wall);
- // Mid lane: staggered corners; no roof above the player's camera.
- for(const q of [[-8,-7,3,21,5],[8,7,3,21,5],[-4,17,15,3,5],[4,-17,15,3,5],[-18,4,10,3,4],[18,-4,10,3,4]])solid(...q,lightWall);
- // Crates and cover; sites A/B remain open to stand and plant.
- for(const [x,z] of [[-24,-19],[-15,-22],[-29,-10],[24,19],[15,22],[29,10],[-3,28],[3,-28],[0,0]]){
-  solid(x,z,2.5,2.5,1.4,wood);
- }
+// Sundown is an original 3D desert-city layout. Every solid is a raycast blocker.
+function buildSundown(){
+ byId('mapStatus').textContent='Строим карту SUNDOWN 5v5…';
+ const {floor,obstacles:solids}=buildSundownMap(THREE,levelRoot);
+ obstacles.push(...solids);
  levelMeshes=[floor,...obstacles];mapTop=9;refreshLevelCollision();
- mapLoaded=true;onMapReady('Desert Crossroads · собственная карта 5 на 5 · точки A и B');
+ mapLoaded=true;onMapReady('SUNDOWN · A / B · MID · LONG · SHORT · ТОННЕЛИ');
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
@@ -116,7 +94,7 @@ function onMapReady(message){
   sprite.position.set(site.x,y+4,site.z);sprite.scale.set(3,3,1);scene.add(sprite);
  }
 }
-buildDust2();
+buildSundown();
 const materials={
  ct:new THREE.MeshStandardMaterial({color:0x325675,roughness:.85}),
  t:new THREE.MeshStandardMaterial({color:0x77713d,roughness:.9}),
@@ -154,13 +132,14 @@ function makeSoldier(actor){
 }
 function respawnActor(actor,index){
  const isCt=actor.side==='ct',row=index%5;
- actor.x=(isCt?30:-29)+(row-2)*1.5;
- actor.z=(isCt?31:-30)+(Math.floor(index/5))*1.2;
+ const spawn=SUNDOWN_SPAWNS[actor.side];
+ actor.x=spawn.x+(row-2)*1.7;
+ actor.z=spawn.z+((index%2)?1:-1)*.85;
  actor.y=positionGround(actor.x,actor.z,mapTop+5);
- actor.yaw=isCt?2.25:-.75;
+ actor.yaw=isCt?Math.PI:0;
  actor.health=100;actor.alive=true;actor.target=null;actor.travel=0;actor.actionTime=0;
  actor.hasPlanted=false;actor.reloadingUntil=0;actor.lastShot=-10;actor.botGoal=null;
- actor.nextDecision=0;actor.flashUntil=0;actor.walkPhase=0;
+ actor.nextDecision=0;actor.flashUntil=0;actor.walkPhase=0;actor.mapRoute=null;
  if(actor.mesh){
   actor.mesh.visible=true;actor.mesh.position.set(actor.x,actor.y,actor.z);
   actor.mesh.traverse(o=>{if(o.isMesh&&o.material===materials.ct||o.material===materials.t)o.material=actor.side==='ct'?materials.ct:materials.t});
@@ -193,7 +172,7 @@ function resetPositions(){
   respawnActor(p,i);
   if(!p.isPlayer&&p.mesh){p.mesh.visible=true;p.mesh.position.set(p.x,p.y,p.z)}
  });
- me.yaw=me.side==='ct'?2.25:-.75;
+ me.yaw=me.side==='ct'?Math.PI:0;
  lookYaw=me.yaw;lookPitch=0;playerY=me.y;verticalSpeed=0;
  aiming=false;stopScope();currentSlot='pistol';crouched=false;progress=0;holdAction=false;
  activeGrenades.forEach(g=>scene.remove(g.mesh));activeGrenades=[];
@@ -383,7 +362,7 @@ function fireGun(actor){
    closest=other;distance=t;hitPoint.copy(nearest);
   }
  }
- // In fire mode, do not shoot enemies through the original Dust2 geometry.
+ // In fire mode, do not shoot enemies through the original Sundown geometry.
  const surfaceRay=new THREE.Raycaster(origin,aim,.02,distance);
  const surface=levelHits(surfaceRay)[0];
  if(surface&&surface.distance<distance-.04){closest=null;hitPoint.copy(surface.point);distance=surface.distance}
@@ -631,29 +610,22 @@ function seekBot(bot,goal,dt,speed){
  if(now>(bot.routeCheck||0)){
   bot.routeCheck=now+.35;bot.routeBlocked=blocked;
  }
- if(!blocked)bot.detour=null;
+ if(!blocked){bot.detour=null;bot.mapRoute=null;}
  else {
-  const d=bot.detour;
-  if(!d||now>(bot.detourUntil||0)||Math.hypot(d.x-bot.x,d.z-bot.z)<.85){
-   const a=Math.atan2(goal.z-bot.z,goal.x-bot.x);
-   const sign=botIndex(bot)%2?1:-1;
-   let best=null,score=Infinity;
-   // Sample navigable offset lanes to go around actual Dust2 geometry.
-   for(const radius of [3,6,10]){
-    for(const turn of [sign*.8,-sign*.8,sign*1.5,-sign*1.5]){
-     const x=clamp(bot.x+Math.cos(a+turn)*radius,-45,45);
-     const z=clamp(bot.z+Math.sin(a+turn)*radius,-45,45);
-     if(!passableStep(bot,x,z))continue;
-     const visible=groundLOS(new V(x,positionGround(x,z,bot.y+1.35)+1.12,z),
-      new V(goal.x,positionGround(goal.x,goal.z,bot.y+1.35)+1.12,goal.z));
-     const value=Math.hypot(goal.x-x,goal.z-z)+(visible?-7:3)+radius*.12;
-     if(value<score){score=value;best={x,z}}
-    }
+   if(!bot.mapRoute||!bot.mapRoute.length||now>(bot.routePlanUntil||0)){
+     bot.mapRoute=findSundownPath({x:bot.x,z:bot.z},goal);
+     bot.routePlanUntil=now+1.8;
    }
-   bot.detour=best;
-   bot.detourUntil=now+2.6;
-  }
-  if(bot.detour)target=bot.detour;
+   while(bot.mapRoute?.length&&
+     Math.hypot(bot.mapRoute[0].x-bot.x,bot.mapRoute[0].z-bot.z)<1.35)
+       bot.mapRoute.shift();
+   if(bot.mapRoute?.length)target=bot.mapRoute[0];
+   else {
+     // Local step aside if another fighter blocks the nearest turn.
+     const dx=goal.x-bot.x,dz=goal.z-bot.z;
+     const side=botIndex(bot)%2?1:-1;
+     target={x:bot.x-side*dz*.25,z:bot.z+side*dx*.25};
+   }
  }
  let dx=target.x-bot.x,dz=target.z-bot.z;
  const d=Math.hypot(dx,dz);
