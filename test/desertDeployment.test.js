@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 const html=readFileSync('public/game1/desert.html','utf8');
 const js=readFileSync('public/game1/bomb-desert-v2.js','utf8');
 const rules=readFileSync('public/game1/bomb-rules.js','utf8');
+const map=readFileSync('public/game1/sundown-map.js','utf8');
 test('Sundown has its own HTML entrypoint and versioned JS',()=>{
  assert.match(html,/src="bomb-desert-v2\.js"/);
  assert.doesNotMatch(html,/de_dust2_-_cs_map\.glb/);
@@ -25,5 +26,6 @@ test('round starts in 10s, shop stays for 25s',()=>{
 });
 test('flat ground and floor are explicit',()=>{
  assert.match(js,/function positionGround\(x,z,fromY=45\)\{return 0;\}/);
- assert.match(js,/floor\.position\.y=-\.2/);
+ assert.match(map,/floor\.position\.y=-\.2/);
+ assert.match(js,/buildSundownMap/);
 });
