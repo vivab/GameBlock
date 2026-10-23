@@ -134,7 +134,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
       <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
       <button id="retroTChoice" type="button" hidden>АРХИВ МОДЕЛЕЙ T</button>
       <button id="retroGame1" type="button">▶ КОМАНДНЫЙ БОЙ · GAME1</button>
-      <button id="retroBomb" type="button">💣 ЗАКЛАДКА БОМБЫ · DE_DUST2</button>
+      <button id="retroBomb" type="button">💣 ЗАКЛАДКА БОМБЫ · SUNDOWN</button>
       <button id="retroShop" type="button">▣ МАГАЗИН ОРУЖИЯ · 5 МОДЕЛЕЙ</button>
       <button id="retroPlay" type="button">▶ КЛАССИЧЕСКИЙ GAMEBLOCK</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
