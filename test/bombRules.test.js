@@ -32,7 +32,8 @@ test('First round has $800, random C4 carrier and T/CT swap after ninth',()=>{
  const state=makeBombMatch(actors,()=>.99);
  assert.equal(actors[0].money,800);
  assert.equal(state.phase,'buy');
- assert.equal(state.time,25);
+ assert.equal(state.time,10);
+ assert.equal(state.shopRemaining,25);
  assert.equal(actors.filter(x=>x.hasBomb).length,1);
  assert.equal(actors[9].hasBomb,true,'random picker can choose any of five terrorists');
  for(let i=2;i<=10;i++)nextBombRound(state,actors,()=>.01);
@@ -78,7 +79,7 @@ test('Free karambit is available in the bomb-mode store without deducting $800',
 test('Timed phases, first-to-ten wins and no instant win at 9',()=>{
  const players=[makeBombPlayer('c','ct'),makeBombPlayer('t','t')];
  const state=makeBombMatch(players,()=>0);
- assert.equal(tickBombClock(state,25,players),'round-start');
+ assert.equal(tickBombClock(state,10,players),'round-start');
  assert.equal(state.phase,'live');
  assert.equal(awardBombRound(state,players,'ct'),true);
  assert.equal(awardBombRound(state,players,'ct'),false);
@@ -106,12 +107,13 @@ test('HE falloff, white 2 seconds and fade 3 seconds, smoke vision',()=>{
  assert.equal(segmentPassesSmoke({x:0,z:0},{x:10,z:0},{x:5,z:0}),true);
  assert.equal(segmentPassesSmoke({x:0,z:0},{x:10,z:0},{x:5,z:9}),false);
 });
-test('Bomb UI loads Game1 weapon hands and de_dust2 model and exposes independent phase controls',()=>{
+test('Bomb UI loads Game1 weapon hands and our new map and exposes independent phase controls',()=>{
  const html=readFileSync(new URL('../public/game1/bomb.html',import.meta.url),'utf8');
  const js=readFileSync(new URL('../public/game1/bomb.js',import.meta.url),'utf8');
  for(const file of ['GLTFLoader.js','hands.js','bomb.js'])
   assert.ok(html.includes(file),'Game1 script '+file+' must be loaded');
- assert.ok(js.includes('de_dust2_-_cs_map.glb'));
+ assert.ok(js.includes('Desert Crossroads'));
+ assert.ok(!js.includes("loader.load('de_dust2_-_cs_map.glb'"));
  for(const token of ['window.loadGLTFModels','positionGround','tickHold','grenadeEffect',
   'segmentPassesSmoke','aiming','roundSerial','checkElimination','plantBomb'])
   assert.ok(js.includes(token),token);
