@@ -25,6 +25,19 @@
 #statusLine{font-size:11px;opacity:.9;margin-top:10px}#mapStatus{font-size:11px;color:#a8d9be}#frag{position:fixed;right:10px;top:70px;font-size:10px;text-align:right;pointer-events:none}
 @media(max-width:650px){#weapons{bottom:70px;left:51%}#money{font-size:14px}#top{font-size:11px}#top small{font-size:9px}#grenade{right:102px;bottom:138px}#grenadeType{right:191px;bottom:138px}#aim{right:112px;bottom:199px}#hp{bottom:8px;font-size:11px;padding:6px 8px}#weapons button{padding:6px}}
 
+/* Keep buttons responsive when the left thumb stays on the joystick. */
+#hud button,#joystick,#stick{touch-action:none;-webkit-tap-highlight-color:transparent}
+#shopOpen.locked{opacity:.65;background:#374650;border-color:#8795a2}
+#shopHint{position:absolute;left:9px;top:129px;max-width:125px;
+ font-size:10px;line-height:1.2;font-weight:900;color:#fff0c9;
+ background:#1b2836dd;border:1px solid #ffffff40;padding:4px 7px;
+ pointer-events:none;text-shadow:0 1px 3px #000}
+#grenadeEquip{position:absolute;right:234px;bottom:151px;width:56px;height:55px;
+ border-radius:50%;padding:3px;font-size:10px;border:2px solid #9bbaa7;
+ background:#314c43;display:grid;place-items:center;box-shadow:0 3px 9px #0007}
+#grenadeEquip.active{background:#97763c;border-color:#ffdda1}
+@media(max-width:650px){#grenadeEquip{right:233px;bottom:142px}}
+@media(max-height:450px){#grenadeEquip{bottom:128px}}
 /* Mobile-first circular action controls and hold-and-drag weapon selector. */
 #fire,#actionRow button,#grenade,#grenadeType,#aim,#plant,#weaponToggle{
  border-radius:50%;display:grid;place-items:center;text-align:center;padding:0;
@@ -78,7 +91,7 @@
   <div id="message"></div><div id="frag"></div>
   <div id="crosshair">+</div><div id="hp">♥ 100 · USP-S 12/72</div>
   <div id="joystick"><div id="stick"></div></div>
-  <button id="fire">ОГОНЬ</button><button id="plant">ЗАЖМИ · C4 / САПЁР</button><button id="grenadeType">ТИП</button><button id="grenade">БРОСИТЬ</button><button id="aim">ПРИЦЕЛ</button>
+  <button id="fire">ОГОНЬ</button><button id="plant">ЗАЖМИ · C4 / САПЁР</button><button id="grenadeEquip" aria-label="Взять гранату в руки для быстрого бега">ВЗЯТЬ</button><button id="grenadeType">ТИП</button><button id="grenade">БРОСИТЬ</button><button id="aim">ПРИЦЕЛ</button>
   <div id="actionRow"><button id="reload" aria-label="Перезарядка или осмотр">↻</button><button id="crouch" aria-label="Присесть">СЕСТЬ</button><button id="jump" aria-label="Прыгнуть">↑</button></div>
   <button id="weaponToggle" aria-label="Круговой выбор оружия" aria-expanded="false">◉</button>
   <div id="weapons" role="group" aria-label="Круговое меню оружия">
@@ -88,7 +101,7 @@
     <button data-slot="knife" aria-label="Нож">НОЖ</button>
     <button data-slot="primary" aria-label="Основное оружие">АК</button>
   </div>
-  <button id="shopOpen" aria-label="Открыть магазин оружия">🛒 МАГАЗИН</button>
+  <button id="shopOpen" aria-label="Открыть магазин оружия">🛒 МАГАЗИН</button><span id="shopHint" aria-live="off">МАГАЗИН 25с</span>
   <div id="progress"><i></i></div>
 </div>
 <div id="flash"></div><div id="scope"></div>
@@ -100,7 +113,7 @@
     <p><a href="index.html" style="color:#b8d9ec">Командный бой Game1</a> · <a href="../../index.html" style="color:#b8d9ec">GameBlock</a></p>
   </div>
 </section>
-<section id="shop" hidden><div class="card"><h1>МАГАЗИН</h1><p>Только в закладке бомбы оружие покупается за деньги. В командном бою всё бесплатно.</p><b id="shopMoney">$800</b><div id="shopItems" class="shopRows"></div><p id="shopStatus"></p><button id="shopClose">В БОЙ</button></div></section>
+<section id="shop" hidden><div class="card"><h1>МАГАЗИН</h1><p>Магазин доступен только на своей базе первые 25 секунд раунда, включая 10 секунд подготовки. После начала боя можно докупить снаряжение, пока время не вышло и ты на базе.</p><b id="shopMoney">$800</b><div id="shopItems" class="shopRows"></div><p id="shopStatus"></p><button id="shopClose">В БОЙ</button></div></section>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="GLTFLoader.js"></script>
 <script src="hands.js"></script>
