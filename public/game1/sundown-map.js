@@ -38,7 +38,7 @@ const coords=n=>GRID_MIN+n*GRID_STEP;
 const ix=x=>Math.max(0,Math.min(GRID_SIZE-1,Math.round((x-GRID_MIN)/GRID_STEP)));
 function clearSegment(a,b){
   const d=Math.hypot(a.x-b.x,a.z-b.z);
-  for(let t=0;t<=d;t+=.9){
+  for(let t=0;t<=d;t+=.42){
     const r=d?t/d:0;
     if(!free(a.x+(b.x-a.x)*r,a.z+(b.z-a.z)*r))return false;
   }
