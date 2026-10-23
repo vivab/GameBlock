@@ -33,6 +33,14 @@ bombView.rotation.set(-.18,-.21,-.14);
 bombView.scale.setScalar(.85);
 bombView.visible=false;
 camera.add(bombView);
+const grenadeView=new THREE.Group();
+const grenadeMaterial=new THREE.MeshStandardMaterial({color:0x516b42,metalness:.25,roughness:.55});
+grenadeView.add(new THREE.Mesh(new THREE.CylinderGeometry(.105,.12,.27,10),grenadeMaterial));
+const grenadePin=new THREE.Mesh(new THREE.TorusGeometry(.075,.012,6,12),
+ new THREE.MeshStandardMaterial({color:0xc6c0a5,metalness:.75,roughness:.3}));
+grenadePin.position.set(.08,.17,0);grenadePin.rotation.x=Math.PI/2;grenadeView.add(grenadePin);
+grenadeView.position.set(.30,-.30,-.58);grenadeView.rotation.z=-.15;
+grenadeView.visible=false;camera.add(grenadeView);
 // Reuse Game1's entire finger rig, weapon loader, inspect and reload code.
 window.weaponContainer=weaponContainer;
 window.camera=camera;
@@ -174,7 +182,7 @@ function resetPositions(){
  });
  me.yaw=me.side==='ct'?Math.PI:0;
  lookYaw=me.yaw;lookPitch=0;playerY=me.y;verticalSpeed=0;
- aiming=false;stopScope();currentSlot='pistol';crouched=false;progress=0;holdAction=false;
+ aiming=false;stopScope();currentSlot='pistol';grenadeHeld=false;crouched=false;progress=0;holdAction=false;
  activeGrenades.forEach(g=>scene.remove(g.mesh));activeGrenades=[];
  smokes.forEach(s=>scene.remove(s.mesh));smokes=[];
  if(bombObject){scene.remove(bombObject);bombObject=null}
@@ -218,14 +226,16 @@ function equipCurrent(){
   currentSlot==='primary'?me.weapons.primary:
   currentSlot==='knife'?me.weapons.knife:null;
  if(id&&window.HW_set)window.HW_set(id);
- bombView.visible=currentSlot==='bomb';
- if(window.HW_visible)window.HW_visible(currentSlot!=='bomb');
+ bombView.visible=currentSlot==='bomb'&&!grenadeHeld;
+ grenadeView.visible=grenadeHeld;
+ if(window.HW_visible)window.HW_visible(currentSlot!=='bomb'&&!grenadeHeld);
 }
 function setSlot(slot){
  if(!me)return;
  if(slot==='bomb'&&!(me.hasBomb&&me.side==='t'))return false;
  if(slot==='primary'&&!me.weapons.primary)return false;
  currentSlot=slot;
+ grenadeHeld=false;
  stopScope();
  equipCurrent();
  byId('weapons').querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.slot===slot));
@@ -242,6 +252,8 @@ window.GAME_SET=id=>{
    equipCurrent();return;
   }
   currentSlot=def.slot;
+  grenadeHeld=false;
+  grenadeView.visible=false;
   updateHud();
   window.HW_set?.(id);
  }
@@ -250,7 +262,7 @@ function stopScope(){
  if(!aiming)return;
  aiming=false;camera.fov=75;camera.updateProjectionMatrix();byId('scope').style.display='none';
  byId('crosshair').style.visibility='visible';
- if(window.HW_visible)window.HW_visible(currentSlot!=='bomb');
+ if(window.HW_visible)window.HW_visible(currentSlot!=='bomb'&&!grenadeHeld);
 }
 function toggleScope(){
  if(aiming){stopScope();return}
@@ -492,6 +504,7 @@ function addGrenade(type,actor){
  if(!actor.alive||!['live','planted'].includes(game.phase))return;
  if(!actor.grenades[type])return;
  actor.grenades[type]--;
+ if(actor.isPlayer&&grenadeHeld){grenadeHeld=false;equipCurrent();}
  const forward=direction(actor.yaw);
  const to={x:clamp(actor.x+forward.x*8,-46,46),z:clamp(actor.z+forward.z*8,-46,46)};
  const from=new V(actor.x,actor.y+1.4,actor.z);
@@ -749,7 +762,7 @@ function updatePlayer(dt){
  const camH=doCrouch?1.03:1.62;
  camera.position.set(me.x,me.y+camH,me.z);
  camera.rotation.set(lookPitch,lookYaw,0,'YXZ');
- if(firing&&currentSlot!=='bomb'&&game.phase!=='buy')fireGun(me);
+ if(firing&&currentSlot!=='bomb'&&!grenadeHeld&&game.phase!=='buy')fireGun(me);
 }
 function updateHud(){
  if(!me||!game)return;
@@ -761,7 +774,7 @@ function updateHud(){
  byId('shopMoney').textContent='$'+me.money;
  const id=me.weapons[currentSlot],item=BOMB_WEAPONS[id];
  const ammo=me.ammo[id];
- const name=currentSlot==='bomb'?'C4':item?.name||'Пусто';
+ const name=grenadeHeld?'Граната':currentSlot==='bomb'?'C4':item?.name||'Пусто';
  byId('hp').textContent='♥ '+Math.ceil(me.health)+' · '+name+' '+(ammo?ammo.mag+'/'+ammo.reserve:'');
  const bombButton=byId('weapons').querySelector('[data-slot="bomb"]');
  bombButton.textContent=me.hasBomb?'C4':'—';
@@ -785,6 +798,8 @@ function updateHud(){
   nearbyBomb?'САПЁР · '+defuseDuration(me.hasKit)+'с':'';
  byId('grenade').textContent=(selectedGrenade==='he'?'HE':selectedGrenade==='flash'?'FLASH':'SMOKE')+
   ' '+me.grenades[selectedGrenade];
+ byId('grenadeEquip').classList.toggle('active',grenadeHeld);
+ byId('grenadeEquip').textContent=grenadeHeld?'В РУКАХ':'ВЗЯТЬ';
  if(game.finished)byId('message').textContent='МАТЧ ОКОНЧЕН · CT '+game.wins.ct+':'+game.wins.t+' T';
 }
 function screen(dt){
@@ -851,7 +866,7 @@ pointerButton('plant',()=>{holdAction=true;progress=0},()=>{holdAction=false;for
 pointerButton('jump',()=>jumping=true,()=>jumping=false);
 byId('reload').addEventListener('click',()=>{
  const id=me?.weapons[currentSlot],item=BOMB_WEAPONS[id];
- if(!me||!item)return;
+ if(!me||!item||grenadeHeld)return;
  const ammo=me.ammo[id];
  if(item.slot==='knife'||(ammo&&ammo.mag===item.mag)){window.HW_inspect?.();return}
  reloadActor(me,id);
@@ -915,9 +930,18 @@ document.addEventListener('pointerdown',e=>{
 byId('grenade').addEventListener('click',()=>{
  if(me)addGrenade(selectedGrenade,me);
 });
+byId('grenadeEquip').addEventListener('click',()=>{
+ if(!me?.alive)return;
+ if(!me.grenades[selectedGrenade]){setMessage('Сначала купи гранату в магазине',2);return;}
+ grenadeHeld=!grenadeHeld;
+ if(grenadeHeld)stopScope();
+ equipCurrent();updateHud();
+});
 byId('grenadeType').addEventListener('click',()=>{
  const types=['he','flash','smoke'];
  selectedGrenade=types[(types.indexOf(selectedGrenade)+1)%types.length];
+ grenadeMaterial.color.setHex(selectedGrenade==='he'?0x516b42:selectedGrenade==='flash'?0xc8d0ce:0x8196a6);
+ if(!me?.grenades[selectedGrenade]){grenadeHeld=false;equipCurrent();}
  updateHud();
 });
 byId('shopOpen').addEventListener('click',()=>{
