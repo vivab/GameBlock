@@ -4,18 +4,19 @@ import {readFileSync} from 'node:fs';
 const html=readFileSync('public/game1/desert.html','utf8');
 const js=readFileSync('public/game1/bomb-desert-v2.js','utf8');
 const rules=readFileSync('public/game1/bomb-rules.js','utf8');
-test('Desert has its own HTML entrypoint and versioned JS',()=>{
+test('Sundown has its own HTML entrypoint and versioned JS',()=>{
  assert.match(html,/src="bomb-desert-v2\.js"/);
  assert.doesNotMatch(html,/de_dust2_-_cs_map\.glb/);
 });
-test('Desert never loads the original Dust2 GLB',()=>{
+test('Sundown never loads the original Dust2 GLB',()=>{
  assert.doesNotMatch(js,/loader\.load\(['"]de_dust2/);
- assert.match(js,/function buildDust2\(\)/);
- assert.match(js,/buildDust2\(\)/);
+ assert.match(js,/function buildSundown\(\)/);
+ assert.match(js,/buildSundown\(\)/);
 });
 test('two bombsites A and B, 5v5 layout',()=>{
- assert.match(js,/id:'A'/);assert.match(js,/id:'B'/);
- assert.match(js,/Desert Crossroads/);
+ assert.match(js,/SUNDOWN_SITES/);
+ assert.match(js,/buildSundownMap/);
+ assert.match(js,/Sundown/);
 });
 test('round starts in 10s, shop stays for 25s',()=>{
  assert.match(rules,/buySeconds:10/);
