@@ -1,9 +1,9 @@
 import {
  BOMB_RULES,BOMB_WEAPONS,BOMBSHOP_GEAR,makeBombPlayer,
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
- heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke
+ heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildSundownMap,SUNDOWN_SITES,SUNDOWN_SPAWNS,findSundownPath} from './sundown-map.js';
+import {buildSundownMap,SUNDOWN_SITES,SUNDOWN_SPAWNS,findSundownPath,sundownBlocks} from './sundown-map.js';
 
 const THREE=window.THREE;
 console.info('[GameBlock] SUNDOWN: 5v5 map with two bombsites, Mid, Long and B tunnels');
@@ -44,7 +44,7 @@ const obstacles=[];
 let levelMeshes=[],levelBounds=[],mapTop=45;
 const groundCache=new Map();
 let mapLoaded=false,game=null,players=[],me=null;
-let currentSlot='pistol',aiming=false,lookYaw=0,lookPitch=0;
+let currentSlot='pistol',grenadeHeld=false,aiming=false,lookYaw=0,lookPitch=0;
 let selectedGrenade='he',firing=false,jumping=false,crouched=false;
 let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPlantCrouch=false;
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
@@ -192,7 +192,7 @@ function resetPositions(){
  else setMessage('Раунд '+game.round+' · подготовка',2);
  setSlot('pistol');
 }
-function canShop(){return game&&me&&me.alive&&(game.phase==='buy'||game.phase==='live')&&game.shopRemaining>0&&Math.hypot(me.x-(me.side==='ct'?31:-31),me.z-(me.side==='ct'?31:-31))<15;}
+function canShop(){return canUseBombShop(game,me,SUNDOWN_SPAWNS[me?.side]);}
 function buildShop(){
  const container=byId('shopItems');container.replaceChildren();
  for(const [id,entry] of [...Object.entries(BOMB_WEAPONS),...Object.entries(BOMBSHOP_GEAR)]){
@@ -674,8 +674,8 @@ function aiStep(dt){
    const d=Math.hypot(dx,dz);
    // Keep a little distance and strafe, instead of piling into enemies.
    if(d>9)seekBot(bot,{x:target.x+Math.sin(now*.6+botIndex(bot))*4,
-      z:target.z+Math.cos(now*.6+botIndex(bot))*4},dt,2.35);
-   else if(d<4)seekBot(bot,{x:bot.x-dx*.45,z:bot.z-dz*.45},dt,2.1);
+      z:target.z+Math.cos(now*.6+botIndex(bot))*4},dt,bombMoveSpeed(bot.equipped)*.78);
+   else if(d<4)seekBot(bot,{x:bot.x-dx*.45,z:bot.z-dz*.45},dt,bombMoveSpeed(bot.equipped)*.70);
    if(d<35)fireGun(bot);
    if(bot.grenades.he&&d>9&&d<22&&now>(bot.nextGrenade||0)&&Math.random()<dt*.06){
     addGrenade('he',bot);bot.nextGrenade=now+15;
@@ -689,7 +689,7 @@ function aiStep(dt){
        z:clamp(destination.z+rng(-scatter,scatter),-44,44)};
      bot.nextDecision=now+rng(2.5,4.8);
     }
-    seekBot(bot,bot.botGoal,dt,2.7);
+    seekBot(bot,bot.botGoal,dt,bombMoveSpeed(bot.equipped)*.82);
    }
   }
   if(bot.hasBomb&&!game.planted){
@@ -726,16 +726,18 @@ function updatePlayer(dt){
  const sy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)-joy.y;
  const dir=forward.multiplyScalar(sy).addScaledVector(right,sx);
  if(dir.lengthSq()>1)dir.normalize();
- const speed=doCrouch?2.1:aiming?2.45:4.3;
+ const weaponId=currentSlot==='bomb'?'bomb':me.weapons[currentSlot];
+ const speed=bombMoveSpeed(weaponId,{crouched:doCrouch,aiming,grenadeHeld});
  if(game.phase!=='buy'){
   const dist=dir.length()*speed*dt;
   if(dist>.001){
-   const proposed=new V(me.x,me.y+1.1,me.z);
-   const ray=new THREE.Raycaster(proposed,dir.clone().normalize(),.05,dist+.32);
-   const blocked=levelHits(ray)[0];
-   if(!blocked||blocked.distance>dist+.26){
-    me.x=clamp(me.x+dir.x*speed*dt,-46,46);
-    me.z=clamp(me.z+dir.z*speed*dt,-46,46);
+   // Slide along walls with independently resolved axes, also during reload.
+   const nx=clamp(me.x+dir.x*speed*dt,-46,46);
+   const nz=clamp(me.z+dir.z*speed*dt,-46,46);
+   if(!sundownBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
+   else {
+    if(!sundownBlocks(nx,me.z,.40))me.x=nx;
+    if(!sundownBlocks(me.x,nz,.40))me.z=nz;
    }
   }
  }
@@ -766,8 +768,14 @@ function updateHud(){
  bombButton.classList.toggle('unavailable',!me.hasBomb||me.side!=='t');
  byId('weapons').querySelector('[data-slot="primary"]')
   .classList.toggle('unavailable',!me.weapons.primary);
- byId('shopOpen').style.display=canShop()?'grid':'none';
- if(!canShop())byId('shop').hidden=true;
+ const shopAvailable=canShop();
+ byId('shopOpen').classList.toggle('locked',!shopAvailable);
+ byId('shopOpen').setAttribute('aria-disabled',String(!shopAvailable));
+ byId('shopOpen').title=shopAvailable?'Магазин · '+Math.ceil(game.shopRemaining)+' сек':
+  game.shopRemaining<=0?'Закупка закончилась':'Магазин доступен только на своей базе';
+ byId('shopHint').textContent=shopAvailable?'МАГАЗИН '+Math.ceil(game.shopRemaining)+'с':
+  game.shopRemaining>0?'МАГАЗИН · НА БАЗЕ':'ЗАКУПКА ЗАКРЫТА';
+ if(!shopAvailable)byId('shop').hidden=true;
  byId('aim').style.display=item?.scope&&me.alive?'block':'none';
  const nearbySite=me.side==='t'&&me.hasBomb&&!!findSite(me.x,me.z)&&game.phase==='live';
  const nearbyBomb=me.side==='ct'&&game.planted&&game.bombPosition&&
@@ -782,9 +790,8 @@ function updateHud(){
 function screen(dt){
  if(!game)return;
  const result=tickBombClock(game,dt,players);
- if(result==='round-start'||result==='next-round'){
-  byId('shop').hidden=true;
- }
+ // Shop stays open when live play starts; availability is 25 seconds total.
+ if(result==='next-round')byId('shop').hidden=true;
  if(result==='next-round'){
   resetPositions();buildShop();roundSerial=game.round;
   setMessage(game.round===10?'СМЕНА СТОРОН · раунд 10':'Новый раунд · старт через 10 секунд',4);
@@ -913,7 +920,10 @@ byId('grenadeType').addEventListener('click',()=>{
  selectedGrenade=types[(types.indexOf(selectedGrenade)+1)%types.length];
  updateHud();
 });
-byId('shopOpen').addEventListener('click',()=>{if(canShop()){byId('shop').hidden=false;buildShop()}});
+byId('shopOpen').addEventListener('click',()=>{
+ if(canShop()){byId('shop').hidden=false;buildShop();byId('shopStatus').textContent='Только на базе · ещё '+Math.ceil(game.shopRemaining)+' сек';}
+ else setMessage(game.shopRemaining<=0?'25 секунд закупки закончились':'Магазин работает только на своей базе',2);
+});
 byId('shopClose').addEventListener('click',()=>byId('shop').hidden=true);
 byId('choose').querySelectorAll('[data-team]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.team)));
 const zone=byId('joystick'),stick=byId('stick');
