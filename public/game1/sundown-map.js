@@ -8,15 +8,25 @@ export const SUNDOWN_SITES = Object.freeze([
 export const SUNDOWN_SPAWNS = Object.freeze({
   t:{x:0,z:-37},ct:{x:0,z:38}
 });
+// Hollow rooms have four thick stone wall sections and two opposite doorways.
+// Flat playable interiors, not solid meshes with fake entrances.
+export function sundownCourtyard(cx,cz,w,d,h,type){
+ const t=1.2,gap=4.8,segment=(d-gap-2*t)/2;
+ return [
+  [cx,cz-(d-t)/2,w,t,h,type],[cx,cz+(d-t)/2,w,t,h,type],
+  ...[-1,1].flatMap(sx=>[-1,1].map(sz=>[
+    cx+sx*(w-t)/2,cz+sz*(gap/2+segment/2),t,segment,h,type]))
+ ];
+}
 // x,z,width,depth,height,material index. Lanes: left B tunnels, central Mid,
 // right A Long, Mid->A Short and Mid->B Connector.
 // Buildings are deliberately separated: no sealed courtyards or invisible gates.
 export const SUNDOWN_SOLIDS = Object.freeze([
   [-49,0,2,100,7,2],[49,0,2,100,7,2],[0,-49,100,2,7,2],[0,49,100,2,7,2],
-  [-23,-22,19,13,6.5,0],[-23,0,17,18,7,1],[-15,26,9,11,6.3,0],
+  ...sundownCourtyard(-23,-22,19,13,6.5,0),...sundownCourtyard(-23,0,17,18,7,1),[-15,26,9,11,6.3,0],
   [-6,-27,7,10,5.5,1],[-8,-7,10,10,6.8,0],[-7,13,8,9,5.8,1],
   [-11,35,13,7,6,0],
-  [22,-23,17,14,6.6,0],[24,0,16,19,7.4,1],[13,16,8,12,6.4,0],
+  ...sundownCourtyard(22,-23,17,14,6.6,0),...sundownCourtyard(24,0,16,19,7.4,1),[13,16,8,12,6.4,0],
   [13,34,14,7,5.8,1],[8,-7,10,10,6.7,0],[6,7,7,8,6,1],
   [0,27,8,7,6.1,0],
   // Waist-high boxes. Do not put props in the exact plant markers or spawns.
@@ -27,13 +37,18 @@ export const SUNDOWN_SOLIDS = Object.freeze([
   [37,-12,2.2,2.3,1.4,3],[38,-32,2.3,2.3,1.45,3],
   [24,12,2.1,2.1,1.5,3],
   [0,-17,2.2,2.2,1.5,3],[0,15,2.2,2.2,1.5,3],
-  [-33,-4,2.1,2.1,1.45,3],[33,-3,2.1,2.1,1.5,3]
+  [-33,-4,2.1,2.1,1.45,3],[33,-3,2.1,2.1,1.5,3],
+  // Interior shelves, broken masonry and boxes offer real close-range cover.
+  [-24,-24,2.1,2.2,1.6,3],[-21,1,2.4,2.2,1.3,3],
+  [22,-25,2.1,2.0,1.55,3],[26,2,2.2,2.2,1.4,3],
+  [-43,14,2,2,1.2,3],[43,14,2,2,1.2,3],
+  [-33,-36,2,2,1.3,3],[33,-37,2,2,1.3,3]
 ]);
 const GRID_STEP=2.5,GRID_MIN=-45,GRID_SIZE=37;
 const clearance=.62;
-const solidAt=(x,z,pad=clearance)=>SUNDOWN_SOLIDS.some(([cx,cz,w,d,h])=>
+export const sundownBlocks=(x,z,pad=clearance)=>SUNDOWN_SOLIDS.some(([cx,cz,w,d,h])=>
   h>1&&Math.abs(x-cx)<w/2+pad&&Math.abs(z-cz)<d/2+pad);
-const free=(x,z)=>Math.abs(x)<47&&Math.abs(z)<47&&!solidAt(x,z);
+const free=(x,z)=>Math.abs(x)<47&&Math.abs(z)<47&&!sundownBlocks(x,z);
 const coords=n=>GRID_MIN+n*GRID_STEP;
 const ix=x=>Math.max(0,Math.min(GRID_SIZE-1,Math.round((x-GRID_MIN)/GRID_STEP)));
 function clearSegment(a,b){
@@ -152,6 +167,61 @@ export function buildSundownMap(THREE,root){
       }
     }
   }
+  // Pillars, doorways, and interior decoration built on the OPEN courtyards.
+  // Interior low details never close the doorways; walls above are real solid.
+  const archStone=new THREE.MeshLambertMaterial({color:0xd9b88e});
+  const archDark=new THREE.MeshLambertMaterial({color:0x5d4937});
+  const flower=new THREE.MeshLambertMaterial({color:0x9c7148});
+  for(const [x,z,w,d,h] of [
+    [-23,-22,19,13,6.5],[-23,0,17,18,7],
+    [22,-23,17,14,6.6],[24,0,16,19,7.4]]){
+    for(const edge of [-1,1]){
+      const xx=x+edge*(w/2-.4);
+      // Visible arch shape around the walkable 4.8m-wide side entrance.
+      meshBox(xx,h-1,z,.5,2.0,5.0,archStone);
+      meshBox(xx,3.4,z-2.5,.55,2.8,.55,trim);
+      meshBox(xx,3.4,z+2.5,.55,2.8,.55,trim);
+    }
+    // Open roof atrium; small ceiling beams do not occlude the camera.
+    for(const dz of [-d/2+2,d/2-2])
+      meshBox(x,5.5,z+dz,w-2,.19,.3,trim);
+    for(const xx of [x-3,x+3]){
+      meshBox(xx,.45,z,1.5,.9,.85,archDark);
+      meshBox(xx,1.0,z,1.6,.14,.95,flower);
+    }
+  }
+  // Alley lanterns, plaster trims and colored hanging banners improve orientation.
+  const brass=new THREE.MeshLambertMaterial({color:0x67543e});
+  const amber=new THREE.MeshBasicMaterial({color:0xe7bd7a});
+  for(const [x,z] of [[-41,-19],[-42,5],[-41,27],[40,-20],[42,2],[41,27],[-3,20],[4,-19]]){
+    meshBox(x,3.15,z,.12,5.9,.12,brass);
+    meshBox(x,6.03,z,.5,.23,.5,trim);
+    meshBox(x,5.72,z,.33,.55,.33,amber);
+  }
+  const banners=[
+    [-36,24,0x5c7185],[-35,-14,0xb06a4e],[37,23,0xb04e3b],
+    [35,-14,0xa06a43],[-2,20,0x637d6d],[3,-24,0xae6b49]
+  ];
+  for(const [x,z,color] of banners){
+    meshBox(x,4.1,z,.10,1.7,1.15,new THREE.MeshLambertMaterial({color,side:THREE.DoubleSide}));
+  }
+  // Three visible themed areas, with paint rather than extra collision.
+  const sign=(name,x,z,rotation=0)=>{
+    if(typeof document==='undefined')return;
+    const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;
+    const c=canvas.getContext('2d');if(!c)return;
+    c.fillStyle='#3b332c';c.fillRect(0,0,512,128);
+    c.strokeStyle='#d9c29a';c.lineWidth=8;c.strokeRect(4,4,504,120);
+    c.fillStyle='#eee0c6';c.font='bold 67px sans-serif';c.textAlign='center';
+    c.fillText(name,256,87);
+    const material=new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(canvas),side:THREE.DoubleSide});
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(4.6,1.15),material);
+    mesh.position.set(x,4.5,z);mesh.rotation.y=rotation;root.add(mesh);
+  };
+  sign('B TUNNELS',-38,-9);
+  sign('MID',0,11);
+  sign('A LONG',39,-9,Math.PI/2);
+  sign('SHORT',10,26);
   // Pillars and overhead timber visually identify the two B-tunnel entrances.
   // Their spans are above eye height, and no decorative mesh is a hidden blocker.
   for(const z of [-9,4]){
