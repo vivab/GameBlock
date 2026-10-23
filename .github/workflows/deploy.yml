@@ -42,6 +42,12 @@ jobs:
           test -s public/game1/bomb.js
       - run: npm test
       - run: npm run build
+      - name: Assert custom 5v5 map is present in published artifact
+        run: |
+          test -s dist/game1/desert.html
+          test -s dist/game1/bomb-desert-v2.js
+          grep -q 'bomb-desert-v2.js' dist/game1/desert.html
+          ! grep -q "loader.load('de_dust2" dist/game1/bomb-desert-v2.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
