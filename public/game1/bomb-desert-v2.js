@@ -864,12 +864,23 @@ function pointerButton(el,down,up){
 pointerButton('fire',()=>firing=true,()=>firing=false);
 pointerButton('plant',()=>{holdAction=true;progress=0},()=>{holdAction=false;forcedPlantCrouch=false;progress=0});
 pointerButton('jump',()=>jumping=true,()=>jumping=false);
-byId('reload').addEventListener('click',()=>{
+// Use pointer-down for mobile: the right thumb can reload while the left
+// thumb continuously holds the joystick (no click/gesture delay).
+function reloadOrInspect(){
  const id=me?.weapons[currentSlot],item=BOMB_WEAPONS[id];
  if(!me||!item||grenadeHeld)return;
  const ammo=me.ammo[id];
  if(item.slot==='knife'||(ammo&&ammo.mag===item.mag)){window.HW_inspect?.();return}
  reloadActor(me,id);
+}
+let lastTouchReload=-1000;
+const reloadButton=byId('reload');
+reloadButton.addEventListener('pointerdown',e=>{
+ if(e.pointerType==='mouse')return;
+ e.preventDefault();lastTouchReload=performance.now();reloadOrInspect();
+});
+reloadButton.addEventListener('click',()=>{
+ if(performance.now()-lastTouchReload>180)reloadOrInspect();
 });
 byId('crouch').addEventListener('click',()=>{
  crouched=!crouched;byId('crouch').style.background=crouched?'#7b8648':'';
