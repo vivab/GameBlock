@@ -83,6 +83,15 @@ function refreshLevelCollision(){
 function buildItaly(){
  byId('mapStatus').textContent='Загружаем готовую карту Italy (11 МБ)…';
  buildItalyMap(THREE,levelRoot).then(({floor,obstacles:solids,meshCount})=>{
+  // Never enable a match with white, textureless geometry. Every GLB mesh
+  // ships with a 1024px baked atlas; missing atlases mean an incompatible loader.
+  const meshes=[floor,...solids];
+  const textured=meshes.filter(mesh=>{
+   const mats=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+   return mats.some(mat=>mat?.map?.image?.width>0);
+  }).length;
+  console.info('[GameBlock] Italy textured meshes:',textured,'/',meshes.length);
+  if(textured<12)throw new Error('Текстуры Italy не загрузились ('+textured+'/'+meshes.length+'). Обнови страницу.');
   obstacles.push(...solids);
   levelMeshes=[floor,...obstacles];mapTop=20;refreshLevelCollision();
   mapLoaded=true;

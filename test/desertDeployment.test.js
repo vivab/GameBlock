@@ -33,3 +33,14 @@ test('the 3D model creator is attributed in the UI',()=>{
  assert.match(html,/Neo_minigan/);
  assert.match(html,/CC BY 4\.0/);
 });
+
+test('glTF loader matches the r128 renderer and supports baked Italy texture atlases',()=>{
+ const loader=readFileSync('public/game1/GLTFLoader.js','utf8');
+ assert.match(html,/three\.js\/r128\/three\.min\.js/);
+ assert.match(html,/GLTFLoader\.js\?v=italy-r128-textures-/);
+ assert.match(loader,/class GLTFMaterialsUnlitExtension/);
+ assert.match(loader,/THREE\.sRGBEncoding/);
+ assert.doesNotMatch(loader,/class GLTFMaterialsSheenExtension/);
+ assert.match(code,/Italy textured meshes:/);
+ assert.match(code,/if\(textured<12\)/);
+});
