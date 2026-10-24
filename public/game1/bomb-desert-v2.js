@@ -3,7 +3,7 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround} from './italy-import-map.js?v=italy-bright-20261024';
+import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround,italyCanTraverse} from './italy-import-map.js?v=italy-nav-halfmeter-20261024';
 import {italyRole,italySafePoint,italyRouteGates,italyPickCover,italyLeadThreat} from './italy-tactics.js';
 
 const THREE=window.THREE;
@@ -135,8 +135,8 @@ function levelHits(ray){
   : levelMeshes;
  return candidates.length?ray.intersectObjects(candidates,false):[];
 }
-// New map is deliberately flat: player, bots and C4 always stand at Y=0.
-// Never raycast onto crate tops or rooftops as if they were the ground.
+// Read the actual half-metre mesh floor height, including stairs and sloped streets.
+// Avoid stepping onto disconnected roofs or onto decorative crate tops.
 function positionGround(x,z,fromY=45){return italyGround(x,z);}
 function refreshLevelCollision(){
  groundCache.clear();
@@ -158,7 +158,7 @@ function buildItaly(){
   obstacles.push(...solids);
   levelMeshes=[floor,...obstacles];mapTop=20;refreshLevelCollision();
   mapLoaded=true;
-  onMapReady('ITALY GLB · A: РЫНОК · B: ВИННЫЙ ДВОР · '+meshCount+' частей');
+  onMapReady('ITALY GLB · A: РЫНОК · B: ЗАПАДНЫЙ ДВОР · '+meshCount+' частей');
  }).catch(error=>{
   console.error('Italy map loading failed',error);
   byId('mapStatus').textContent='Ошибка загрузки Italy: '+(error?.message||error);
@@ -210,7 +210,7 @@ function respawnActor(actor,index){
  const spawn=ITALY_SPAWN_POINTS[actor.side][row];
  actor.x=spawn[0];actor.z=spawn[1];
  actor.y=positionGround(actor.x,actor.z,mapTop+5);
- actor.yaw=isCt?Math.PI:0;
+ actor.yaw=isCt?0:Math.PI;
  actor.health=100;actor.alive=true;actor.target=null;actor.travel=0;actor.actionTime=0;
  actor.hasPlanted=false;actor.reloadingUntil=0;actor.lastShot=-10;actor.botGoal=null;
  actor.nextDecision=0;actor.flashUntil=0;actor.walkPhase=0;actor.mapRoute=null;
@@ -250,10 +250,12 @@ function resetPositions(){
    p.role=italyRole(p.side,botIndex(p),game.round,teamSeeds[p.side]);
    p.routeVariant=Math.floor(Math.random()*3);
    p.order=null;p.mapRoute=null;p.visionCheckAt=0;p.nextPeek=0;
+   // Spread heavy path-search work over the first second, instead of one mobile frame.
+   p.routePlanAt=performance.now()/1000+(botIndex(p)+(p.side==='t'?5:0))*.105;
   }
   if(!p.isPlayer&&p.mesh){p.mesh.visible=true;p.mesh.position.set(p.x,p.y,p.z)}
  });
- me.yaw=me.side==='ct'?Math.PI:0;
+ me.yaw=me.side==='ct'?0:Math.PI;
  lookYaw=me.yaw;lookPitch=0;targetLookYaw=lookYaw;targetLookPitch=0;
   smoothJoy.x=smoothJoy.y=0;moveVelocity.x=moveVelocity.z=0;
   playerY=me.y;verticalSpeed=0;
@@ -727,7 +729,7 @@ function createBotOrder(bot,now){
    const hunter=fighters.length?fighters[game.round%fighters.length]:null;
    if(bot===hunter){
     // A rotating hunter searches CT approaches while others protect C4.
-    const hunt=intel||{x:enemyHome.x,z:enemyHome.z+13};
+    const hunt=intel||{x:enemyHome.x,z:enemyHome.z-(enemyHome.z>0?13:-13)};
     via(lane,hunt);order.mode='hunt';order.hold=rng(2,5);
    }else if(role==='flank'||role==='lurk'){
     const place=coverFor(bot,planted,index+4);
@@ -807,10 +809,12 @@ function followBotOrder(bot,now,dt){
  }
 }
 function passableStep(bot,x,z){
- if(italyBlocks(x,z,.34)||Math.abs(positionGround(x,z)-positionGround(bot.x,bot.z))>.78)return false;
- const from=new V(bot.x,bot.y+1.12,bot.z);
- const to=new V(x,positionGround(x,z,bot.y+1.35)+1.12,z);
- return groundLOS(from,to);
+ const y0=positionGround(bot.x,bot.z),y1=positionGround(x,z);
+ const elevation=y1-y0;
+ // The nav edge mask comes from torso-height rays against the ORIGINAL GLB.
+ // Stairs and ramps are legal; a genuine wall or a huge vertical drop is not.
+ return elevation<1.02&&elevation> -1.55&&
+  italyCanTraverse({x:bot.x,z:bot.z},{x,z},.12);
 }
 function seekBot(bot,goal,dt,speed){
  const now=performance.now()/1000;
@@ -825,8 +829,10 @@ function seekBot(bot,goal,dt,speed){
  if(!blocked){bot.detour=null;bot.mapRoute=null;}
  else {
    if(!bot.mapRoute||!bot.mapRoute.length||now>(bot.routePlanUntil||0)){
+     if(now<(bot.routePlanAt||0))return;
      bot.mapRoute=findItalyPath({x:bot.x,z:bot.z},goal);
-     bot.routePlanUntil=now+1.8;
+     bot.routePlanUntil=now+2.25+botIndex(bot)*.22;
+     bot.routePlanAt=now+.18;
    }
    while(bot.mapRoute?.length&&
      Math.hypot(bot.mapRoute[0].x-bot.x,bot.mapRoute[0].z-bot.z)<1.35)
@@ -850,7 +856,9 @@ function seekBot(bot,goal,dt,speed){
   bot.stepPassable=passableStep(bot,x,z);
   bot.stepCheckAt=now+.085;
  }
- if(!bot.stepPassable){
+ // Fine-grid masks are cheap enough to enforce every frame; prevent wall skipping
+ // between slower, expensive tactical route re-plans.
+ if(!italyCanTraverse({x:bot.x,z:bot.z},{x,z},.10)||!bot.stepPassable){
   bot.routeCheck=0;bot.detour=null;bot.stepCheckAt=0;
   // Don't walk through meshes: try a short legal strafe or hold position.
   const side=botIndex(bot)%2?1:-1;
@@ -860,9 +868,7 @@ function seekBot(bot,goal,dt,speed){
   x=nx;z=nz;
  }
  bot.x=x;bot.z=z;
- if(now>=(bot.floorCheckAt||0)){
-  bot.y=positionGround(x,z,bot.y+1.35);bot.floorCheckAt=now+.12;
- }
+ bot.y=positionGround(x,z); // Stay attached to each stair tread and ramp.
  bot.yaw=Math.atan2(-dx,-dz);
  bot.walkPhase+=dt*9;
 }
@@ -959,8 +965,13 @@ function updatePlayer(dt){
   // Independent wall sliding remains active during reload and inspection.
   const nx=clamp(me.x+moveVelocity.x*dt,-34,34);
   const nz=clamp(me.z+moveVelocity.z*dt,-61,61);
-  const canWalk=(x,z)=>!italyBlocks(x,z,.38)&&
-   Math.abs(positionGround(x,z)-positionGround(me.x,me.z))<=.78;
+  const canWalk=(x,z)=>{
+   const current=positionGround(me.x,me.z),next=positionGround(x,z);
+   const elevation=next-current;
+   // Both the player and bots use the same real-geometry collision edges.
+   return elevation<1.02&&elevation> -1.55&&
+    italyCanTraverse({x:me.x,z:me.z},{x,z},.12);
+  };
   if(canWalk(nx,nz)){me.x=nx;me.z=nz;}
   else {
    if(canWalk(nx,me.z))me.x=nx;else moveVelocity.x=0;

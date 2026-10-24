@@ -1,17 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {ITALY_SOURCE,ITALY_NAV_STATS,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,italyBlocks,italyGround,findItalyPath} from '../public/game1/italy-import-map.js';
+import {ITALY_SOURCE,ITALY_NAV_STATS,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,italyBlocks,italyGround,italyCanTraverse,italyReachable,findItalyPath} from '../public/game1/italy-import-map.js';
 
 const glb=readFileSync('public/game1/cs_italy_with_real_light.glb');
-const noWall=(a,b)=>{
- const distance=Math.hypot(a.x-b.x,a.z-b.z);
- for(let t=0;t<=distance;t+=.1){
-  const k=distance?t/distance:0;
-  if(italyBlocks(a.x+(b.x-a.x)*k,a.z+(b.z-a.z)*k,.24))return false;
- }
- return !italyBlocks(b.x,b.z,.24);
-};
+const noWall=(a,b)=>italyCanTraverse(a,b,.10);
+
 test('uploaded Italy is a real textured GLB with full attribution',()=>{
  assert.equal(glb.toString('utf8',0,4),'glTF');
  assert.equal(glb.readUInt32LE(4),2);
@@ -29,7 +23,13 @@ test('both bombsites and all T/CT spawns are on the actual ground',()=>{
  assert.deepEqual(ITALY_SITES.map(s=>s.id),['A','B']);
  assert.ok(Math.hypot(ITALY_SITES[0].x-ITALY_SITES[1].x,ITALY_SITES[0].z-ITALY_SITES[1].z)>35);
  assert.ok(Math.hypot(ITALY_SPAWNS.ct.x-ITALY_SPAWNS.t.x,ITALY_SPAWNS.ct.z-ITALY_SPAWNS.t.z)>70);
- assert.equal(ITALY_NAV_STATS.freeCells,1982);
+ assert.equal(ITALY_NAV_STATS.step,.5);
+ assert.equal(ITALY_NAV_STATS.freeCells,15437);
+ assert.equal(ITALY_NAV_STATS.reachableCells,10403);
+ assert.deepEqual(ITALY_SPAWNS.ct,{x:-11,z:46});
+ assert.deepEqual(ITALY_SPAWNS.t,{x:-11,z:-49});
+ assert.deepEqual(ITALY_SITES[1].id,'B');
+ assert.equal(ITALY_SITES[1].z,-21);
  for(const p of [...ITALY_SITES,...Object.values(ITALY_SPAWNS)]){
   assert.equal(italyBlocks(p.x,p.z,.38),false);
   assert.ok(Number.isFinite(italyGround(p.x,p.z)));
@@ -49,4 +49,13 @@ test('both teams can navigate to both sites without crossing geometry',()=>{
    assert.ok(Math.hypot(p.x-site.x,p.z-site.z)<.001);
   }
  }
+});
+
+test('steep Italy staircase and ramp segments are passable without invisible barriers',()=>{
+ const a={x:-2,z:22.5},b={x:-1.5,z:22.5};
+ assert.equal(italyReachable(a.x,a.z),true);
+ assert.equal(italyReachable(b.x,b.z),true);
+ assert.ok(italyGround(b.x,b.z)-italyGround(a.x,a.z)>.8,'real steep tread');
+ assert.equal(italyCanTraverse(a,b,.10),true,'ramp must not be an invisible wall');
+ assert.equal(italyCanTraverse(b,a,.10),true,'stairs must work in both directions');
 });

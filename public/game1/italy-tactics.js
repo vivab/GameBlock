@@ -1,6 +1,6 @@
 // GameBlock Italy — mobile-friendly tactical squad planner.
 // Uses the actual rasterized walkable GLB surface. Never targets blocked geometry.
-import {italyBlocks,italyGround,findItalyPath,ITALY_SPAWNS} from './italy-import-map.js?v=italy-bright-20261024';
+import {italyBlocks,italyGround,findItalyPath,ITALY_SPAWNS,italyReachable} from './italy-import-map.js?v=italy-nav-halfmeter-20261024';
 
 export const CT_ROLES=Object.freeze(['anchorA','anchorB','push','rotate','ambush']);
 export const T_ROLES=Object.freeze(['entry','escort','flank','lurk','support']);
@@ -10,14 +10,14 @@ export function italyRole(side,index,round=1,teamSeed=0){
 }
 export function italySafePoint(x,z,maxRadius=12){
  if(!Number.isFinite(x+z))return null;
- if(!italyBlocks(x,z,.38))return {x,z};
- const bx=Math.round(x),bz=Math.round(z);
- for(let radius=1;radius<=maxRadius;radius++){
+ if(!italyBlocks(x,z,.15)&&italyReachable(x,z))return {x,z};
+ const bx=Math.round(x*2)/2,bz=Math.round(z*2)/2;
+ for(let ring=1;ring<=maxRadius*2;ring++){
   let best=null,score=Infinity;
-  for(let dz=-radius;dz<=radius;dz++)for(let dx=-radius;dx<=radius;dx++){
-   if(Math.max(Math.abs(dx),Math.abs(dz))!==radius)continue;
-   const nx=bx+dx,nz=bz+dz;
-   if(italyBlocks(nx,nz,.38))continue;
+  for(let dz=-ring;dz<=ring;dz++)for(let dx=-ring;dx<=ring;dx++){
+   if(Math.max(Math.abs(dx),Math.abs(dz))!==ring)continue;
+   const nx=bx+dx*.5,nz=bz+dz*.5;
+   if(italyBlocks(nx,nz,.12)||!italyReachable(nx,nz))continue;
    const d=(nx-x)**2+(nz-z)**2;
    if(d<score){best={x:nx,z:nz};score=d}
   }
@@ -27,12 +27,13 @@ export function italySafePoint(x,z,maxRadius=12){
 }
 // Opposite-sided gates form alternate routes through Italy's real alleys.
 const ROUTE_GATES=Object.freeze({
- t:Object.freeze({
+ // CT begin at the former T end of Italy; T advance from the old CT end.
+ ct:Object.freeze({
   west:[[-17,31],[-16,11],[-23,-12]],
   middle:[[-11,29],[-10,10],[-2,-15]],
   east:[[-11,32],[-2,12],[14,-8]]
  }),
- ct:Object.freeze({
+ t:Object.freeze({
   west:[[-16,-44],[-23,-28],[-23,-12]],
   middle:[[-11,-42],[-7,-27],[0,-14]],
   east:[[2,-44],[16,-32],[17,-11]]

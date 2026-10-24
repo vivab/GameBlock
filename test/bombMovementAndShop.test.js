@@ -39,7 +39,8 @@ test('reload does not gate movement and mobile controls expose shop/grenade',()=
  const src=readFileSync('public/game1/bomb-desert-v2.js','utf8');
  const html=readFileSync('public/game1/desert.html','utf8');
  assert.match(src,/bombMoveSpeed\(weaponId,\{crouched:doCrouch,aiming,grenadeHeld\}\)/);
- assert.match(src,/const canWalk=\(x,z\)=>!italyBlocks\(x,z,\.38\)/);
+ assert.match(src,/const canWalk=\(x,z\)=>\{/);
+ assert.match(src,/italyCanTraverse\(\{x:me\.x,z:me\.z\},\{x,z\},\.12\)/);
  assert.doesNotMatch(src,/if\(!actor\.reloadingUntil\).*?updatePlayer\(/s);
  assert.match(src,/if\(result==='next-round'\)byId\('shop'\)\.hidden=true/);
  assert.match(html,/id="shopOpen"/);

@@ -25,7 +25,8 @@ test('joystick, camera and velocity have distinct easing states',()=>{
  assert.match(code,/smoothJoy\.x=smoothJoy\.y=0;moveVelocity\.x=moveVelocity\.z=0/);
 });
 test('mobile movement still slides on walls and does not pause for reload',()=>{
- assert.match(code,/const canWalk=\(x,z\)=>!italyBlocks\(x,z,\.38\)/);
+ assert.match(code,/const canWalk=\(x,z\)=>\{/);
+ assert.match(code,/italyCanTraverse\(\{x:me\.x,z:me\.z\},\{x,z\},\.12\)/);
  assert.match(code,/function reloadOrInspect\(\)/);
  assert.match(code,/reloadButton\.addEventListener\('pointerdown'/);
  assert.doesNotMatch(code,/if\(!actor\.reloadingUntil\).*?updatePlayer\(/s);

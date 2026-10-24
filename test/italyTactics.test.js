@@ -69,4 +69,5 @@ test('bot decisions support postplant hold/hunt, CT retake and remembered sighti
  assert.match(code,/order\.mode='flank-guard'/);
  assert.match(code,/teamIntel\[bot\.side\]=\{x:target\.x,z:target\.z,seenAt:now\}/);
  assert.match(code,/groundLOS\(from,to\)/);
+ assert.match(code,/italyCanTraverse\(\{x:bot\.x,z:bot\.z\},\{x,z\},\.12\)/);
 });
