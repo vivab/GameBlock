@@ -3,19 +3,19 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildSundownMap,SUNDOWN_SITES,SUNDOWN_SPAWNS,findSundownPath,sundownBlocks} from './sundown-map.js';
+import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,findItalyPath,italyBlocks} from './italy-map.js';
 
 const THREE=window.THREE;
-console.info('[GameBlock] SUNDOWN: 5v5 map with two bombsites, Mid, Long and B tunnels');
+console.info('[GameBlock] ITALIA: 5v5 map with two bombsites, Mid, Long and B tunnels');
 const byId=id=>document.getElementById(id);
 const V=THREE.Vector3;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const rng=(a,b)=>a+Math.random()*(b-a);
 const rad=Math.PI/180;
 const scene=new THREE.Scene();
-scene.background=new THREE.Color('#a4b2c0');
-scene.fog=new THREE.Fog(0xa9bdc7,100,210);
-// Less glare on the de_dust2 masonry: the old 2.2 + 2.1 lights washed it white.
+scene.background=new THREE.Color('#adc6d8');
+scene.fog=new THREE.Fog(0xb2c5cc,115,230);
+// Less glare on the de_dust2 masonry: the warm daylight keeps facades readable.
 scene.add(new THREE.HemisphereLight(0xe8ecf1,0x6b6358,.72));
 const light=new THREE.DirectionalLight(0xffd7a3,.9);light.position.set(25,60,-25);scene.add(light);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,190);
@@ -58,7 +58,7 @@ let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPl
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
 const joy={x:0,y:0,id:null},keys=new Set(),pointers=new Map();
 let activeGrenades=[],smokes=[],bombObject=null,bombDropObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
-const SITES=SUNDOWN_SITES.map(site=>({...site}));
+const SITES=ITALY_SITES.map(site=>({...site}));
 const levelRoot=new THREE.Group();scene.add(levelRoot);
 // Limit raycasting to the meshes whose bounding boxes the ray can reach.
 // This avoids costly full-map triangle queries for every AI movement step.
@@ -76,13 +76,13 @@ function refreshLevelCollision(){
  groundCache.clear();
  levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
 }
-// Sundown is an original 3D desert-city layout. Every solid is a raycast blocker.
-function buildSundown(){
- byId('mapStatus').textContent='Строим карту SUNDOWN 5v5…';
- const {floor,obstacles:solids}=buildSundownMap(THREE,levelRoot);
+// Italia is an original 3D Italian village layout. Every solid is a raycast blocker.
+function buildItaly(){
+ byId('mapStatus').textContent='Строим улицы Италии · ITALIA 5v5…';
+ const {floor,obstacles:solids}=buildItalyMap(THREE,levelRoot);
  obstacles.push(...solids);
- levelMeshes=[floor,...obstacles];mapTop=9;refreshLevelCollision();
- mapLoaded=true;onMapReady('SUNDOWN · A / B · MID · LONG · SHORT · ТОННЕЛИ');
+ levelMeshes=[floor,...obstacles];mapTop=18;refreshLevelCollision();
+ mapLoaded=true;onMapReady('ITALIA · A: РЫНОК · B: ВИННЫЙ ДВОР · МИД · ДОМА');
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
@@ -102,7 +102,7 @@ function onMapReady(message){
   sprite.position.set(site.x,y+4,site.z);sprite.scale.set(3,3,1);scene.add(sprite);
  }
 }
-buildSundown();
+buildItaly();
 const materials={
  ct:new THREE.MeshStandardMaterial({color:0x325675,roughness:.85}),
  t:new THREE.MeshStandardMaterial({color:0x77713d,roughness:.9}),
@@ -140,7 +140,7 @@ function makeSoldier(actor){
 }
 function respawnActor(actor,index){
  const isCt=actor.side==='ct',row=index%5;
- const spawn=SUNDOWN_SPAWNS[actor.side];
+ const spawn=ITALY_SPAWNS[actor.side];
  actor.x=spawn.x+(row-2)*1.7;
  actor.z=spawn.z+((index%2)?1:-1)*.85;
  actor.y=positionGround(actor.x,actor.z,mapTop+5);
@@ -200,7 +200,7 @@ function resetPositions(){
  else setMessage('Раунд '+game.round+' · подготовка',2);
  setSlot('pistol');
 }
-function canShop(){return canUseBombShop(game,me,SUNDOWN_SPAWNS[me?.side]);}
+function canShop(){return canUseBombShop(game,me,ITALY_SPAWNS[me?.side]);}
 function buildShop(){
  const container=byId('shopItems');container.replaceChildren();
  for(const [id,entry] of [...Object.entries(BOMB_WEAPONS),...Object.entries(BOMBSHOP_GEAR)]){
@@ -374,7 +374,7 @@ function fireGun(actor){
    closest=other;distance=t;hitPoint.copy(nearest);
   }
  }
- // In fire mode, do not shoot enemies through the original Sundown geometry.
+ // In fire mode, do not shoot enemies through the original Italia geometry.
  const surfaceRay=new THREE.Raycaster(origin,aim,.02,distance);
  const surface=levelHits(surfaceRay)[0];
  if(surface&&surface.distance<distance-.04){closest=null;hitPoint.copy(surface.point);distance=surface.distance}
@@ -626,7 +626,7 @@ function seekBot(bot,goal,dt,speed){
  if(!blocked){bot.detour=null;bot.mapRoute=null;}
  else {
    if(!bot.mapRoute||!bot.mapRoute.length||now>(bot.routePlanUntil||0)){
-     bot.mapRoute=findSundownPath({x:bot.x,z:bot.z},goal);
+     bot.mapRoute=findItalyPath({x:bot.x,z:bot.z},goal);
      bot.routePlanUntil=now+1.8;
    }
    while(bot.mapRoute?.length&&
@@ -747,10 +747,10 @@ function updatePlayer(dt){
    // Slide along walls with independently resolved axes, also during reload.
    const nx=clamp(me.x+dir.x*speed*dt,-46,46);
    const nz=clamp(me.z+dir.z*speed*dt,-46,46);
-   if(!sundownBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
+   if(!italyBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
    else {
-    if(!sundownBlocks(nx,me.z,.40))me.x=nx;
-    if(!sundownBlocks(me.x,nz,.40))me.z=nz;
+    if(!italyBlocks(nx,me.z,.40))me.x=nx;
+    if(!italyBlocks(me.x,nz,.40))me.z=nz;
    }
   }
  }

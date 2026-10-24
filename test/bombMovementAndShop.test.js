@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {BOMB_RULES,BOMB_MOVE_SPEED,bombMoveSpeed,canUseBombShop,makeBombMatch,tickBombClock,makeBombPlayer} from '../public/game1/bomb-rules.js';
-import {SUNDOWN_SPAWNS,SUNDOWN_SITES,SUNDOWN_SOLIDS,sundownBlocks,findSundownPath} from '../public/game1/sundown-map.js';
+import {ITALY_SPAWNS,ITALY_SITES,ITALY_SOLIDS,italyBlocks,findItalyPath} from '../public/game1/italy-map.js';
 
 test('weapon speed hierarchy and grenade sprint are strict',()=>{
  const knife=bombMoveSpeed('knife');
@@ -19,7 +19,7 @@ test('weapon speed hierarchy and grenade sprint are strict',()=>{
 test('shop is accessible at the CURRENT spawn for precisely 25 seconds total',()=>{
  const actors=[makeBombPlayer('player','t',true),makeBombPlayer('ct','ct')];
  const game=makeBombMatch(actors,()=>0);
- const player=actors[0],spawn=SUNDOWN_SPAWNS.t;
+ const player=actors[0],spawn=ITALY_SPAWNS.t;
  player.x=spawn.x;player.z=spawn.z;
  assert.equal(BOMB_RULES.buySeconds,10);
  assert.equal(BOMB_RULES.shopSeconds,25);
@@ -39,20 +39,20 @@ test('reload does not gate movement and mobile controls expose shop/grenade',()=
  const src=readFileSync('public/game1/bomb-desert-v2.js','utf8');
  const html=readFileSync('public/game1/desert.html','utf8');
  assert.match(src,/bombMoveSpeed\(weaponId,\{crouched:doCrouch,aiming,grenadeHeld\}\)/);
- assert.match(src,/if\(!sundownBlocks\(nx,nz,\.40\)\)/);
+ assert.match(src,/if\(!italyBlocks\(nx,nz,\.40\)\)/);
  assert.doesNotMatch(src,/if\(!actor\.reloadingUntil\).*?updatePlayer\(/s);
  assert.match(src,/if\(result==='next-round'\)byId\('shop'\)\.hidden=true/);
  assert.match(html,/id="shopOpen"/);
  assert.match(html,/id="shopHint"/);
  assert.match(html,/id="grenadeEquip"/);
 });
-test('map has four accessible interior courtyards with true collision perimeters',()=>{
- const inner=[{x:-23,z:-22},{x:-23,z:0},{x:22,z:-23},{x:24,z:0}];
+test('Italia has eight accessible indoor buildings with real doorways',()=>{
+ const inner=[{x:-24,z:-27},{x:-24,z:-8},{x:-23,z:12},{x:-22,z:32},{x:24,z:-27},{x:24,z:-8},{x:23,z:12},{x:23,z:32}];
  for(const p of inner){
-   assert.ok(!sundownBlocks(p.x,p.z,.42),'inside should be walkable '+JSON.stringify(p));
-   assert.ok(findSundownPath(p,SUNDOWN_SPAWNS.t).length>0,'inside connects to T spawn');
-   assert.ok(findSundownPath(p,SUNDOWN_SPAWNS.ct).length>0,'inside connects to CT spawn');
+   assert.ok(!italyBlocks(p.x,p.z,.42),'inside should be walkable '+JSON.stringify(p));
+   assert.ok(findItalyPath(p,ITALY_SPAWNS.t).length>0,'inside connects to T spawn');
+   assert.ok(findItalyPath(p,ITALY_SPAWNS.ct).length>0,'inside connects to CT spawn');
  }
- assert.ok(SUNDOWN_SOLIDS.length>50,'multiple wall segments and cover expected');
- assert.equal(SUNDOWN_SITES.length,2);
+ assert.ok(ITALY_SOLIDS.length>50,'multiple wall segments and cover expected');
+ assert.equal(ITALY_SITES.length,2);
 });
