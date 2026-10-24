@@ -1,6 +1,6 @@
 // GameBlock Italy — mobile-friendly tactical squad planner.
 // Uses the actual rasterized walkable GLB surface. Never targets blocked geometry.
-import {italyBlocks,italyGround,findItalyPath,ITALY_SPAWNS,italyReachable} from './italy-import-map.js?v=italy-nav-halfmeter-20261024';
+import {italyBlocks,italyGround,findItalyPath,ITALY_SPAWNS,italyReachable} from './italy-import-map.js?v=italy-bot-grid-20261024';
 
 export const CT_ROLES=Object.freeze(['anchorA','anchorB','push','rotate','ambush']);
 export const T_ROLES=Object.freeze(['entry','escort','flank','lurk','support']);

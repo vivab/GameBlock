@@ -3,8 +3,8 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround,italyCanTraverse} from './italy-import-map.js?v=italy-nav-halfmeter-20261024';
-import {italyRole,italySafePoint,italyRouteGates,italyPickCover,italyLeadThreat} from './italy-tactics.js';
+import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround,italyCanTraverse} from './italy-import-map.js?v=italy-bot-grid-20261024';
+import {italyRole,italySafePoint,italyRouteGates,italyPickCover,italyLeadThreat} from './italy-tactics.js?v=italy-bot-grid-20261024';
 
 const THREE=window.THREE;
 console.info('[GameBlock] CS Italy GLB · A market · B wine courtyard · 5v5');
@@ -214,6 +214,7 @@ function respawnActor(actor,index){
  actor.health=100;actor.alive=true;actor.target=null;actor.travel=0;actor.actionTime=0;
  actor.hasPlanted=false;actor.reloadingUntil=0;actor.lastShot=-10;actor.botGoal=null;
  actor.nextDecision=0;actor.flashUntil=0;actor.walkPhase=0;actor.mapRoute=null;
+ actor.navSample=null;actor.navGoal=null;actor.navStalls=0;
  if(actor.mesh){
   actor.mesh.visible=true;actor.mesh.position.set(actor.x,actor.y,actor.z);
   actor.mesh.traverse(o=>{if(o.isMesh&&o.material===materials.ct||o.material===materials.t)o.material=actor.side==='ct'?materials.ct:materials.t});
@@ -818,57 +819,57 @@ function passableStep(bot,x,z){
 }
 function seekBot(bot,goal,dt,speed){
  const now=performance.now()/1000;
- let target=goal;
  const distanceGoal=Math.hypot(goal.x-bot.x,goal.z-bot.z);
  if(distanceGoal<.8){bot.detour=null;return}
- const blocked=now>(bot.routeCheck||0) ?
-  !passableStep(bot,goal.x,goal.z):bot.routeBlocked;
- if(now>(bot.routeCheck||0)){
-  bot.routeCheck=now+.35;bot.routeBlocked=blocked;
+ // A ray can appear clear across Italy while the first 20cm hits a sharp
+ // raster corner. Follow the actual half-metre graph, cell by cell.
+ if(!bot.navGoal||Math.hypot(bot.navGoal.x-goal.x,bot.navGoal.z-goal.z)>2.5){
+  bot.navGoal={x:goal.x,z:goal.z};bot.mapRoute=null;bot.routePlanUntil=0;
  }
- if(!blocked){bot.detour=null;bot.mapRoute=null;}
- else {
-   if(!bot.mapRoute||!bot.mapRoute.length||now>(bot.routePlanUntil||0)){
-     if(now<(bot.routePlanAt||0))return;
-     bot.mapRoute=findItalyPath({x:bot.x,z:bot.z},goal);
-     bot.routePlanUntil=now+2.25+botIndex(bot)*.22;
-     bot.routePlanAt=now+.18;
+ // If terrain or another actor prevents progress, retry from the current
+ // position. Repeated stalls change the squad's tactical route as well.
+ if(!bot.navSample||now-bot.navSample.time>1.5){
+  if(bot.navSample&&Math.hypot(bot.x-bot.navSample.x,bot.z-bot.navSample.z)<.26){
+   bot.navStalls=(bot.navStalls||0)+1;
+   bot.mapRoute=null;bot.routePlanUntil=0;bot.routePlanAt=0;
+   if(bot.navStalls>=3){
+    bot.routeVariant=((bot.routeVariant||0)+1)%3;
+    bot.order=null;bot.navStalls=0;
    }
-   while(bot.mapRoute?.length&&
-     Math.hypot(bot.mapRoute[0].x-bot.x,bot.mapRoute[0].z-bot.z)<1.35)
-       bot.mapRoute.shift();
-   if(bot.mapRoute?.length)target=bot.mapRoute[0];
-   else {
-     // Local step aside if another fighter blocks the nearest turn.
-     const dx=goal.x-bot.x,dz=goal.z-bot.z;
-     const side=botIndex(bot)%2?1:-1;
-     target={x:bot.x-side*dz*.25,z:bot.z+side*dx*.25};
-   }
+  }else bot.navStalls=0;
+  bot.navSample={x:bot.x,z:bot.z,time:now};
  }
+ if(!bot.mapRoute?.length||now>(bot.routePlanUntil||0)){
+  if(now<(bot.routePlanAt||0))return;
+  bot.mapRoute=findItalyPath({x:bot.x,z:bot.z},goal,true);
+  bot.routePlanUntil=now+2.25+botIndex(bot)*.22;
+  bot.routePlanAt=now+.18;
+ }
+ // Never discard a narrow-corner waypoint just because it is within 1.35m:
+ // that shortcut made nearly every bot run straight into the wall.
+ while(bot.mapRoute?.length&&
+  Math.hypot(bot.mapRoute[0].x-bot.x,bot.mapRoute[0].z-bot.z)<.18)
+   bot.mapRoute.shift();
+ if(!bot.mapRoute?.length)return;
+ const target=bot.mapRoute[0];
  let dx=target.x-bot.x,dz=target.z-bot.z;
  const d=Math.hypot(dx,dz);
- if(d<.05)return;
+ if(d<.01)return;
  dx/=d;dz/=d;
- let x=clamp(bot.x+dx*dt*speed,-34,34);
- let z=clamp(bot.z+dz*dt*speed,-61,61);
- // Only repeat close-quarters collision checks roughly every 5 rendered frames.
- if(now>=(bot.stepCheckAt||0)){
-  bot.stepPassable=passableStep(bot,x,z);
-  bot.stepCheckAt=now+.085;
- }
- // Fine-grid masks are cheap enough to enforce every frame; prevent wall skipping
- // between slower, expensive tactical route re-plans.
- if(!italyCanTraverse({x:bot.x,z:bot.z},{x,z},.10)||!bot.stepPassable){
-  bot.routeCheck=0;bot.detour=null;bot.stepCheckAt=0;
-  // Don't walk through meshes: try a short legal strafe or hold position.
+ const step=Math.min(dt*speed,d);
+ let x=clamp(bot.x+dx*step,-34,34);
+ let z=clamp(bot.z+dz*step,-61,61);
+ if(!passableStep(bot,x,z)){
+  // Legal lateral movement frees a shoulder against a corner without clipping.
   const side=botIndex(bot)%2?1:-1;
-  const nx=clamp(bot.x-side*dz*dt*speed,-34,34);
-  const nz=clamp(bot.z+side*dx*dt*speed,-61,61);
+  const nx=clamp(bot.x-side*dz*step,-34,34);
+  const nz=clamp(bot.z+side*dx*step,-61,61);
   if(!passableStep(bot,nx,nz))return;
   x=nx;z=nz;
+  bot.routePlanUntil=0;
  }
  bot.x=x;bot.z=z;
- bot.y=positionGround(x,z); // Stay attached to each stair tread and ramp.
+ bot.y=positionGround(x,z);
  bot.yaw=Math.atan2(-dx,-dz);
  bot.walkPhase+=dt*9;
 }

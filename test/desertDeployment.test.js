@@ -7,7 +7,7 @@ const map=readFileSync('public/game1/italy-import-map.js','utf8');
 const rules=readFileSync('public/game1/bomb-rules.js','utf8');
 test('Italy uses the actual uploaded GLB, not the procedural replacement',()=>{
  assert.match(html,/src="bomb-desert-v2\.js\?v=italy-glb-/);
- assert.match(code,/from '\.\/italy-import-map\.js\?v=italy-nav-halfmeter-/);
+ assert.match(code,/from '\.\/italy-import-map\.js\?v=italy-bot-grid-/);
  assert.match(map,/load\('cs_italy_with_real_light\.glb'/);
  assert.doesNotMatch(code,/from '\.\/italy-map\.js'/);
  assert.doesNotMatch(html,/de_dust2_-_cs_map\.glb/);

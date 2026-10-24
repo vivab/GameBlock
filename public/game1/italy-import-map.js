@@ -134,9 +134,9 @@ function nearCell(x,z){
  }
  return -1;
 }
-export function findItalyPath(start,goal){
+export function findItalyPath(start,goal,precise=false){
  if(!Number.isFinite(start.x+start.z+goal.x+goal.z))return [];
- if(italyCanTraverse(start,goal,.10))return [goal];
+ if(!precise&&italyCanTraverse(start,goal,.10))return [goal];
  const src=nearCell(start.x,start.z),dst=nearCell(goal.x,goal.z);
  if(src<0||dst<0)return [];
  const previous=new Int32Array(COUNT);previous.fill(-1);
@@ -160,6 +160,12 @@ export function findItalyPath(start,goal){
   p=previous[p];
  }
  path.reverse();
+ if(precise){
+  const startCenter={x:MIN_X+src%W*STEP,z:MIN_Z+Math.floor(src/W)*STEP};
+  if(Math.hypot(startCenter.x-start.x,startCenter.z-start.z)>.16)path.unshift(startCenter);
+  path.push(goal);
+  return path;
+ }
  const points=[start,...path,goal],result=[];
  let current=0;
  while(current<points.length-1&&result.length<320){
