@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {BOMB_RULES,BOMB_MOVE_SPEED,bombMoveSpeed,canUseBombShop,makeBombMatch,tickBombClock,makeBombPlayer} from '../public/game1/bomb-rules.js';
-import {ITALY_SPAWNS,ITALY_SITES,ITALY_SOLIDS,italyBlocks,findItalyPath} from '../public/game1/italy-map.js';
+import {ITALY_SPAWNS,ITALY_SITES,ITALY_SPAWN_POINTS,italyBlocks,findItalyPath} from '../public/game1/italy-import-map.js';
 
 test('weapon speed hierarchy and grenade sprint are strict',()=>{
  const knife=bombMoveSpeed('knife');
@@ -39,20 +39,20 @@ test('reload does not gate movement and mobile controls expose shop/grenade',()=
  const src=readFileSync('public/game1/bomb-desert-v2.js','utf8');
  const html=readFileSync('public/game1/desert.html','utf8');
  assert.match(src,/bombMoveSpeed\(weaponId,\{crouched:doCrouch,aiming,grenadeHeld\}\)/);
- assert.match(src,/if\(!italyBlocks\(nx,nz,\.40\)\)/);
+ assert.match(src,/const canWalk=\(x,z\)=>!italyBlocks\(x,z,\.38\)/);
  assert.doesNotMatch(src,/if\(!actor\.reloadingUntil\).*?updatePlayer\(/s);
  assert.match(src,/if\(result==='next-round'\)byId\('shop'\)\.hidden=true/);
  assert.match(html,/id="shopOpen"/);
  assert.match(html,/id="shopHint"/);
  assert.match(html,/id="grenadeEquip"/);
 });
-test('Italia has eight accessible indoor buildings with real doorways',()=>{
- const inner=[{x:-24,z:-27},{x:-24,z:-8},{x:-23,z:12},{x:-22,z:32},{x:24,z:-27},{x:24,z:-8},{x:23,z:12},{x:23,z:32}];
- for(const p of inner){
-   assert.ok(!italyBlocks(p.x,p.z,.42),'inside should be walkable '+JSON.stringify(p));
-   assert.ok(findItalyPath(p,ITALY_SPAWNS.t).length>0,'inside connects to T spawn');
-   assert.ok(findItalyPath(p,ITALY_SPAWNS.ct).length>0,'inside connects to CT spawn');
+test('downloaded Italy has five safe spawn locations for each side',()=>{
+ for(const side of ['t','ct']){
+  assert.equal(ITALY_SPAWN_POINTS[side].length,5);
+  for(const [x,z] of ITALY_SPAWN_POINTS[side]){
+   assert.equal(italyBlocks(x,z,.38),false);
+   for(const site of ITALY_SITES)assert.ok(findItalyPath({x,z},site).length>0);
+  }
  }
- assert.ok(ITALY_SOLIDS.length>50,'multiple wall segments and cover expected');
  assert.equal(ITALY_SITES.length,2);
 });

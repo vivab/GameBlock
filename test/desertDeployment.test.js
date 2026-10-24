@@ -2,30 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const html=readFileSync('public/game1/desert.html','utf8');
-const js=readFileSync('public/game1/bomb-desert-v2.js','utf8');
+const code=readFileSync('public/game1/bomb-desert-v2.js','utf8');
+const map=readFileSync('public/game1/italy-import-map.js','utf8');
 const rules=readFileSync('public/game1/bomb-rules.js','utf8');
-const map=readFileSync('public/game1/italy-map.js','utf8');
-test('Italia has its own HTML entrypoint and versioned JS',()=>{
- assert.match(html,/src="bomb-desert-v2\.js\?v=italia-/);
+test('Italy uses the actual uploaded GLB, not the procedural replacement',()=>{
+ assert.match(html,/src="bomb-desert-v2\.js\?v=italy-glb-/);
+ assert.match(code,/from '\.\/italy-import-map\.js'/);
+ assert.match(map,/load\('cs_italy_with_real_light\.glb'/);
+ assert.doesNotMatch(code,/from '\.\/italy-map\.js'/);
  assert.doesNotMatch(html,/de_dust2_-_cs_map\.glb/);
 });
-test('Italia never loads the original Dust2 GLB',()=>{
- assert.doesNotMatch(js,/loader\.load\(['"]de_dust2/);
- assert.match(js,/function buildItaly\(\)/);
- assert.match(js,/buildItaly\(\)/);
+test('the map must finish loading before any player can spawn',()=>{
+ assert.match(code,/buildItalyMap\(THREE,levelRoot\)\.then/);
+ assert.match(code,/mapLoaded=true/);
+ assert.match(code,/if\(!mapLoaded\)/);
+ assert.match(code,/levelMeshes=\[floor,\.\.\.obstacles\]/);
 });
-test('two bombsites A and B, 5v5 layout',()=>{
- assert.match(js,/ITALY_SITES/);
- assert.match(js,/buildItalyMap/);
- assert.match(js,/Italia/);
-});
-test('round starts in 10s, shop stays for 25s',()=>{
+test('original game mode timings and two sites stay intact',()=>{
  assert.match(rules,/buySeconds:10/);
  assert.match(rules,/shopSeconds:25/);
- assert.match(js,/function canShop\(\)/);
+ assert.match(code,/ITALY_SITES/);
+ assert.match(code,/function canShop\(\)/);
 });
-test('flat ground and floor are explicit',()=>{
- assert.match(js,/function positionGround\(x,z,fromY=45\)\{return 0;\}/);
- assert.match(map,/floor\.position\.y=-\.2/);
- assert.match(js,/buildItalyMap/);
+test('terrain height comes from the actual GLB floor',()=>{
+ assert.match(code,/function positionGround\(x,z,fromY=45\)\{return italyGround\(x,z\);\}/);
+ assert.match(code,/if\(grounded\)playerY=ground/);
+ assert.match(code,/ITALY_SPAWN_POINTS/);
+});
+test('the 3D model creator is attributed in the UI',()=>{
+ assert.match(html,/Neo_minigan/);
+ assert.match(html,/CC BY 4\.0/);
 });

@@ -3,10 +3,10 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,findItalyPath,italyBlocks} from './italy-map.js';
+import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround} from './italy-import-map.js';
 
 const THREE=window.THREE;
-console.info('[GameBlock] ITALIA: 5v5 map with two bombsites, Mid, Long and B tunnels');
+console.info('[GameBlock] CS Italy GLB · A market · B wine courtyard · 5v5');
 const byId=id=>document.getElementById(id);
 const V=THREE.Vector3;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
@@ -61,7 +61,7 @@ let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPl
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
 const joy={x:0,y:0,id:null},keys=new Set(),pointers=new Map();
 let activeGrenades=[],smokes=[],bombObject=null,bombDropObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
-const SITES=ITALY_SITES.map(site=>({...site}));
+const SITES=ITALY_SITES;
 const levelRoot=new THREE.Group();scene.add(levelRoot);
 // Limit raycasting to the meshes whose bounding boxes the ray can reach.
 // This avoids costly full-map triangle queries for every AI movement step.
@@ -74,23 +74,28 @@ function levelHits(ray){
 }
 // New map is deliberately flat: player, bots and C4 always stand at Y=0.
 // Never raycast onto crate tops or rooftops as if they were the ground.
-function positionGround(x,z,fromY=45){return 0;}
+function positionGround(x,z,fromY=45){return italyGround(x,z);}
 function refreshLevelCollision(){
  groundCache.clear();
  levelBounds=levelMeshes.map(mesh=>new THREE.Box3().setFromObject(mesh));
 }
-// Italia is an original 3D Italian village layout. Every solid is a raycast blocker.
+// The real textured GLB is loaded before anyone can spawn.
 function buildItaly(){
- byId('mapStatus').textContent='Строим улицы Италии · ITALIA 5v5…';
- const {floor,obstacles:solids}=buildItalyMap(THREE,levelRoot);
- obstacles.push(...solids);
- levelMeshes=[floor,...obstacles];mapTop=18;refreshLevelCollision();
- mapLoaded=true;onMapReady('ITALIA · A: РЫНОК · B: ВИННЫЙ ДВОР · МИД · ДОМА');
+ byId('mapStatus').textContent='Загружаем готовую карту Italy (11 МБ)…';
+ buildItalyMap(THREE,levelRoot).then(({floor,obstacles:solids,meshCount})=>{
+  obstacles.push(...solids);
+  levelMeshes=[floor,...obstacles];mapTop=20;refreshLevelCollision();
+  mapLoaded=true;
+  onMapReady('ITALY GLB · A: РЫНОК · B: ВИННЫЙ ДВОР · '+meshCount+' частей');
+ }).catch(error=>{
+  console.error('Italy map loading failed',error);
+  byId('mapStatus').textContent='Ошибка загрузки Italy: '+(error?.message||error);
+ });
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
  for(const site of SITES){
-  const y=.08;
+  const y=positionGround(site.x,site.z)+.08;
   const mat=new THREE.MeshBasicMaterial({color:site.color,transparent:true,opacity:.88,side:THREE.DoubleSide,depthWrite:false});
   const ring=new THREE.Mesh(new THREE.RingGeometry(site.radius-.15,site.radius+.15,56),mat);
   ring.rotation.x=-Math.PI/2;ring.position.set(site.x,y,site.z);scene.add(ring);
@@ -143,9 +148,8 @@ function makeSoldier(actor){
 }
 function respawnActor(actor,index){
  const isCt=actor.side==='ct',row=index%5;
- const spawn=ITALY_SPAWNS[actor.side];
- actor.x=spawn.x+(row-2)*1.7;
- actor.z=spawn.z+((index%2)?1:-1)*.85;
+ const spawn=ITALY_SPAWN_POINTS[actor.side][row];
+ actor.x=spawn[0];actor.z=spawn[1];
  actor.y=positionGround(actor.x,actor.z,mapTop+5);
  actor.yaw=isCt?Math.PI:0;
  actor.health=100;actor.alive=true;actor.target=null;actor.travel=0;actor.actionTime=0;
@@ -614,6 +618,7 @@ function botObjective(bot){
  return site;
 }
 function passableStep(bot,x,z){
+ if(italyBlocks(x,z,.34)||Math.abs(positionGround(x,z)-positionGround(bot.x,bot.z))>.78)return false;
  const from=new V(bot.x,bot.y+1.12,bot.z);
  const to=new V(x,positionGround(x,z,bot.y+1.35)+1.12,z);
  return groundLOS(from,to);
@@ -649,8 +654,8 @@ function seekBot(bot,goal,dt,speed){
  const d=Math.hypot(dx,dz);
  if(d<.05)return;
  dx/=d;dz/=d;
- let x=clamp(bot.x+dx*dt*speed,-45.5,45.5);
- let z=clamp(bot.z+dz*dt*speed,-45.5,45.5);
+ let x=clamp(bot.x+dx*dt*speed,-34,34);
+ let z=clamp(bot.z+dz*dt*speed,-61,61);
  // Only repeat close-quarters collision checks roughly every 5 rendered frames.
  if(now>=(bot.stepCheckAt||0)){
   bot.stepPassable=passableStep(bot,x,z);
@@ -660,8 +665,8 @@ function seekBot(bot,goal,dt,speed){
   bot.routeCheck=0;bot.detour=null;bot.stepCheckAt=0;
   // Don't walk through meshes: try a short legal strafe or hold position.
   const side=botIndex(bot)%2?1:-1;
-  const nx=clamp(bot.x-side*dz*dt*speed,-45.5,45.5);
-  const nz=clamp(bot.z+side*dx*dt*speed,-45.5,45.5);
+  const nx=clamp(bot.x-side*dz*dt*speed,-34,34);
+  const nz=clamp(bot.z+side*dx*dt*speed,-61,61);
   if(!passableStep(bot,nx,nz))return;
   x=nx;z=nz;
  }
@@ -759,18 +764,23 @@ function updatePlayer(dt){
   moveVelocity.x=moveVelocity.z=0;
  }else if(Math.hypot(moveVelocity.x,moveVelocity.z)>.01){
   // Independent wall sliding remains active during reload and inspection.
-  const nx=clamp(me.x+moveVelocity.x*dt,-46,46);
-  const nz=clamp(me.z+moveVelocity.z*dt,-46,46);
-  if(!italyBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
+  const nx=clamp(me.x+moveVelocity.x*dt,-34,34);
+  const nz=clamp(me.z+moveVelocity.z*dt,-61,61);
+  const canWalk=(x,z)=>!italyBlocks(x,z,.38)&&
+   Math.abs(positionGround(x,z)-positionGround(me.x,me.z))<=.78;
+  if(canWalk(nx,nz)){me.x=nx;me.z=nz;}
   else {
-   if(!italyBlocks(nx,me.z,.40))me.x=nx;else moveVelocity.x=0;
-   if(!italyBlocks(me.x,nz,.40))me.z=nz;else moveVelocity.z=0;
+   if(canWalk(nx,me.z))me.x=nx;else moveVelocity.x=0;
+   if(canWalk(me.x,nz))me.z=nz;else moveVelocity.z=0;
   }
  }
- if(jumping&&grounded&&!forcedPlantCrouch&&game.phase!=='buy'){verticalSpeed=5.8;grounded=false}
- if(!grounded){verticalSpeed-=16*dt;playerY+=verticalSpeed*dt}
  const ground=positionGround(me.x,me.z,me.y+1.45);
- if(playerY<=ground){playerY=ground;verticalSpeed=0;grounded=true}
+ if(grounded)playerY=ground;
+ if(jumping&&grounded&&!forcedPlantCrouch&&game.phase!=='buy'){verticalSpeed=5.8;grounded=false}
+ if(!grounded){
+  verticalSpeed-=16*dt;playerY+=verticalSpeed*dt;
+  if(playerY<=ground){playerY=ground;verticalSpeed=0;grounded=true}
+ }
  me.y=playerY;
  const camH=doCrouch?1.03:1.62;
  camera.position.set(me.x,me.y+camH,me.z);
