@@ -53,6 +53,9 @@ let levelMeshes=[],levelBounds=[],mapTop=45;
 const groundCache=new Map();
 let mapLoaded=false,game=null,players=[],me=null;
 let currentSlot='pistol',grenadeHeld=false,aiming=false,lookYaw=0,lookPitch=0;
+let targetLookYaw=0,targetLookPitch=0;
+const smoothJoy={x:0,y:0},moveVelocity={x:0,z:0};
+const damp=(current,target,rate,dt)=>current+(target-current)*(1-Math.exp(-Math.max(0,rate*dt)));
 let selectedGrenade='he',firing=false,jumping=false,crouched=false;
 let playerY=0,verticalSpeed=0,grounded=true,holdAction=false,progress=0,forcedPlantCrouch=false;
 let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
@@ -181,7 +184,9 @@ function resetPositions(){
   if(!p.isPlayer&&p.mesh){p.mesh.visible=true;p.mesh.position.set(p.x,p.y,p.z)}
  });
  me.yaw=me.side==='ct'?Math.PI:0;
- lookYaw=me.yaw;lookPitch=0;playerY=me.y;verticalSpeed=0;
+ lookYaw=me.yaw;lookPitch=0;targetLookYaw=lookYaw;targetLookPitch=0;
+  smoothJoy.x=smoothJoy.y=0;moveVelocity.x=moveVelocity.z=0;
+  playerY=me.y;verticalSpeed=0;
  aiming=false;stopScope();currentSlot='pistol';grenadeHeld=false;crouched=false;progress=0;holdAction=false;
  activeGrenades.forEach(g=>scene.remove(g.mesh));activeGrenades=[];
  smokes.forEach(s=>scene.remove(s.mesh));smokes=[];
@@ -731,27 +736,35 @@ function aiStep(dt){
 }
 function updatePlayer(dt){
  if(!me?.alive)return;
+ // Frame-rate-independent easing: responsive aim, smoother thumbstick and acceleration.
+ lookYaw=damp(lookYaw,targetLookYaw,24,dt);
+ lookPitch=damp(lookPitch,targetLookPitch,24,dt);
+ smoothJoy.x=damp(smoothJoy.x,joy.x,18,dt);
+ smoothJoy.y=damp(smoothJoy.y,joy.y,18,dt);
  me.yaw=lookYaw;
  const doCrouch=crouched||forcedPlantCrouch;
  const forward=direction(lookYaw);
  const right=new V(Math.cos(lookYaw),0,-Math.sin(lookYaw));
- const sx=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+joy.x;
- const sy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)-joy.y;
+ const sx=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0)+smoothJoy.x;
+ const sy=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0)-smoothJoy.y;
  const dir=forward.multiplyScalar(sy).addScaledVector(right,sx);
  if(dir.lengthSq()>1)dir.normalize();
  const weaponId=currentSlot==='bomb'?'bomb':me.weapons[currentSlot];
  const speed=bombMoveSpeed(weaponId,{crouched:doCrouch,aiming,grenadeHeld});
- if(game.phase!=='buy'){
-  const dist=dir.length()*speed*dt;
-  if(dist>.001){
-   // Slide along walls with independently resolved axes, also during reload.
-   const nx=clamp(me.x+dir.x*speed*dt,-46,46);
-   const nz=clamp(me.z+dir.z*speed*dt,-46,46);
-   if(!italyBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
-   else {
-    if(!italyBlocks(nx,me.z,.40))me.x=nx;
-    if(!italyBlocks(me.x,nz,.40))me.z=nz;
-   }
+ const moving=dir.lengthSq()>.001;
+ const easeRate=moving?12:20;
+ moveVelocity.x=damp(moveVelocity.x,dir.x*speed,easeRate,dt);
+ moveVelocity.z=damp(moveVelocity.z,dir.z*speed,easeRate,dt);
+ if(game.phase==='buy'){
+  moveVelocity.x=moveVelocity.z=0;
+ }else if(Math.hypot(moveVelocity.x,moveVelocity.z)>.01){
+  // Independent wall sliding remains active during reload and inspection.
+  const nx=clamp(me.x+moveVelocity.x*dt,-46,46);
+  const nz=clamp(me.z+moveVelocity.z*dt,-46,46);
+  if(!italyBlocks(nx,nz,.40)){me.x=nx;me.z=nz;}
+  else {
+   if(!italyBlocks(nx,me.z,.40))me.x=nx;else moveVelocity.x=0;
+   if(!italyBlocks(me.x,nz,.40))me.z=nz;else moveVelocity.z=0;
   }
  }
  if(jumping&&grounded&&!forcedPlantCrouch&&game.phase!=='buy'){verticalSpeed=5.8;grounded=false}
@@ -981,7 +994,7 @@ renderer.domElement.addEventListener('pointermove',e=>{
  if(!pointers.has(e.pointerId))return;
  const point=pointers.get(e.pointerId),dx=e.clientX-point.x,dy=e.clientY-point.y;
  point.x=e.clientX;point.y=e.clientY;
- lookYaw-=dx*.004;lookPitch=clamp(lookPitch-dy*.004,-1.45,1.45);
+ targetLookYaw-=dx*.004;targetLookPitch=clamp(targetLookPitch-dy*.004,-1.45,1.45);
 });
 renderer.domElement.addEventListener('pointerup',e=>{pointers.delete(e.pointerId);if(e.pointerType==='mouse')firing=false});
 renderer.domElement.addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);firing=false});
@@ -1006,4 +1019,5 @@ addEventListener('resize',()=>{
  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
  renderer.setSize(innerWidth,innerHeight);
 });
-addEventListener('blur',()=>{firing=false;holdAction=false;jumping=false;keys.clear();joy.x=joy.y=0;pointers.clear();closeWheel()});
+addEventListener('blur',()=>{firing=false;holdAction=false;jumping=false;keys.clear();joy.x=joy.y=0;smoothJoy.x=smoothJoy.y=0;moveVelocity.x=moveVelocity.z=0;
+ targetLookYaw=lookYaw;targetLookPitch=lookPitch;pointers.clear();closeWheel()});
