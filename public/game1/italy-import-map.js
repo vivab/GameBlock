@@ -125,7 +125,21 @@ export function buildItalyMap(THREE,root){
     if(!node.isMesh)return;
     node.name='Italy GLB: '+node.name;node.receiveShadow=true;
     const materials=Array.isArray(node.material)?node.material:[node.material];
-    for(const material of materials)if(material)material.side=THREE.DoubleSide;
+    for(const material of materials)if(material){
+     material.side=THREE.DoubleSide;
+     material.toneMapped=false; // Imported Italy has baked light in unlit atlases.
+     if(material.map){
+      material.map.encoding=THREE.sRGBEncoding;
+      const previous=material.onBeforeCompile;
+      material.onBeforeCompile=shader=>{
+       previous?.(shader);
+       shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, sqrt(max(diffuseColor.rgb, vec3(0.0))), 0.52);');
+      };
+      material.customProgramCacheKey=()=> 'italy-bright-baked-v2';
+      material.needsUpdate=true;
+     }
+    }
     meshes.push(node);
    });
    if(meshes.length<10){root.remove(world);reject(new Error('Italy geometry is incomplete'));return;}

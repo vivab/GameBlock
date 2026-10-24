@@ -3,7 +3,8 @@ import {
  makeBombMatch,nextBombRound,buyBombItem,awardBombRound,tickBombClock,
  heDamage,flashAlpha,canPlant,canDefuse,defuseDuration,segmentPassesSmoke,bombMoveSpeed,canUseBombShop
 } from './bomb-rules.js';
-import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround} from './italy-import-map.js';
+import {buildItalyMap,ITALY_SITES,ITALY_SPAWNS,ITALY_SPAWN_POINTS,findItalyPath,italyBlocks,italyGround} from './italy-import-map.js?v=italy-bright-20261024';
+import {italyRole,italySafePoint,italyRouteGates,italyPickCover,italyLeadThreat} from './italy-tactics.js';
 
 const THREE=window.THREE;
 console.info('[GameBlock] CS Italy GLB · A market · B wine courtyard · 5v5');
@@ -15,15 +16,17 @@ const rad=Math.PI/180;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color('#adc6d8');
 scene.fog=new THREE.Fog(0xb2c5cc,115,230);
-// Less glare on the de_dust2 masonry: the warm daylight keeps facades readable.
-scene.add(new THREE.HemisphereLight(0xe8ecf1,0x6b6358,.72));
-const light=new THREE.DirectionalLight(0xffd7a3,.9);light.position.set(25,60,-25);scene.add(light);
+// Italy uses baked unlit atlases; these lights illuminate soldiers, hands and guns.
+scene.add(new THREE.HemisphereLight(0xf7fbff,0x82765b,1.1));
+const light=new THREE.DirectionalLight(0xffe8c3,1.25);light.position.set(25,60,-25);scene.add(light);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,190);
 const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.2));
 renderer.setSize(innerWidth,innerHeight);
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=.85;
+// Three r128 defaults to linear output, which crushed dark baked Italy pixels.
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.NoToneMapping;
+renderer.toneMappingExposure=1;
 byId('world').append(renderer.domElement);
 const weaponContainer=new THREE.Group();
 camera.add(weaponContainer);scene.add(camera);
@@ -62,6 +65,66 @@ let flashStarted=-100,flashDuration=0,announcedUntil=0,noticeText='';
 const joy={x:0,y:0,id:null},keys=new Set(),pointers=new Map();
 let activeGrenades=[],smokes=[],bombObject=null,bombDropObject=null,bombBeep=0,tracers=[],spectateTarget=null,roundSerial=0;
 const SITES=ITALY_SITES;
+// Real-world tactical mini-map. Only this HUD draws site zones and A/B letters.
+const miniCanvas=byId('miniMap'),miniCtx=miniCanvas.getContext('2d',{alpha:false});
+const MINI_W=116,MINI_H=202;
+const miniScale=Math.min((MINI_W-9)/71,(MINI_H-9)/125);
+const miniOffsetX=(MINI_W-71*miniScale)/2,miniOffsetY=(MINI_H-125*miniScale)/2;
+let miniBackground=null,nextMiniDraw=0;
+function miniPoint(x,z){
+ return {x:miniOffsetX+(x+35)*miniScale,y:miniOffsetY+(z+62)*miniScale};
+}
+function makeMiniMap(){
+ miniCanvas.width=MINI_W;miniCanvas.height=MINI_H;
+ const base=document.createElement('canvas');base.width=MINI_W;base.height=MINI_H;
+ const g=base.getContext('2d');
+ g.fillStyle='#12222e';g.fillRect(0,0,MINI_W,MINI_H);
+ for(let z=-62;z<63;z++)for(let x=-35;x<36;x++){
+  if(italyBlocks(x,z,.02))continue;
+  const p=miniPoint(x-.48,z-.48);
+  const height=positionGround(x,z);
+  g.fillStyle=height>1.2?'#94a3a2':height<-.8?'#708887':'#849899';
+  g.fillRect(p.x,p.y,miniScale+.24,miniScale+.24);
+ }
+ g.strokeStyle='#7f9b9d';g.lineWidth=1;
+ g.strokeRect(.5,.5,MINI_W-1,MINI_H-1);
+ miniBackground=base;
+}
+function miniDot(pos,color,radius=3){
+ const p=miniPoint(pos.x,pos.z);
+ miniCtx.beginPath();miniCtx.arc(p.x,p.y,radius,0,Math.PI*2);
+ miniCtx.fillStyle=color;miniCtx.fill();
+ miniCtx.lineWidth=.85;miniCtx.strokeStyle='#07131e';miniCtx.stroke();
+}
+function renderMiniMap(now){
+ if(!mapLoaded||!me||!game||!miniCtx||now<nextMiniDraw)return;
+ nextMiniDraw=now+.14;
+ if(!miniBackground)makeMiniMap();
+ miniCtx.drawImage(miniBackground,0,0);
+ for(const site of SITES){
+  const p=miniPoint(site.x,site.z);
+  miniCtx.beginPath();miniCtx.arc(p.x,p.y,site.radius*miniScale,0,Math.PI*2);
+  miniCtx.fillStyle=site.id==='A'?'#efa9494e':'#74c4e54e';miniCtx.fill();
+  miniCtx.strokeStyle=site.id==='A'?'#ffcd83':'#9de4f5';
+  miniCtx.lineWidth=1.9;miniCtx.stroke();
+  miniCtx.fillStyle='#fff';miniCtx.font='bold 11px system-ui';
+  miniCtx.textAlign='center';miniCtx.textBaseline='middle';
+  miniCtx.fillText(site.id,p.x,p.y+.3);
+ }
+ for(const actor of players){
+  if(!actor.alive||actor.isPlayer||actor.side!==me.side)continue;
+  miniDot(actor,me.side==='ct'?'#64d9ec':'#efc268',2.8);
+ }
+ if(game.planted&&game.bombPosition)miniDot(game.bombPosition,'#ff594b',3.8);
+ else if(game.bombDropped&&me.side==='t')miniDot(game.bombDropped,'#ffb84b',3.8);
+ const p=miniPoint(me.x,me.z);
+ miniCtx.save();miniCtx.translate(p.x,p.y);miniCtx.rotate(-me.yaw);
+ miniCtx.beginPath();miniCtx.moveTo(0,-7);miniCtx.lineTo(-5,5);miniCtx.lineTo(5,5);
+ miniCtx.closePath();miniCtx.fillStyle='#a5ffbc';miniCtx.fill();
+ miniCtx.strokeStyle='#143824';miniCtx.lineWidth=1.3;miniCtx.stroke();
+ miniCtx.restore();
+}
+
 const levelRoot=new THREE.Group();scene.add(levelRoot);
 // Limit raycasting to the meshes whose bounding boxes the ray can reach.
 // This avoids costly full-map triangle queries for every AI movement step.
@@ -103,22 +166,9 @@ function buildItaly(){
 }
 function onMapReady(message){
  byId('mapStatus').textContent=message;
- for(const site of SITES){
-  const y=positionGround(site.x,site.z)+.08;
-  const mat=new THREE.MeshBasicMaterial({color:site.color,transparent:true,opacity:.88,side:THREE.DoubleSide,depthWrite:false});
-  const ring=new THREE.Mesh(new THREE.RingGeometry(site.radius-.15,site.radius+.15,56),mat);
-  ring.rotation.x=-Math.PI/2;ring.position.set(site.x,y,site.z);scene.add(ring);
-  const disk=new THREE.Mesh(new THREE.CircleGeometry(site.radius,48),
-   new THREE.MeshBasicMaterial({color:site.color,transparent:true,opacity:.085,side:THREE.DoubleSide,depthWrite:false}));
-  disk.rotation.x=-Math.PI/2;disk.position.set(site.x,y-.03,site.z);scene.add(disk);
-  const marker=document.createElement('canvas');marker.width=128;marker.height=128;
-  const c=marker.getContext('2d');c.fillStyle=site.id==='A'?'#ffe19e':'#b5e4ff';
-  c.font='bold 106px system-ui';c.textAlign='center';c.fillText(site.id,64,108);
-  const texture=new THREE.CanvasTexture(marker);
-  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false}));
-  sprite.position.set(site.x,y+4,site.z);sprite.scale.set(3,3,1);scene.add(sprite);
- }
+ makeMiniMap();
 }
+
 buildItaly();
 const materials={
  ct:new THREE.MeshStandardMaterial({color:0x325675,roughness:.85}),
@@ -192,8 +242,15 @@ function start(side){
  updateHud();
 }
 function resetPositions(){
+ teamIntel.ct=teamIntel.t=null;coverCache.clear();
+ teamSeeds.ct=Math.floor(Math.random()*5);teamSeeds.t=Math.floor(Math.random()*5);
  players.forEach((p,i)=>{
   respawnActor(p,i);
+  if(!p.isPlayer){
+   p.role=italyRole(p.side,botIndex(p),game.round,teamSeeds[p.side]);
+   p.routeVariant=Math.floor(Math.random()*3);
+   p.order=null;p.mapRoute=null;p.visionCheckAt=0;p.nextPeek=0;
+  }
   if(!p.isPlayer&&p.mesh){p.mesh.visible=true;p.mesh.position.set(p.x,p.y,p.z)}
  });
  me.yaw=me.side==='ct'?Math.PI:0;
@@ -603,28 +660,151 @@ function updateGrenades(dt){
   scene.remove(smokes[i].mesh);smokes.splice(i,1);
  }
 }
-// Deterministic squad lanes give each agent a role instead of clustering
-// every ally or every enemy at exactly the same bombsite.
+// Squad-level roles, memory and route variation: no hidden-enemy coordinates.
+const teamIntel={ct:null,t:null};
+const teamSeeds={ct:0,t:0};
+const coverCache=new Map();
 function botIndex(bot){
  const match=String(bot.id).match(/(\d+)$/);
  return match?Number(match[1]):0;
 }
-function botObjective(bot){
- const number=botIndex(bot);
- if(bot.side==='ct'){
-  if(game.planted&&game.bombPosition)return game.bombPosition;
-  // Two CT anchors per site, fifth player rotates between A and B.
-  return SITES[number===4?game.round%2:number%2];
+function lineBetweenPoints(a,b){
+ const from=new V(a.x,positionGround(a.x,a.z)+1.42,a.z);
+ const to=new V(b.x,positionGround(b.x,b.z)+1.42,b.z);
+ return groundLOS(from,to);
+}
+function coverFor(bot,site,rank=0){
+ const key=site.id+':'+bot.side+':'+rank+':'+game.round;
+ if(coverCache.has(key))return coverCache.get(key);
+ const occupied=players.filter(p=>p!==bot&&p.alive&&p.side===bot.side&&p.order?.goals?.length)
+  .map(p=>p.order.goals[0]);
+ const point=italyPickCover(site,italyLeadThreat(bot.side),rank,lineBetweenPoints,occupied);
+ coverCache.set(key,point);
+ return point;
+}
+function activeSquad(side){return players.filter(p=>p.alive&&p.side===side&&!p.isPlayer)}
+function italyPhaseKey(){
+ if(game.planted){
+  const ct=players.filter(p=>p.alive&&p.side==='ct').map(p=>p.id).join(',');
+  return 'planted:'+game.site+':'+ct;
  }
- if(game.bombDropped)return game.bombDropped;
- if(game.planted&&game.bombPosition)return game.bombPosition;
- const carrier=players.find(p=>p.hasBomb&&p.side==='t'&&p.alive);
- const site=SITES[game.round%2];
- if(bot.hasBomb)return site;
- // Two attackers escort C4, one flanks, one checks the other site.
- if(number===3)return SITES[(game.round+1)%2];
- if(carrier&&number<2)return {x:carrier.x,z:carrier.z};
- return site;
+ return game.bombDropped?'dropped:'+Math.round(game.bombDropped.x)+':'+Math.round(game.bombDropped.z):'live';
+}
+function createBotOrder(bot,now){
+ const role=bot.role||'rotate',index=botIndex(bot),side=bot.side;
+ const lane=['west','middle','east'][(index+game.round+bot.routeVariant)%3];
+ const attackSite=SITES[(game.round+Math.floor(game.round/3))%2];
+ const enemyHome=italyLeadThreat(side);
+ const intel=teamIntel[side]&&now-teamIntel[side].seenAt<6?teamIntel[side]:null;
+ const order={key:italyPhaseKey(),goals:[],mode:'patrol',hold:rng(3,7),face:enemyHome,
+  arrivedAt:0,renewAt:now+rng(11,18)};
+ const goto=p=>{if(!p)return;const safe=italySafePoint(p.x,p.z);if(safe)order.goals.push(safe)};
+ const via=(route,goal)=>{
+  for(const p of italyRouteGates(side,route,goal))goto(p);
+ };
+ const holdAt=(p,seconds=11)=>{
+  goto(p);order.mode='hold';order.hold=seconds;
+  order.renewAt=now+Math.max(24,seconds+14);
+ };
+ if(game.planted&&game.bombPosition){
+  const planted=SITES.find(s=>s.id===game.site)||attackSite;
+  if(side==='ct'){
+   const ct=players.filter(p=>p.alive&&p.side==='ct')
+    .sort((a,b)=>Math.hypot(a.x-game.bombPosition.x,a.z-game.bombPosition.z)-
+     Math.hypot(b.x-game.bombPosition.x,b.z-game.bombPosition.z));
+   if(bot===ct[0]){
+    // One designated defuser goes for the device, even when others provide cover.
+    goto(game.bombPosition);order.mode='defuse';order.hold=0;
+   }else if(bot===ct[1]){
+    goto(coverFor(bot,planted,index+1));goto(game.bombPosition);
+    order.mode='retake';order.hold=1;
+   }else if(role==='push'||role==='ambush'){
+    via(lane,coverFor(bot,planted,index+3));order.mode='flank';order.hold=5;
+   }else holdAt(coverFor(bot,planted,index+2),rng(4,8));
+   order.face=game.bombPosition;
+  }else{
+   const fighters=activeSquad('t');
+   const hunter=fighters.length?fighters[game.round%fighters.length]:null;
+   if(bot===hunter){
+    // A rotating hunter searches CT approaches while others protect C4.
+    const hunt=intel||{x:enemyHome.x,z:enemyHome.z+13};
+    via(lane,hunt);order.mode='hunt';order.hold=rng(2,5);
+   }else if(role==='flank'||role==='lurk'){
+    const place=coverFor(bot,planted,index+4);
+    holdAt(place,rng(7,13));order.mode='flank-guard';
+   }else holdAt(coverFor(bot,planted,index),rng(9,17));
+   order.face=enemyHome;
+  }
+ }else if(side==='ct'){
+  const sightSite=role==='anchorA'?SITES[0]:role==='anchorB'?SITES[1]:
+   SITES[(index+game.round)%2];
+  if(role==='anchorA'||role==='anchorB'){
+   holdAt(coverFor(bot,sightSite,index),rng(11,20));
+   order.face=ITALY_SPAWNS.t;
+  }else if(role==='push'){
+   // Sometimes CT cross mid or advance towards T instead of camping a site.
+   via(lane,{x:-11,z:12+((game.round+index)%2)*9});
+   order.mode='push';order.hold=rng(3,8);
+  }else if(role==='ambush'){
+   holdAt(italySafePoint((index%2?8:-12),-25),rng(9,18));
+  }else if(intel){
+   via(lane,intel);order.mode='rotate';order.hold=2;
+  }else if(game.round%3===0){
+   via(lane,{x:-11,z:-8});order.mode='scout';order.hold=rng(3,7);
+  }else{
+   holdAt(coverFor(bot,sightSite,index+2),rng(7,14));
+  }
+ }else if(game.bombDropped){
+  const recover=activeSquad('t').sort((a,b)=>
+   Math.hypot(a.x-game.bombDropped.x,a.z-game.bombDropped.z)-
+   Math.hypot(b.x-game.bombDropped.x,b.z-game.bombDropped.z))[0];
+  if(bot===recover){goto(game.bombDropped);order.mode='recover';order.hold=0}
+  else holdAt(coverFor(bot,attackSite,index),rng(5,10));
+ }else{
+  const carrier=players.find(p=>p.alive&&p.side==='t'&&p.hasBomb);
+  if(bot.hasBomb){
+   // The carrier picks a site, but its team can clear other lanes.
+   via(lane,attackSite);order.mode='plant';order.hold=0;
+  }else if(role==='escort'&&carrier){
+   const following=italySafePoint(carrier.x+(index%2?3:-3),carrier.z-3);
+   goto(following);order.mode='escort';order.hold=1;order.renewAt=now+2.3;
+  }else if(role==='lurk'){
+   via(lane,coverFor(bot,attackSite,index+3));order.mode='lurk';order.hold=rng(7,14);
+  }else if(role==='flank'){
+   const other=SITES.find(s=>s!==attackSite);
+   const flankGate=italySafePoint(other.x,other.z+(index%2?7:-7));
+   goto(flankGate);goto(coverFor(bot,attackSite,index));
+   order.mode='flank';order.hold=rng(4,10);
+  }else if(role==='support'&&intel){
+   goto(intel);order.mode='support';order.hold=2;
+  }else{
+   via(lane,italySafePoint(attackSite.x+(index%2?4:-4),attackSite.z+3));
+   order.mode='entry';order.hold=rng(2,5);
+  }
+ }
+ if(!order.goals.length)goto(intel||attackSite);
+ return order;
+}
+function followBotOrder(bot,now,dt){
+ const key=italyPhaseKey();
+ if(!bot.order||bot.order.key!==key||now>bot.order.renewAt){
+  bot.order=createBotOrder(bot,now);
+  bot.mapRoute=null;bot.routeCheck=0;
+ }
+ const order=bot.order;
+ while(order.goals.length&&Math.hypot(order.goals[0].x-bot.x,order.goals[0].z-bot.z)<1.15){
+  order.goals.shift();order.arrivedAt=now;
+ }
+ if(order.goals.length){
+  const pace=order.mode==='lurk'||order.mode==='hold'||order.mode==='flank-guard'?.68:
+   order.mode==='hunt'||order.mode==='push'?.91:.80;
+  seekBot(bot,order.goals[0],dt,bombMoveSpeed(bot.equipped)*pace);
+ }else{
+  if(!order.arrivedAt)order.arrivedAt=now;
+  const look=order.face||italyLeadThreat(bot.side);
+  bot.yaw=Math.atan2(-(look.x-bot.x),-(look.z-bot.z));
+  if(now-order.arrivedAt>order.hold)bot.order=null;
+ }
 }
 function passableStep(bot,x,z){
  if(italyBlocks(x,z,.34)||Math.abs(positionGround(x,z)-positionGround(bot.x,bot.z))>.78)return false;
@@ -691,7 +871,8 @@ function aiStep(dt){
  const now=performance.now()/1000;
  for(const bot of players){
   if(bot.isPlayer||!bot.alive)continue;
-  // Offset vision scans across frames to avoid the C4-plant stutter.
+  const oldX=bot.x,oldZ=bot.z;
+  // Every bot scans only what its own eyes can see through actual Italy geometry.
   if(now>=(bot.visionCheckAt||0)){
    bot.cachedEnemy=getClosestEnemy(bot);
    bot.visionCheckAt=now+.17+botIndex(bot)*.009;
@@ -701,28 +882,30 @@ function aiStep(dt){
   const nearbySmoke=smokes.some(s=>Math.hypot(bot.x-s.position.x,bot.z-s.position.z)<5);
   const vision=target&&now>=bot.flashUntil&&!nearbySmoke;
   if(vision){
+   teamIntel[bot.side]={x:target.x,z:target.z,seenAt:now};
    const dx=target.x-bot.x,dz=target.z-bot.z;
    bot.yaw=Math.atan2(-dx,-dz);
    const d=Math.hypot(dx,dz);
-   // Keep a little distance and strafe, instead of piling into enemies.
-   if(d>9)seekBot(bot,{x:target.x+Math.sin(now*.6+botIndex(bot))*4,
-      z:target.z+Math.cos(now*.6+botIndex(bot))*4},dt,bombMoveSpeed(bot.equipped)*.78);
-   else if(d<4)seekBot(bot,{x:bot.x-dx*.45,z:bot.z-dz*.45},dt,bombMoveSpeed(bot.equipped)*.70);
+   const mode=bot.order?.mode||'entry';
+   const aggressive=['hunt','push','flank','scout','entry','retake','defuse'].includes(mode);
+   // Guards hold crossfire angles. Pushers advance and try to outflank.
+   if(aggressive&&d>10){
+    const sign=(botIndex(bot)+game.round)%2?1:-1;
+    seekBot(bot,{x:target.x+Math.sin(now*.4)*sign*4,
+     z:target.z+Math.cos(now*.4)*sign*4},dt,bombMoveSpeed(bot.equipped)*.78);
+   }else if(d<4){
+    seekBot(bot,{x:bot.x-dx*.5,z:bot.z-dz*.5},dt,bombMoveSpeed(bot.equipped)*.63);
+   }else if(d<17&&now>(bot.nextPeek||0)){
+    const sign=(botIndex(bot)+game.round)%2?1:-1;
+    seekBot(bot,{x:bot.x+sign*dz*.18,z:bot.z-sign*dx*.18},dt,bombMoveSpeed(bot.equipped)*.55);
+    bot.nextPeek=now+1.5;
+   }
    if(d<35)fireGun(bot);
    if(bot.grenades.he&&d>9&&d<22&&now>(bot.nextGrenade||0)&&Math.random()<dt*.06){
     addGrenade('he',bot);bot.nextGrenade=now+15;
    }
   }else{
-   const destination=botObjective(bot);
-   if(destination){
-    if(!bot.botGoal||now>bot.nextDecision){
-     const scatter=bot.hasBomb?1.3:bot.side==='ct'?3:3.8;
-     bot.botGoal={x:clamp(destination.x+rng(-scatter,scatter),-44,44),
-       z:clamp(destination.z+rng(-scatter,scatter),-44,44)};
-     bot.nextDecision=now+rng(2.5,4.8);
-    }
-    seekBot(bot,bot.botGoal,dt,bombMoveSpeed(bot.equipped)*.82);
-   }
+   followBotOrder(bot,now,dt);
   }
   if(bot.hasBomb&&!game.planted){
    const site=findSite(bot.x,bot.z);
@@ -740,7 +923,8 @@ function aiStep(dt){
   if(bot.mesh){
    bot.mesh.position.set(bot.x,bot.y,bot.z);
    bot.mesh.rotation.y=bot.yaw;
-   const shift=Math.sin(bot.walkPhase)*.27;
+   const walking=Math.hypot(bot.x-oldX,bot.z-oldZ)>.004;
+   const shift=walking?Math.sin(bot.walkPhase)*.27:0;
    bot.mesh.userData.legs[0].rotation.x=shift;
    bot.mesh.userData.legs[1].rotation.x=-shift;
    bot.mesh.userData.arms[0].rotation.x=-.5;
@@ -873,7 +1057,7 @@ function screen(dt){
   if(elapsed>=BOMB_RULES.flashSeconds)flashDuration=0;
  }
  if(performance.now()>announcedUntil&&game.phase!=='finished')byId('message').textContent='';
- updateHud();
+ updateHud();renderMiniMap(now);
 }
 let last=performance.now();
 function animate(now){
@@ -932,15 +1116,21 @@ function closeWheel(){
  wheel.querySelectorAll('button').forEach(b=>b.classList.remove('hovered'));
 }
 function wheelTarget(x,y){
- let nearest=null,best=44;
+ let nearest=null,best=49;
  for(const b of wheel.querySelectorAll('button')){
   if(b.classList.contains('unavailable'))continue;
   const rect=b.getBoundingClientRect();
   const distance=Math.hypot(x-(rect.left+rect.width/2),y-(rect.top+rect.height/2));
   if(distance<best){best=distance;nearest=b}
  }
- return nearest;
+ if(nearest)return nearest;
+ const rect=wheel.getBoundingClientRect(),dx=x-(rect.left+rect.width/2),dy=y-(rect.top+rect.height/2);
+ if(Math.hypot(dx,dy)>112||Math.hypot(dx,dy)<29)return null;
+ const slot=Math.abs(dx)>Math.abs(dy)?(dx<0?'pistol':'knife'):(dy<0?'bomb':'primary');
+ const chosen=wheel.querySelector('[data-slot="'+slot+'"]');
+ return chosen&&!chosen.classList.contains('unavailable')?chosen:null;
 }
+
 wheelToggle.addEventListener('pointerdown',e=>{
  e.preventDefault();if(!me?.alive)return;
  const wasOpen=wheel.classList.contains('open');
@@ -963,11 +1153,16 @@ function finishWheelDrag(e){
 }
 wheelToggle.addEventListener('pointerup',finishWheelDrag);
 wheelToggle.addEventListener('pointercancel',()=>{wheelDrag=null;closeWheel()});
-wheel.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
- if(setSlot(b.dataset.slot))closeWheel();
-}));
+wheel.querySelectorAll('button').forEach(b=>{
+ // Pointerdown is independent of the held left-thumb movement pointer on iOS.
+ b.addEventListener('pointerdown',event=>{
+  event.preventDefault();event.stopPropagation();
+  if(setSlot(b.dataset.slot))closeWheel();
+ });
+ b.addEventListener('click',()=>{if(setSlot(b.dataset.slot))closeWheel()});
+});
 document.addEventListener('pointerdown',e=>{
- if(wheel.classList.contains('open')&&!e.target.closest('#weapons,#weaponToggle'))
+ if(wheel.classList.contains('open')&&!e.target.closest('#weapons,#weaponToggle,#joystick'))
   closeWheel();
 });
 byId('grenade').addEventListener('click',()=>{
@@ -994,7 +1189,8 @@ byId('shopOpen').addEventListener('click',()=>{
 byId('shopClose').addEventListener('click',()=>byId('shop').hidden=true);
 byId('choose').querySelectorAll('[data-team]').forEach(b=>b.addEventListener('click',()=>start(b.dataset.team)));
 const zone=byId('joystick'),stick=byId('stick');
-zone.addEventListener('pointerdown',e=>{joy.id=e.pointerId;zone.setPointerCapture(e.pointerId);moveStick(e)});
+zone.addEventListener('pointerdown',e=>{e.preventDefault();if(joy.id!==null)return;
+ joy.id=e.pointerId;zone.setPointerCapture(e.pointerId);moveStick(e)});
 zone.addEventListener('pointermove',e=>{if(e.pointerId===joy.id)moveStick(e)});
 function moveStick(e){
  const box=zone.getBoundingClientRect(),dx=e.clientX-box.left-62.5,dy=e.clientY-box.top-62.5;

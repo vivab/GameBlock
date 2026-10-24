@@ -7,6 +7,8 @@
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080e18;color:#f5f7fc;font-family:system-ui,Arial;touch-action:none;user-select:none}button{font:800 12px system-ui;color:white;background:#263a51;border:1px solid #7190a2;border-radius:7px;padding:10px;touch-action:manipulation}button:active{background:#44657d}canvas{display:block}#world{position:absolute;inset:0}#world canvas{width:100%;height:100%}
 #hud{position:fixed;inset:0;pointer-events:none}#hud button,#hud .interactive-ui{pointer-events:auto}
+#miniMap{position:absolute;right:max(9px,env(safe-area-inset-right));top:max(9px,env(safe-area-inset-top));width:116px;height:202px;border:1px solid #9aaca7;background:#142532e8;opacity:.96;pointer-events:none;border-radius:8px;box-shadow:0 3px 12px #0009;z-index:3}
+@media(max-width:650px){#miniMap{width:94px;height:164px;top:45px;right:6px}}
 #top{position:absolute;top:max(7px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:#112031e5;border:1px solid #61798f;border-radius:8px;padding:7px 13px;text-align:center;white-space:nowrap;font-size:14px;font-weight:800}#top small{display:block;font-size:10px;color:#b5cce1}#money{position:absolute;top:8px;left:10px;color:#b7f2ad;font-size:18px;font-weight:850}#modeTag{position:absolute;top:35px;left:10px;color:#9cb3c8;font-size:10px}
 #message{position:absolute;top:18%;width:100%;text-align:center;font-weight:900;text-shadow:0 2px 6px #000;font-size:clamp(16px,4vw,24px);padding:0 12px}
 #crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;color:#fff;text-shadow:0 1px 6px #000}
@@ -86,6 +88,7 @@
 <body>
 <div id="world"></div>
 <div id="hud" hidden>
+  <canvas id="miniMap" width="116" height="202" role="img" aria-label="Мини-карта Italy: места закладки A и B"></canvas>
   <div id="top">CT <span id="ctWins">0</span> : <span id="tWins">0</span> T <small id="roundClock">Раунд 1 · закупка 25</small></div>
   <div id="money">$800</div><div id="modeTag">ЗАКЛАДКА БОМБЫ · 5 НА 5</div>
   <div id="message"></div><div id="frag"></div>
@@ -118,6 +121,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="GLTFLoader.js?v=italy-r128-textures-20261024"></script>
 <script src="hands.js"></script>
-<script type="module" src="bomb-desert-v2.js?v=italy-glb-20261024-textures2"></script>
+<script type="module" src="bomb-desert-v2.js?v=italy-glb-20261024-bright-tactics"></script>
 </body>
 </html>
