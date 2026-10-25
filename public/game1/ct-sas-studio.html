@@ -102,10 +102,27 @@ function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>
 function setupActor(model,from){
  while(root.children.length)root.remove(root.children[0]);rig=model;root.add(model);
  model.position.set(0,0,0);
- // GLB is already Y-up. The extra 90-degree rotation previously laid SAS flat.
- model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
- const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
- bodyScale=1.8/Math.max(.01,sz.y);model.scale.setScalar(bodyScale);model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
+ const isSAS=!!model.getObjectByName('ctm_sas_qc_skeleton');
+ if(isSAS){
+  // GLB's unskinned source is ~79 units LONG on local -Z and only ~22
+  // units along Y. The old Y-based fit made boots fill the phone screen.
+  // Align source -Z to world +Y, and use the verified SOURCE height.
+  const sas={minX:-24.27924,maxX:24.27924,
+   minY:-12.81572,maxY:9.56329,minZ:-78.58554,maxZ:.181282};
+  model.rotation.set(Math.PI/2,0,0);
+  bodyScale=1.8/(sas.maxZ-sas.minZ);
+  model.scale.setScalar(bodyScale);
+  model.position.set(-(sas.minX+sas.maxX)*.5*bodyScale,
+   sas.maxZ*bodyScale,-(sas.minY+sas.maxY)*.5*bodyScale);
+ }else{
+  // Keep support for other user-imported GLB rigs.
+  model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
+  const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
+  bodyScale=1.8/Math.max(.01,sz.y);
+  model.scale.setScalar(bodyScale);
+  model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
+ }
+ model.updateMatrixWorld(true);
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
 // Map the 111-bone CS SAS rig onto the existing editable arm/leg controls.
 for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
@@ -126,7 +143,7 @@ for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
     'Независимые руки: исправление не потребовалось';
   if(helper)scene.remove(helper);helper=new THREE.SkeletonHelper(model);helper.material.depthTest=false;helper.visible=false;scene.add(helper);
  holder=bones.WeaponSocketR||bones.RightHand;weaponPivot=new THREE.Group();holder.add(weaponPivot);
- status('Модель: '+from+' · '+Object.keys(bones).length+' суставов · редактирование готово');
+ status('Модель: '+from+' · 1,8 м как террорист · '+Object.keys(bones).length+' суставов · готово');
  loadWeapon();renderControls();
 }
 // Some vertices in the uploaded skin follow BOTH palms, and 110 polygons
