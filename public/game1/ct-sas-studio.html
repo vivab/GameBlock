@@ -1,12 +1,12 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>GameBlock · CT SAS — студия поз и оружия</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#0a1521;color:#f3f6fa;font-family:system-ui,Arial;overflow:hidden}button,input,select{font:inherit}button{color:#fff;background:#28435b;border:1px solid #638398;border-radius:8px;padding:9px;cursor:pointer}button.active{background:#a4793f;border-color:#f3cc8a;color:#111f2b}button:disabled{opacity:.4}input[type=range]{width:100%;accent-color:#e5b06e}select,input[type=number]{background:#192e40;color:#fff;border:1px solid #5f778e;border-radius:7px;padding:7px;min-width:0}main{display:grid;grid-template-columns:minmax(0,1fr) min(385px,43vw);height:100dvh}#view{position:relative;min-width:0;background:radial-gradient(ellipse at 50% 65%,#30465a,#101c2b 75%)}canvas{display:block;width:100%;height:100%;touch-action:none}#hint{position:absolute;top:12px;left:12px;background:#0b203ac9;border:1px solid #47647c;border-radius:9px;padding:10px;font-size:12px;max-width:min(370px,92%)}#hint strong{color:#f8d3a2}#status{color:#afeac6;font-size:11px;margin-top:5px}#panel{display:flex;min-height:0;flex-direction:column;background:#102337;border-left:1px solid #547184}header{padding:10px 12px;background:#1a334a;border-bottom:1px solid #47647f}header b{display:block;font-size:15px}header small{color:#b5cadd}#scroll{padding:10px;overflow-y:auto;flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}label{display:block;font-size:12px;color:#cce0f1;margin:7px 0 4px}select{width:100%}#tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:11px 0}#tabs button{font-size:11px;min-height:47px;padding:5px 2px}#controls{margin-top:8px}section{border:1px solid #4a657b;border-radius:9px;padding:9px;margin:9px 0;background:#172d41}section h3{margin:0 0 8px;font-size:13px;color:#f5cf9b}.control{display:grid;grid-template-columns:1fr 70px;gap:4px 8px;margin:9px 0;padding-bottom:5px;border-bottom:1px solid #ffffff13}.control label{grid-column:1;margin:0}.control output{text-align:right;font-size:11px;color:#f1c38b}.control input[type=range]{grid-column:1}.control input[type=number]{grid-column:2;width:100%;font-size:11px;text-align:center;padding:5px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}.buttons button{min-height:39px;font-size:11px}#modelFile,#importFile{width:100%;font-size:11px;color:#bdd4e7}#loading{font-size:11px;color:#e7c795}#timeline{width:100%}#view-tools{position:absolute;bottom:14px;left:12px;display:flex;gap:6px;flex-wrap:wrap}#view-tools button{font-size:11px;background:#19364bcc}.foot{font-size:11px;color:#adc3d2;line-height:1.45}.pill{color:#f5c17d}.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:44dvh minmax(0,1fr)}#panel{border-left:0;border-top:1px solid #547184}#hint{padding:7px;font-size:10px;top:5px;left:5px}#view-tools{bottom:6px;left:6px}#view-tools button{padding:6px;font-size:10px}header{padding:8px 10px}#scroll{padding:8px}#tabs button{min-height:42px}}
+*{box-sizing:border-box}body{margin:0;background:#0a1521;color:#f3f6fa;font-family:system-ui,Arial;overflow:hidden}button,input,select{font:inherit}button{color:#fff;background:#28435b;border:1px solid #638398;border-radius:8px;padding:9px;cursor:pointer}button.active{background:#a4793f;border-color:#f3cc8a;color:#111f2b}button:disabled{opacity:.4}input[type=range]{width:100%;accent-color:#e5b06e}select,input[type=number]{background:#192e40;color:#fff;border:1px solid #5f778e;border-radius:7px;padding:7px;min-width:0}main{display:grid;grid-template-columns:minmax(0,1fr) min(385px,43vw);height:100dvh}#view{position:relative;min-width:0;background:radial-gradient(ellipse at 50% 65%,#30465a,#101c2b 75%)}canvas{display:block;width:100%;height:100%;touch-action:none}#hint{position:absolute;top:12px;left:12px;background:#0b203ac9;border:1px solid #47647c;border-radius:9px;padding:10px;font-size:12px;max-width:min(370px,92%)}#hint strong{color:#f8d3a2}#status{color:#afeac6;font-size:11px;margin-top:5px}#panel{display:flex;min-height:0;flex-direction:column;background:#102337;border-left:1px solid #547184}header{padding:10px 12px;background:#1a334a;border-bottom:1px solid #47647f}header b{display:block;font-size:15px}header small{color:#b5cadd}#scroll{padding:10px;overflow-y:auto;flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}label{display:block;font-size:12px;color:#cce0f1;margin:7px 0 4px}select{width:100%}.direction-buttons{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:3px 0 7px}.direction-buttons button{min-height:40px;font-size:12px;background:#285169}.direction-buttons button:active{background:#b48b4c;color:#101c28}.control.is-direction{padding:10px;background:#1d3649;border:1px solid #42637a;border-radius:9px}.axis-hint{font-size:11px;color:#97b6c9;margin:4px 0 8px}.step-row{display:flex;align-items:center;gap:8px;justify-content:space-between;margin:9px 0}.step-row label{margin:0}.step-row select{width:auto;min-width:130px}#tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:11px 0}#tabs button{font-size:11px;min-height:47px;padding:5px 2px}#controls{margin-top:8px}section{border:1px solid #4a657b;border-radius:9px;padding:9px;margin:9px 0;background:#172d41}section h3{margin:0 0 8px;font-size:13px;color:#f5cf9b}.control{display:grid;grid-template-columns:1fr 70px;gap:4px 8px;margin:9px 0;padding-bottom:5px;border-bottom:1px solid #ffffff13}.control label{grid-column:1;margin:0}.control output{text-align:right;font-size:11px;color:#f1c38b}.control input[type=range]{grid-column:1}.control input[type=number]{grid-column:2;width:100%;font-size:11px;text-align:center;padding:5px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}.buttons button{min-height:39px;font-size:11px}#modelFile,#importFile{width:100%;font-size:11px;color:#bdd4e7}#loading{font-size:11px;color:#e7c795}#timeline{width:100%}#view-tools{position:absolute;bottom:14px;left:12px;display:flex;gap:6px;flex-wrap:wrap}#view-tools button{font-size:11px;background:#19364bcc}.foot{font-size:11px;color:#adc3d2;line-height:1.45}.pill{color:#f5c17d}.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:44dvh minmax(0,1fr)}#panel{border-left:0;border-top:1px solid #547184}#hint{padding:7px;font-size:10px;top:5px;left:5px}#view-tools{bottom:6px;left:6px}#view-tools button{padding:6px;font-size:10px}header{padding:8px 10px}#scroll{padding:8px}#tabs button{min-height:42px}}
 </style></head><body><main><div id="view"><canvas id="canvas"></canvas><div id="hint"><strong>GameBlock · Мастерская спецназа SAS</strong><div>Пальцем вращай бойца · двумя пальцами приближай</div><div id="status">Загрузка модели...</div></div><div id="view-tools"><button id="front">Спереди</button><button id="back">Сзади</button><button id="leftCam">Сбоку</button><button id="bonesToggle">Скелет</button><button id="pause">Пауза</button></div></div>
 <div id="panel"><header><b>Спецназ SAS · редактор анимаций и оружия</b><small>Раздельные настройки суставов, хвата и оружия</small></header><div id="scroll">
 <section><h3>Модель</h3><p class="foot"><a href="CTM_SAS_ATTRIBUTION.txt" style="color:#a8cfff">CTM SAS · модель yttur6453 · CC BY 4.0</a></p><p class="foot pill" id="skinRepair">Проверяем кисти и скелет…</p><div id="loading">Загружается...</div><label for="modelFile">Заменить модель GLB</label><input id="modelFile" type="file" accept=".glb,model/gltf-binary"><p class="foot">Загруженная через файл модель не отправляется на сервер. В этой версии спецназ SAS загружается автоматически; можно менять руки, ноги и пальцы.</p></section>
 <div class="row"><div><label for="weaponSelect">Оружие</label><select id="weaponSelect"><option value="glock">Glock 18</option><option value="ak">АК-47</option><option value="knife">Обычный нож</option><option value="none">Без оружия</option></select></div><div><label for="motion">Анимация</label><select id="motion"><option value="idle">Стойка</option><option value="walk">Ходьба</option><option value="run">Бег</option><option value="jump">Прыжок</option><option value="crouch">Присед CS</option><option value="shoot">Выстрел</option></select></div></div>
 <div id="tabs"><button data-tab="right" class="active">Правая рука</button><button data-tab="left">Левая рука</button><button data-tab="both">Обе руки</button><button data-tab="weapon">Оружие</button><button data-tab="all">Руки + оружие</button><button data-tab="legs">Ноги / тело</button></div>
-<section><h3 id="editTitle">Правая рука</h3><div id="partWrap"><label for="part">Выбери сустав</label><select id="part"></select></div><div id="controls"></div><div class="buttons"><button id="resetPart">Сбросить раздел</button><button id="resetWeapon">Сбросить стойку</button><button id="freeHands">Развести руки</button><button id="restoreGlock">Мой Glock-пресет</button></div></section>
+<section><h3 id="editTitle">Правая рука</h3><div id="partWrap"><label for="part">Выбери сустав</label><select id="part"></select></div><p class="axis-hint">Стрелки двигают выбранную руку или оружие относительно персонажа, даже когда кисть повёрнута. Повороты и масштаб настраиваются ниже.</p><div class="step-row"><label for="moveStep">Шаг кнопок</label><select id="moveStep"><option value="0.005">0,005 м · точно</option><option value="0.01">0,01 м</option><option value="0.02" selected>0,02 м</option><option value="0.05">0,05 м</option><option value="0.1">0,1 м</option><option value="0.5">0,5 м</option></select></div><div id="controls"></div><div class="buttons"><button id="resetPart">Сбросить раздел</button><button id="resetWeapon">Сбросить стойку</button><button id="freeHands">Развести руки</button><button id="restoreGlock">Мой Glock-пресет</button></div></section>
 <section><h3>Воспроизведение</h3><div class="row"><div><label for="speed">Скорость</label><input id="speed" type="range" min="0.25" max="2" step="0.05" value="1"></div><div><label for="timeline">Кадр / фаза</label><input id="timeline" type="range" min="0" max="1" step="0.005" value="0"></div></div><div class="foot" id="frameInfo">Анимация: стойка</div></section>
 <section><h3>Сохранение настроек</h3><div class="buttons"><button id="save">Сохранить на устройстве</button><button id="copy">Копировать JSON</button><button id="export">Скачать настройки</button><button id="import">Импорт JSON</button></div><input type="file" id="importFile" accept=".json,application/json" hidden><p class="foot">Отдельная мастерская спецназа SAS · 111 костей и подвижные пальцы. Бег/ходьба: ноги и чуть корпус; оружие стабильно. Выстрел: отдача. Редактор меняет настоящие кости GLB. Настройки для Glock, АК и ножа раздельные. Экспорт нужен для переноса поз в GameBlock 2.0.</p></section>
 </div></div></main>
@@ -17,7 +17,18 @@
 const THREE=window.THREE, $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], RAD=Math.PI/180;
 const LABELS={right:'Правая рука',left:'Левая рука',both:'Обе руки',weapon:'Только оружие',all:'Оружие вместе с обеими руками',legs:'Ноги и корпус'};
 const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand','RightThumb','RightIndex','RightMiddle','RightRing','RightPinky'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand','LeftThumb','LeftIndex','LeftMiddle','LeftRing','LeftPinky'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase','RightUpLeg','RightLeg','RightFoot','RightToeBase']};
-const FIELDS=[['x','X ↔',-.35,.35,.005],['y','Y ↕',-.35,.35,.005],['z','Z ↗',-.35,.35,.005],['rx','Поворот X',-135,135,1],['ry','Поворот Y',-135,135,1],['rz','Поворот Z',-135,135,1],['scale','Масштаб оружия',.3,2.5,.01]];
+// World-oriented movements are separate from the original weapon/bone pose (x/y/z).
+// This preserves legacy JSON settings and lets users move consistently in 6 directions.
+const FIELDS=[
+ ['wx','← Влево / Вправо →',-3,3,.005],
+ ['wy','↓ Вниз / Вверх ↑',-3,3,.005],
+ ['wz','Назад / Вперёд',-3,3,.005],
+ ['rx','Поворот X',-360,360,1],
+ ['ry','Поворот Y',-360,360,1],
+ ['rz','Поворот Z',-360,360,1],
+ ['scale','Масштаб оружия',.05,7,.01]
+];
+const AXIS_BUTTONS={wx:['← Влево','Вправо →'],wy:['↓ Вниз','Вверх ↑'],wz:['⇣ Назад','Вперёд ⇡']};
 const BIND_PRESETS={glock:{},ak:{},knife:{},none:{}};
 const zero=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
 // SAS 111-bone combat stance based on our terrorist's relaxed weapon hold.
@@ -87,6 +98,21 @@ const current=()=>configFor(state.weapon);
 function valuesFor(){const c=current();return state.tab==='right'||state.tab==='left'||state.tab==='legs'?(c[state.tab][state.part[state.tab]]||(c[state.tab][state.part[state.tab]]=zero())):c[state.tab]}
 function d(v){return Number(v)||0}
 function vec(obj){return new THREE.Vector3(d(obj.x),d(obj.y),d(obj.z))}
+// Convert direction sliders (world coordinates in meters) into a bone/weapon
+// parent local translation. The imported SAS skeleton has rotated bone axes.
+function worldMoveInParent(parent,coords){
+ const delta=new THREE.Vector3(d(coords.wx),d(coords.wy),d(coords.wz));
+ if(!parent||delta.lengthSq()===0)return delta;
+ parent.updateWorldMatrix(true,false);
+ const parentQuat=parent.getWorldQuaternion(new THREE.Quaternion());
+ const parentScale=parent.getWorldScale(new THREE.Vector3());
+ delta.applyQuaternion(parentQuat.invert());
+ for(const axis of ['x','y','z']){
+  const scale=parentScale[axis];
+  delta[axis]/=Math.abs(scale)>1e-7?scale:1;
+ }
+ return delta;
+}
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x182939);
 scene.add(new THREE.HemisphereLight(0xf3f7ff,0x677b88,2.1));const light=new THREE.DirectionalLight(0xffe3b8,2.1);light.position.set(-3,7,4);scene.add(light);
 const camera=new THREE.PerspectiveCamera(38,1,.04,90);camera.position.set(2.4,1.45,3.1);
@@ -347,7 +373,12 @@ function animate(dt){
   const base=rest[name];if(!base)continue;const edits=transforms(name),anim=ctRigMotion(name,motion[name]);
   const offsets=edits.reduce((acc,v)=>{for(const k of ['x','y','z','rx','ry','rz'])acc[k]+=d(v[k]);return acc},{x:0,y:0,z:0,rx:0,ry:0,rz:0});
   const p=pre[name]||[0,0,0];const rot=new THREE.Euler((offsets.rx*RAD)+(p[0]||0)+(anim.rx||0),(offsets.ry*RAD)+(p[1]||0)+(anim.ry||0),(offsets.rz*RAD)+(p[2]||0)+(anim.rz||0),'XYZ');
-  bone.position.copy(base.position).add(vec(offsets).divideScalar(Math.max(.0001,bodyScale)));bone.position.y+=(anim.y||0)/Math.max(.0001,bodyScale);
+  bone.position.copy(base.position).add(vec(offsets).divideScalar(Math.max(.0001,bodyScale)));
+  const worldOffsets=edits.reduce((acc,v)=>{
+   acc.wx+=d(v.wx);acc.wy+=d(v.wy);acc.wz+=d(v.wz);return acc;
+  },{wx:0,wy:0,wz:0});
+  bone.position.add(worldMoveInParent(bone.parent,worldOffsets));
+  bone.position.y+=(anim.y||0)/Math.max(.0001,bodyScale);
   bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(rot));
  }
  // Stance foot stays near the floor with damped vertical compensation;
@@ -368,6 +399,9 @@ function animate(dt){
  }
  if(weaponPivot){const mount=defaultGuns[state.weapon]||zero(),w=c.weapon||zero(),all=c.all||zero();
   weaponPivot.position.set((mount.x+d(w.x)+d(all.x))/bodyScale,(mount.y+d(w.y)+d(all.y))/bodyScale,(mount.z+d(w.z)+d(all.z))/bodyScale);
+   weaponPivot.position.add(worldMoveInParent(holder,{
+    wx:d(w.wx)+d(all.wx),wy:d(w.wy)+d(all.wy),wz:d(w.wz)+d(all.wz)
+   }));
   weaponPivot.rotation.set((mount.rx+d(w.rx)+d(all.rx))*RAD,(mount.ry+d(w.ry)+d(all.ry))*RAD,(mount.rz+d(w.rz)+d(all.rz))*RAD);
   weaponPivot.scale.setScalar(d(w.scale)||1);
   if(action==='shoot'){
@@ -380,15 +414,61 @@ function animate(dt){
  if(!state.paused)$('#timeline').value=String((state.t*.4138)%1);
  $('#frameInfo').textContent='Анимация: '+action+' · '+(state.paused?'пауза':'воспроизведение')+' · '+state.weapon;
 }
-function renderControls(){const c=current();const tab=state.tab;$('#editTitle').textContent=LABELS[tab];$$('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
- const options=BONE[tab];$('#partWrap').hidden=!options;if(options){$('#part').replaceChildren(...options.map(n=>{const op=document.createElement('option');op.value=n;op.textContent=n;return op}));$('#part').value=state.part[tab]||options[0]}
- const values=valuesFor();const box=$('#controls');box.replaceChildren();
- for(const [key,label,min,max,step] of FIELDS){if(key==='scale'&&tab!=='weapon')continue;
-  const line=document.createElement('div');line.className='control';const cap=document.createElement('label');cap.textContent=label;const out=document.createElement('output');const r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=step;r.value=values[key]??(key==='scale'?1:0);
-  const num=document.createElement('input');num.type='number';num.min=min;num.max=max;num.step=step;num.value=r.value;
-  const set=v=>{const n=Math.max(min,Math.min(max,Number(v)||0));values[key]=n;r.value=n;num.value=n;out.textContent=(key[0]==='r'?'° ':'')+n;};
-  r.addEventListener('input',()=>set(r.value));num.addEventListener('change',()=>set(num.value));
-  out.textContent=r.value;line.append(cap,out,r,num);box.append(line);
+function renderControls(){
+ const c=current(),tab=state.tab;
+ $('#editTitle').textContent=LABELS[tab];
+ $$('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+ const options=BONE[tab];
+ $('#partWrap').hidden=!options;
+ if(options){
+  $('#part').replaceChildren(...options.map(n=>{
+   const op=document.createElement('option');op.value=n;op.textContent=n;return op;
+  }));
+  $('#part').value=state.part[tab]||options[0];
+ }
+ const values=valuesFor(),box=$('#controls');
+ box.replaceChildren();
+ for(const [key,label,min,max,step] of FIELDS){
+  if(key==='scale'&&tab!=='weapon')continue;
+  const isDir=Object.hasOwn(AXIS_BUTTONS,key);
+  const line=document.createElement('div');
+  line.className='control'+(isDir?' is-direction':'');
+  const cap=document.createElement('label');
+  cap.textContent=label;
+  const out=document.createElement('output');
+  const r=document.createElement('input');
+  r.type='range';r.min=min;r.max=max;r.step=step;
+  const raw=values[key]??(key==='scale'?1:0);
+  r.value=Math.max(min,Math.min(max,raw));
+  const num=document.createElement('input');
+  num.type='number';num.min=min;num.max=max;num.step=step;num.value=raw;
+  const set=(v)=>{
+   let n=Math.max(min,Math.min(max,Number(v)||0));
+   n=Math.round(n*1000)/1000;
+   values[key]=n;
+   r.value=n;num.value=n;
+   out.textContent=(key.startsWith('r')?'° ':'')+String(n);
+  };
+  r.addEventListener('input',()=>set(r.value));
+  num.addEventListener('change',()=>set(num.value));
+  out.textContent=String(raw);
+  line.append(cap,out,r,num);
+  if(isDir){
+   const pair=document.createElement('div');
+   pair.className='direction-buttons';
+   for(const [i,word] of AXIS_BUTTONS[key].entries()){
+    const button=document.createElement('button');
+    button.type='button';button.textContent=word;
+    button.setAttribute('aria-label',word);
+    button.addEventListener('click',()=>{
+     const increment=Number($('#moveStep').value)||.02;
+     set((Number(values[key])||0)+(i===0?-1:1)*increment);
+    });
+    pair.append(button);
+   }
+   line.append(pair);
+  }
+  box.append(line);
  }
 }
 function changeWeapon(w){state.weapon=w;$('#weaponSelect').value=w;configFor(w);loadWeapon();renderControls()}
