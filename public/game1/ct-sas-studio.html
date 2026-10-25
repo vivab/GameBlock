@@ -104,16 +104,37 @@ function setupActor(model,from){
  model.position.set(0,0,0);
  const isSAS=!!model.getObjectByName('ctm_sas_qc_skeleton');
  if(isSAS){
-  // GLB's unskinned source is ~79 units LONG on local -Z and only ~22
-  // units along Y. The old Y-based fit made boots fill the phone screen.
-  // Align source -Z to world +Y, and use the verified SOURCE height.
-  const sas={minX:-24.27924,maxX:24.27924,
-   minY:-12.81572,maxY:9.56329,minZ:-78.58554,maxZ:.181282};
-  model.rotation.set(Math.PI/2,0,0);
-  bodyScale=1.8/(sas.maxZ-sas.minZ);
+  // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
+  // transforms already correct them to an upright Y-axis pose. DO NOT
+  // apply any extra 90-degree rotation to the loaded scene.
+  model.rotation.set(0,0,0);
+  model.scale.setScalar(1);
+  model.updateMatrixWorld(true);
+  const head=model.getObjectByName('head_0_097');
+  const toeL=model.getObjectByName('ball_L_019');
+  const toeR=model.getObjectByName('ball_R_010');
+  const ankleL=model.getObjectByName('ankle_L_018');
+  const ankleR=model.getObjectByName('ankle_R_09');
+  if(!head||!toeL||!toeR||!ankleL||!ankleR)throw Error('SAS skeleton landmarks missing');
+  const headP=head.getWorldPosition(new THREE.Vector3());
+  const toeLP=toeL.getWorldPosition(new THREE.Vector3());
+  const toeRP=toeR.getWorldPosition(new THREE.Vector3());
+  const ankleLP=ankleL.getWorldPosition(new THREE.Vector3());
+  const ankleRP=ankleR.getWorldPosition(new THREE.Vector3());
+  // Measure the model AFTER skin/bone transforms: toe Y≈1.29, head Y≈70.78.
+  // The top of the skull extends beyond the head bone by roughly 7.5 units.
+  const toeFloor=Math.min(toeLP.y,toeRP.y)-1;
+  const headTop=headP.y+7.5;
+  const standingHeight=headTop-toeFloor;
+  if(!Number.isFinite(standingHeight)||standingHeight<40||
+      !(headP.y>ankleLP.y&&headP.y>ankleRP.y))
+   throw Error('SAS rig is not upright in model coordinates');
+  bodyScale=1.8/standingHeight;
   model.scale.setScalar(bodyScale);
-  model.position.set(-(sas.minX+sas.maxX)*.5*bodyScale,
-   sas.maxZ*bodyScale,-(sas.minY+sas.maxY)*.5*bodyScale);
+  const footCenterX=(toeLP.x+toeRP.x)*.5;
+  const footCenterZ=(toeLP.z+toeRP.z)*.5;
+  model.position.set(-footCenterX*bodyScale,-toeFloor*bodyScale,
+    -footCenterZ*bodyScale);
  }else{
   // Keep support for other user-imported GLB rigs.
   model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
