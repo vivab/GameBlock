@@ -54,6 +54,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
     #retroHome #retroAnimationLab {padding:11px 13px;text-align:center;
       background:#24465b;border:1px solid #68a1b3;color:#dcf4ff;
       font-size:12px;border-radius:4px}
+    #retroHome #retroTerroristStudio {padding:12px 14px;text-align:center;background:#3d5b49;border:1px solid #9dd8ac;color:#edfff1;border-radius:4px;font-size:12px;font-weight:800}
     #retroHome #retroFighter {padding:12px 14px;text-align:center;
       background:linear-gradient(110deg,#d3a362,#ac7743);color:#172430;
       border:1px solid #ffe0aa;font-size:12px;border-radius:4px}
@@ -127,14 +128,15 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
         <button data-tab="friends" type="button"><b>☷</b> ДРУЗЬЯ</button>
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
-      <button id="retroFighter" type="button">◈ ПЕРСОНАЖ v1.0 · РЕДАКТОР</button>
+      <button id="retroTerroristStudio" type="button">🛠 ТЕРРОРИСТ · РУКИ, АК, GLOCK, НОЖ · 3D РЕДАКТОР</button>
+       <button id="retroFighter" type="button">◈ ПЕРСОНАЖ v1.0 · РЕДАКТОР</button>
       <button id="retroAnimationLab" type="button">▶ 5 АНИМАЦИЙ · ПОЛИГОН</button>
       <button id="retroGallery" type="button" hidden>◈ СТАРАЯ ГАЛЕРЕЯ (АРХИВ)</button>
       <button id="retroCasting" type="button" hidden>АРХИВ CT</button>
       <button id="retroEliteT" type="button" hidden>АРХИВ T</button>
       <button id="retroTChoice" type="button" hidden>АРХИВ МОДЕЛЕЙ T</button>
       <button id="retroGame1" type="button">▶ КОМАНДНЫЙ БОЙ · GAME1</button>
-      <button id="retroBomb" type="button">💣 ЗАКЛАДКА БОМБЫ · SUNDOWN</button>
+      <button id="retroBomb" type="button">💣 ЗАКЛАДКА БОМБЫ · ITALY</button>
       <button id="retroShop" type="button">▣ МАГАЗИН ОРУЖИЯ · 5 МОДЕЛЕЙ</button>
       <button id="retroPlay" type="button">▶ КЛАССИЧЕСКИЙ GAMEBLOCK</button>
       <div class="retroFoot">SANDSTONE CROSSING • 5 VS 5 • OFFLINE BOTS</div>
@@ -199,6 +201,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
     }));
   $('retroShop').addEventListener('click',()=>onArmory());
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
+  $('retroTerroristStudio').addEventListener('click',()=>window.location.assign(import.meta.env.BASE_URL+'game1/terrorist-studio.html'));
   $('retroFighter').addEventListener('click',()=>{window.location.href=new URL('fighter-v1.html',window.location.href).href;});
   $('retroAnimationLab').addEventListener('click',()=>{window.location.href=new URL('animation-lab.html',window.location.href).href;});
   $('retroGallery').addEventListener('click',()=>{showTab(null);onGallery();});
