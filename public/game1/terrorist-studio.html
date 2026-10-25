@@ -51,10 +51,64 @@ function setupActor(model,from){
  bodyScale=1.8/Math.max(.01,sz.y);model.scale.setScalar(bodyScale);model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
  if(!bones.RightHand||!bones.LeftHand||!bones.LeftUpLeg||!bones.RightUpLeg){status('Скелет не подходит: нужны кисти и ноги');return}
- if(helper)scene.remove(helper);helper=new THREE.SkeletonHelper(model);helper.material.depthTest=false;helper.visible=false;scene.add(helper);
+ const repaired=releaseJoinedHands(model);
+  $('#skinRepair').textContent=repaired.vertices||repaired.faces?
+    '✓ Руки разделены · '+repaired.vertices+' вершин и '+repaired.faces+' соединяющих полигонов':
+    'Независимые руки: исправление не потребовалось';
+  if(helper)scene.remove(helper);helper=new THREE.SkeletonHelper(model);helper.material.depthTest=false;helper.visible=false;scene.add(helper);
  holder=bones.RightHand;weaponPivot=new THREE.Group();holder.add(weaponPivot);
  status('Модель: '+from+' · '+Object.keys(bones).length+' суставов · редактирование готово');
  loadWeapon();renderControls();
+}
+// Some vertices in the uploaded skin follow BOTH palms, and 110 polygons
+// physically bridge the hands. Detach only that seam without replacing the rig.
+function releaseJoinedHands(model){
+ let vertices=0,faces=0;
+ const get=['getX','getY','getZ','getW'],set=['setX','setY','setZ','setW'];
+ model.traverse(mesh=>{
+  if(!mesh.isSkinnedMesh)return;
+  const g=mesh.geometry,ji=g?.getAttribute('skinIndex'),sw=g?.getAttribute('skinWeight'),pos=g?.getAttribute('position');
+  if(!ji||!sw||!pos)return;
+  const names=mesh.skeleton.bones.map(b=>b.name.replace(/_\d+$/,''));
+  const left=new Set(names.map((n,i)=>n.startsWith('Left')&&/Shoulder|Arm|Hand/.test(n)?i:-1).filter(i=>i>=0));
+  const right=new Set(names.map((n,i)=>n.startsWith('Right')&&/Shoulder|Arm|Hand/.test(n)?i:-1).filter(i=>i>=0));
+  if(!left.size||!right.size)return;
+  const owner=new Int8Array(ji.count);
+  for(let i=0;i<ji.count;i++){
+   const ids=get.map(k=>ji[k](i)),weights=get.map(k=>sw[k](i));
+   let l=0,r=0;
+   for(let k=0;k<4;k++){
+    if(left.has(ids[k]))l+=weights[k];
+    else if(right.has(ids[k]))r+=weights[k];
+   }
+   if(Math.max(l,r)<.1)continue;
+   const chosen=l>=r?left:right,other=chosen===left?right:left;
+   owner[i]=chosen===left?1:-1;
+   if(Math.min(l,r)<.015)continue;
+   const winner=ids.findIndex((j,k)=>chosen.has(j)&&weights[k]>.005);
+   if(winner<0)continue;
+   for(let k=0;k<4;k++)if(other.has(ids[k])){
+    weights[winner]+=weights[k];weights[k]=0;ids[k]=ids[winner];
+   }
+   const total=weights.reduce((a,b)=>a+b,0)||1;
+   for(let k=0;k<4;k++){ji[set[k]](i,ids[k]);sw[set[k]](i,weights[k]/total);}
+   vertices++;
+  }
+  const idx=g.getIndex();
+  if(idx){
+   for(let i=0;i<idx.count;i+=3){
+    const a=idx.getX(i),b=idx.getX(i+1),c=idx.getX(i+2);
+    if(Math.min(owner[a],owner[b],owner[c])<0&&Math.max(owner[a],owner[b],owner[c])>0&&
+       Math.min(pos.getY(a),pos.getY(b),pos.getY(c))>.22&&
+       Math.min(pos.getZ(a),pos.getZ(b),pos.getZ(c))>.2){
+      idx.setX(i+1,a);idx.setX(i+2,a);faces++;
+    }
+   }
+   idx.needsUpdate=true;
+  }
+  ji.needsUpdate=true;sw.needsUpdate=true;g.computeBoundingSphere();
+ });
+ return {vertices,faces};
 }
 function loadWeapon(){const n=++weaponRequest;if(weaponPivot&&weaponModel){weaponPivot.remove(weaponModel);weaponModel=null}
  if(state.weapon==='none'||!weaponPivot)return;
