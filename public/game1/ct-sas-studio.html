@@ -112,6 +112,22 @@ for(const [weapon,mapping] of Object.entries(MATCHED_SKELETON)){
  pose.both=zero();pose.all=zero();
  pose.weapon={...mapping.weapon};
 }
+// Stable, half-crouched combat stance. Applied to the pelvis and legs for
+// every weapon; movement is still animated on top of the same baseline.
+const COMBAT_LEGS={
+ Hips:{...zero(),y:-.055},
+ Spine:{...zero(),rx:3},
+ Spine1:{...zero(),rx:-2},
+ LeftUpLeg:{...zero(),ry:8},
+ RightUpLeg:{...zero(),ry:7},
+ LeftLeg:{...zero(),ry:-18},
+ RightLeg:{...zero(),ry:-17},
+ LeftFoot:{...zero(),ry:10},
+ RightFoot:{...zero(),ry:10}
+};
+for(const weapon of ['glock','ak','knife']){
+ USER_POSES[weapon].legs=copyConfig(COMBAT_LEGS);
+}
 const MATCHED_POSES=copyConfig(USER_POSES);
 const CT_BONE_NAMES={
  RightShoulder:'clavicle_R_030',RightArm:'arm_upper_R_031',
