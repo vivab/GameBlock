@@ -40,13 +40,13 @@ test('walk and run only animate modest leg strides and a tiny torso sway',()=>{
  for(const action of ['walk','run'])for(let i=0;i<120;i++){
   const frame=sampleMotion(action,i*.027,false,0);
   const keys=Object.keys(frame.motion);
-  assert.ok(keys.every(x=>['LeftUpLeg','RightUpLeg','LeftLeg','RightLeg','Spine','Spine1'].includes(x)),keys.join(','));
+  assert.ok(keys.every(x=>['LeftUpLeg','RightUpLeg','LeftLeg','RightLeg','LeftFoot','RightFoot','LeftToeBase','RightToeBase','Spine','Spine1'].includes(x)),keys.join(','));
   assert.ok(Math.abs(frame.motion.LeftUpLeg.rx)<=.301);
   assert.ok(Math.abs(frame.motion.RightUpLeg.rx)<=.301);
   assert.ok(frame.motion.LeftLeg.rx<=0&&frame.motion.RightLeg.rx<=0);
   assert.equal(frame.jumpHeight,0);
   assert.equal(frame.recoil,0);
-  assert.equal(frame.groundFeet,false);
+  assert.equal(frame.groundFeet,true);
  }
  assert.ok(Math.abs(sampleMotion('walk',.3,false,0).motion.LeftUpLeg.rx)<
            Math.abs(sampleMotion('run',.3,false,0).motion.LeftUpLeg.rx));
