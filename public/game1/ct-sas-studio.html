@@ -6,7 +6,7 @@
 <section><h3>Модель</h3><p class="foot"><a href="CTM_SAS_ATTRIBUTION.txt" style="color:#a8cfff">CTM SAS · модель yttur6453 · CC BY 4.0</a></p><p class="foot pill" id="skinRepair">Проверяем кисти и скелет…</p><div id="loading">Загружается...</div><label for="modelFile">Заменить модель GLB</label><input id="modelFile" type="file" accept=".glb,model/gltf-binary"><p class="foot">Загруженная через файл модель не отправляется на сервер. В этой версии спецназ SAS загружается автоматически; можно менять руки, ноги и пальцы.</p></section>
 <div class="row"><div><label for="weaponSelect">Оружие</label><select id="weaponSelect"><option value="glock">Glock 18</option><option value="ak">АК-47</option><option value="knife">Обычный нож</option><option value="none">Без оружия</option></select></div><div><label for="motion">Анимация</label><select id="motion"><option value="idle">Стойка</option><option value="walk">Ходьба</option><option value="run">Бег</option><option value="jump">Прыжок</option><option value="crouch">Присед CS</option><option value="shoot">Выстрел</option></select></div></div>
 <div id="tabs"><button data-tab="right" class="active">Правая рука</button><button data-tab="left">Левая рука</button><button data-tab="both">Обе руки</button><button data-tab="weapon">Оружие</button><button data-tab="all">Руки + оружие</button><button data-tab="legs">Ноги / тело</button></div>
-<section><h3 id="editTitle">Правая рука</h3><div id="partWrap"><label for="part">Выбери сустав</label><select id="part"></select></div><p class="axis-hint">Стрелки двигают выбранную руку или оружие относительно персонажа, даже когда кисть повёрнута. Повороты и масштаб настраиваются ниже.</p><div class="step-row"><label for="moveStep">Шаг кнопок</label><select id="moveStep"><option value="0.005">0,005 м · точно</option><option value="0.01">0,01 м</option><option value="0.02" selected>0,02 м</option><option value="0.05">0,05 м</option><option value="0.1">0,1 м</option><option value="0.5">0,5 м</option></select></div><div id="controls"></div><div class="buttons"><button id="resetPart">Сбросить раздел</button><button id="resetWeapon">Сбросить стойку</button><button id="freeHands">Развести руки</button><button id="restoreGlock">Мой Glock-пресет</button></div></section>
+<section><h3 id="editTitle">Правая рука</h3><div id="partWrap"><label for="part">Выбери сустав</label><select id="part"></select></div><p class="axis-hint">Стрелки двигают выбранную руку или оружие относительно персонажа, даже когда кисть повёрнута. Повороты и масштаб настраиваются ниже.</p><div class="step-row"><label for="moveStep">Шаг кнопок</label><select id="moveStep"><option value="0.005">0,005 м · точно</option><option value="0.01">0,01 м</option><option value="0.02" selected>0,02 м</option><option value="0.05">0,05 м</option><option value="0.1">0,1 м</option><option value="0.5">0,5 м</option></select></div><div id="controls"></div><div class="buttons"><button id="matchTerrorist">Стойки террориста · все 3</button><button id="restorePrevious">Мои прежние настройки</button></div><div class="buttons"><button id="resetPart">Сбросить раздел</button><button id="resetWeapon">Сбросить стойку</button><button id="freeHands">Развести руки</button><button id="restoreGlock">Мой Glock-пресет</button></div></section>
 <section><h3>Воспроизведение</h3><div class="row"><div><label for="speed">Скорость</label><input id="speed" type="range" min="0.25" max="2" step="0.05" value="1"></div><div><label for="timeline">Кадр / фаза</label><input id="timeline" type="range" min="0" max="1" step="0.005" value="0"></div></div><div class="foot" id="frameInfo">Анимация: стойка</div></section>
 <section><h3>Сохранение настроек</h3><div class="buttons"><button id="save">Сохранить на устройстве</button><button id="copy">Копировать JSON</button><button id="export">Скачать настройки</button><button id="import">Импорт JSON</button></div><input type="file" id="importFile" accept=".json,application/json" hidden><p class="foot">Отдельная мастерская спецназа SAS · 111 костей и подвижные пальцы. Бег/ходьба: ноги и чуть корпус; оружие стабильно. Выстрел: отдача. Редактор меняет настоящие кости GLB. Настройки для Glock, АК и ножа раздельные. Экспорт нужен для переноса поз в GameBlock 2.0.</p></section>
 </div></div></main>
@@ -72,6 +72,47 @@ Object.assign(USER_KNIFE.left,{
 USER_KNIFE.legs={};
 USER_KNIFE.weapon=P(-.01,.02,-.03,128,76,92,.95);
 const USER_POSES={glock:USER_GLOCK,ak:USER_AK,knife:USER_KNIFE,none:CT_DEFAULT};
+
+// Numerically retargeted from the actual T and CT rigged GLBs.
+// Target shoulders/elbows/hands are matched in character space; weapon
+// mounts are reoriented from the T right-hand transform to the CT socket.
+// No external game animation assets are copied.
+const MATCHED_SKELETON={
+ glock:{
+  right:{RightShoulder:[-11.13,-28,28],RightArm:[.94,7.76,-17.18],
+   RightForeArm:[1.08,26.52,-5.09]},
+  left:{LeftShoulder:[-11.28,-28,28],LeftArm:[6.19,-24.71,49.95],
+   LeftForeArm:[25.85,-14.55,-2.22]},
+  weapon:{x:-.0152,y:-.1219,z:-.1074,rx:-61.06,ry:23.36,rz:-172.58,scale:1}
+ },
+ ak:{
+  right:{RightShoulder:[-.3,-15.22,17.51],RightArm:[6.43,6.8,-20.78],
+   RightForeArm:[1.69,55.86,6.37]},
+  left:{LeftShoulder:[-11.04,-28,28],LeftArm:[11.79,-18.37,52],
+   LeftForeArm:[2.11,-6.51,-10.57]},
+  weapon:{x:.0159,y:-.0852,z:-.2187,rx:118.91,ry:-12.5,rz:-21.45,scale:1.18}
+ },
+ knife:{
+  right:{RightShoulder:[-10.01,-28,28],RightArm:[-6.05,18.98,2.83],
+   RightForeArm:[-4.86,25.67,-21.94]},
+  left:{LeftShoulder:[-9.09,-28,28],LeftArm:[-1.22,-21.26,40.74],
+   LeftForeArm:[20.79,-14.05,-17.54]},
+  weapon:{x:-.0001,y:-.1168,z:-.098,rx:-121.21,ry:27.22,rz:140,scale:.89}
+ }
+};
+for(const [weapon,mapping] of Object.entries(MATCHED_SKELETON)){
+ const pose=USER_POSES[weapon];
+ for(const side of ['right','left']){
+  for(const [joint,angles] of Object.entries(mapping[side])){
+   pose[side][joint]={...zero(),rx:angles[0],ry:angles[1],rz:angles[2]};
+  }
+  // Source end-effector orientation is baked into the calibrated gun mount.
+  pose[side][side==='right'?'RightHand':'LeftHand']=zero();
+ }
+ pose.both=zero();pose.all=zero();
+ pose.weapon={...mapping.weapon};
+}
+const MATCHED_POSES=copyConfig(USER_POSES);
 const CT_BONE_NAMES={
  RightShoulder:'clavicle_R_030',RightArm:'arm_upper_R_031',
  RightForeArm:'arm_lower_R_034',RightHand:'hand_R_037',
@@ -478,9 +519,27 @@ $('#resetPart').addEventListener('click',()=>{const c=current(),tab=state.tab;if
 $('#resetWeapon').addEventListener('click',()=>{
  state.config[state.weapon]=USER_POSES[state.weapon]?copyConfig(USER_POSES[state.weapon]):null;
  configFor(state.weapon);renderControls();
- status('Восстановлена базовая стойка SAS: '+state.weapon);
+ status('Восстановлена стойка SAS по реальным костям террориста: '+state.weapon);
 });
-$('#restoreGlock').addEventListener('click',()=>{state.config.glock=copyConfig(USER_GLOCK);changeWeapon('glock');status('Исходный Glock для CT восстановлен')});
+$('#restoreGlock').addEventListener('click',()=>{
+ state.config.glock=copyConfig(MATCHED_POSES.glock);
+ changeWeapon('glock');status('Glock: хват подогнан по скелету террориста');
+});
+$('#matchTerrorist').addEventListener('click',()=>{
+ state.config=copyConfig(MATCHED_POSES);
+ state.motion='idle';$('#motion').value='idle';state.t=0;
+ renderControls();
+ status('Готово: SAS повторяет стойки террориста для Glock, AK и ножа');
+});
+$('#restorePrevious').addEventListener('click',()=>{
+ try{
+  const old=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV2')||'null');
+  if(!old){status('Прежних настроек на этом устройстве нет');return;}
+  state.config={...copyConfig(MATCHED_POSES),...old};
+  renderControls();
+  status('Восстановлены твои предыдущие настройки SAS (V2)');
+ }catch(e){status('Не удалось восстановить настройки: '+e.message)}
+});
 $('#freeHands').addEventListener('click',()=>{
  const c=current();
  for(const [side,names] of [['right',['RightShoulder','RightForeArm']],['left',['LeftShoulder','LeftForeArm']]])
@@ -490,7 +549,7 @@ $('#freeHands').addEventListener('click',()=>{
  renderControls();status('Кости разделены. Редактируй каждую руку отдельно.');
 });
 $('#pause').addEventListener('click',()=>{state.paused=!state.paused;$('#pause').textContent=state.paused?'Продолжить':'Пауза'});
-$('#save').addEventListener('click',()=>{localStorage.setItem('GameBlockCT_SAS_StudioV2',JSON.stringify(state.config));status('Настройки сохранены на этом устройстве')});
+$('#save').addEventListener('click',()=>{localStorage.setItem('GameBlockCT_SAS_StudioV3',JSON.stringify(state.config));status('Настройки сохранены на этом устройстве')});
 function exportText(){return JSON.stringify({version:1,model:'ct sas 111-bone',config:state.config},null,2)}
 $('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(exportText());status('JSON скопирован')}catch{status('Буфер обмена недоступен — скачай JSON')}});
 $('#export').addEventListener('click',()=>{const blob=new Blob([exportText()],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gameblock-ct-sas-poses.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)});
@@ -506,9 +565,9 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>poin
 let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  animate(Math.min(.05,(now-last)/1000));last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
 try{
- const savedV2=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV2')||'null');
- state.config={...copyConfig(USER_POSES),...(savedV2||{})};
-}catch{state.config=copyConfig(USER_POSES)}
+ const savedV3=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV3')||'null');
+ state.config={...copyConfig(MATCHED_POSES),...(savedV3||{})};
+}catch{state.config=copyConfig(MATCHED_POSES)}
 renderControls();
 const inline=$('#embedded-model');if(inline&&inline.textContent.trim()){
  status('Загружаем встроенного спецназ SAS...');try{const raw=atob(inline.textContent.trim());const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);loadActor(arr.buffer,'спецназ SAS (111 костей)')}catch(e){status('Ошибка встроенного GLB: '+e.message)}
