@@ -275,6 +275,42 @@ function setupActor(model,from){
   }
  }
  model.updateMatrixWorld(true);
+ // Critical: animated GLBs can have tiny mesh bind-pose bounds but enormous
+ // skeleton coordinates. THREE.Box3(mesh) alone does NOT bound those bones.
+ // Measure the actual rig landmarks in world coordinates and enforce 1.8m.
+ if(importedActor){
+   const boneBounds=new THREE.Box3().makeEmpty();
+   let count=0;
+   model.traverse(n=>{
+     if(n.isBone){
+       const p=n.getWorldPosition(new THREE.Vector3());
+       if(Number.isFinite(p.x)&&Number.isFinite(p.y)&&Number.isFinite(p.z)){
+         boneBounds.expandByPoint(p);count++;
+       }
+     }
+   });
+   const meshBounds=new THREE.Box3().setFromObject(model);
+   const boneSpan=count>1?boneBounds.getSize(new THREE.Vector3()):new THREE.Vector3();
+   // Pick the largest physical axis from the skeleton or rendered mesh.
+   const meshSpan=meshBounds.getSize(new THREE.Vector3());
+   const observed=Math.max(boneSpan.x,boneSpan.y,boneSpan.z,meshSpan.x,meshSpan.y,meshSpan.z);
+   if(Number.isFinite(observed)&&observed>0.000001){
+     const correction=1.8/observed;
+     bodyScale*=correction;
+     model.scale.multiplyScalar(correction);
+     model.position.multiplyScalar(correction);
+     model.updateMatrixWorld(true);
+   }
+   const finalBounds=new THREE.Box3().setFromObject(model);
+   const floor=finalBounds.min.y;
+   if(Number.isFinite(floor))model.position.y-=floor;
+   model.updateMatrixWorld(true);
+   const finalBoneBounds=new THREE.Box3().makeEmpty();
+   model.traverse(n=>{if(n.isBone)finalBoneBounds.expandByPoint(n.getWorldPosition(new THREE.Vector3()))});
+   const finalSpan=finalBoneBounds.getSize(new THREE.Vector3());
+   const maxFinal=Math.max(finalSpan.x,finalSpan.y,finalSpan.z,finalBounds.getSize(new THREE.Vector3()).y);
+   $('#swatNote').textContent='Размер нормализован: '+maxFinal.toFixed(2)+' м (предел 1,80 м). Кости: '+count;
+ }
  importedBaseScale=model.scale.x;
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
 // Map the 111-bone CS SAS rig onto the existing editable arm/leg controls.
