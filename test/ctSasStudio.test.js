@@ -33,11 +33,14 @@ test('CT editor supports independent arm joints, all fingers and weapon attachme
  'RightFoot','LeftFoot','WeaponSocketR']){
   assert.ok(js.includes(part),part);
  }
- assert.match(js,/model\.rotation\.set\(Math\.PI\/2,0,0\)/);
+ assert.match(js,/model\.rotation\.set\(0,0,0\)/);
  assert.match(js,/holder=bones\.WeaponSocketR\|\|bones\.RightHand/);
  assert.match(js,/model\.getObjectByName\(actual\)/);
  assert.match(js,/function ctRigMotion\(name,p\)/);
- assert.match(js,/GameBlockCT_SAS_StudioV1/);
+ assert.match(js,/GameBlockCT_SAS_StudioV2/);
+ assert.match(js,/const USER_POSES=\{glock:USER_GLOCK,ak:USER_AK,knife:USER_KNIFE/);
+ assert.match(js,/const USER_AK=copyConfig\(USER_GLOCK\)/);
+ assert.match(js,/USER_KNIFE\.weapon=P\(-\.01,\.02,-\.03,128,76,92,\.95\)/);
  assert.doesNotThrow(()=>new vm.Script(js));
 });
 
