@@ -54,7 +54,7 @@ const renderer=new THREE.WebGLRenderer({canvas:$('#canvas'),antialias:true,power
 const ground=new THREE.Mesh(new THREE.CircleGeometry(1.65,64),new THREE.MeshStandardMaterial({color:0x394957,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.015;scene.add(ground);
 const axes=new THREE.GridHelper(5,20,0x69869a,0x36556d);axes.position.y=-.02;scene.add(axes);
 const root=new THREE.Group();scene.add(root);const loader=new THREE.GLTFLoader();
-let rig=null,bones={},rest={},bodyScale=1,baseRigY=0,standingToeY=0,holder=null,weaponModel=null,weaponPivot=null,weaponRequest=0,helper=null;
+let rig=null,bones={},rest={},bodyScale=1,baseRigY=0,standingToeY=0,footGroundOffset=0,holder=null,weaponModel=null,weaponPivot=null,weaponRequest=0,helper=null;
 const asset={glock:'https://vivab.github.io/GameBlock/models/g18.glb',ak:'https://vivab.github.io/GameBlock/models/ak47.glb',knife:'https://vivab.github.io/GameBlock/game1/knife_default_t__cs2.glb'};
 const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,y:.06,z:.17,rx:0,ry:0,rz:0,scale:1},knife:{x:.02,y:.09,z:.14,rx:0,ry:0,rz:0,scale:1}};
 function status(msg){$('#status').textContent=msg}
@@ -67,6 +67,7 @@ function setupActor(model,from){
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
  if(!bones.RightHand||!bones.LeftHand||!bones.LeftUpLeg||!bones.RightUpLeg){status('Скелет не подходит: нужны кисти и ноги');return}
  baseRigY=model.position.y;
+ footGroundOffset=0;
  model.updateMatrixWorld(true);
  const leftToe=bones.LeftToeBase||bones.LeftFoot,rightToe=bones.RightToeBase||bones.RightFoot;
  standingToeY=Math.min(leftToe.getWorldPosition(new THREE.Vector3()).y,rightToe.getWorldPosition(new THREE.Vector3()).y);
@@ -253,18 +254,21 @@ function animate(dt){
   bone.position.copy(base.position).add(vec(offsets));bone.position.y+=(anim.y||0);
   bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(rot));
  }
- // Keep stance toes at the floor on every walking/running frame as well as crouch.
+ // Stance foot stays near the floor with damped vertical compensation;
+ // no sudden jumps in the whole body at heel strike or toe-off.
  if(rig){
   rig.position.y=baseRigY+frame.jumpHeight;
+  let groundTarget=0;
   if(frame.groundFeet){
    rig.updateMatrixWorld(true);
    const l=(bones.LeftToeBase||bones.LeftFoot)?.getWorldPosition(new THREE.Vector3()).y;
    const r=(bones.RightToeBase||bones.RightFoot)?.getWorldPosition(new THREE.Vector3()).y;
-   if(Number.isFinite(l)&&Number.isFinite(r)){
-    const adjustment=standingToeY-Math.min(l,r);
-    rig.position.y+=Math.max(-.55,Math.min(.45,adjustment));
-   }
+   if(Number.isFinite(l)&&Number.isFinite(r))
+    groundTarget=Math.max(-.55,Math.min(.45,standingToeY-Math.min(l,r)));
   }
+  const groundBlend=1-Math.exp(-Math.min(.05,Math.max(0,dt))*16);
+  footGroundOffset+=(groundTarget-footGroundOffset)*groundBlend;
+  rig.position.y=baseRigY+frame.jumpHeight+footGroundOffset;
  }
  if(weaponPivot){const mount=defaultGuns[state.weapon]||zero(),w=c.weapon||zero(),all=c.all||zero();
   weaponPivot.position.set(mount.x+d(w.x)+d(all.x),mount.y+d(w.y)+d(all.y),mount.z+d(w.z)+d(all.z));
