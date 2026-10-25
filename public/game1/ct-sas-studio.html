@@ -128,6 +128,18 @@ const COMBAT_LEGS={
 for(const weapon of ['glock','ak','knife']){
  USER_POSES[weapon].legs=copyConfig(COMBAT_LEGS);
 }
+// Combat-ready half-crouch: bend at hips and knees, keep the head upright.
+// Apply to all weapon stances, without replacing the SAS mesh or skin.
+for(const weapon of ['glock','ak','knife']){
+ const legs=USER_POSES[weapon].legs;
+ const set=(bone,rx,ry=0,rz=0)=>{legs[bone]={...zero(),rx,ry,rz};};
+ set('Hips',-5);set('Spine',8);set('Spine1',3);
+ set('LeftUpLeg',-23,0,-3);set('RightUpLeg',-23,0,3);
+ set('LeftLeg',43);set('RightLeg',43);
+ set('LeftFoot',-17);set('RightFoot',-17);
+ // Keep boots near the ground as the knee joints fold.
+ USER_POSES[weapon].all.y=-.10;
+}
 const MATCHED_POSES=copyConfig(USER_POSES);
 const CT_BONE_NAMES={
  RightShoulder:'clavicle_R_030',RightArm:'arm_upper_R_031',
