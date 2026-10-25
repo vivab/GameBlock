@@ -176,14 +176,17 @@ function sampleMotion(action,time,paused,timeline){
    // Only the swinging leg comes forward, lifting the knee naturally.
    const thigh=stance?span*(1-2*eased):span*(-1+2*eased);
    const lift=stance?0:Math.pow(Math.sin(Math.PI*q),1.25);
-   const knee=stance?
-     -(running?.047:.035)-Math.sin(Math.PI*q)*(running?.048:.032):
-     -(running?.06:.045)-kneeLift*lift;
-   // Counter-rotate the ankle so the sole is fairly level at ground contact.
-   // Toe pivots up on heel strike and down before push-off.
-   const ankle=clamp01(1)*(-.72*thigh-.57*knee)+
-     (stance?(.065*Math.exp(-q*17)-.085*Math.pow(q,4)):-.035*lift);
-   const toe=stance?-.085*Math.pow(q,4)+.045*Math.exp(-q*17):.045*lift;
+   const kneeBase=running?.045:.035;
+   const knee=-kneeBase-(stance?.033*Math.sin(Math.PI*q):kneeLift*lift);
+   // Continuous ankle/toe roll from heel strike to toe-off. Both values
+   // agree precisely at stance/swing boundaries, avoiding a frame snap.
+   const roll=stance?
+     .052*Math.pow(1-q,8)-.070*Math.pow(q,8):
+     -.070*Math.pow(1-q,8)+.052*Math.pow(q,8)-.030*lift;
+   const ankle=-.72*thigh-.57*knee+roll;
+   const toe=stance?
+     .030*Math.pow(1-q,8)-.045*Math.pow(q,8):
+     -.045*Math.pow(1-q,8)+.030*Math.pow(q,8)+.022*lift;
    add(side+'UpLeg',thigh);
    add(side+'Leg',knee);
    add(side+'Foot',ankle);
