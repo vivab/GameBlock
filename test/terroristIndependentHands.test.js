@@ -10,7 +10,7 @@ test('studio has valid JavaScript, independent controls and saved custom Glock p
  for(const id of ['freeHands','restoreGlock','skinRepair','weaponSelect','part'])assert.match(html,new RegExp('id="'+id+'"'));
  for(const key of ['RightShoulder','RightForeArm','LeftShoulder','LeftForeArm'])assert.match(src,new RegExp(key));
  assert.match(src,/rx:-86,ry:82/);
- assert.match(src,/weapon:\{x:-\.04,y:\.02,z:-\.14/);
+ assert.match(src,/weapon:\{x:-\.02,y:\.02,z:-\.14/);
  assert.match(src,/items\.push\(c\.both,c\.all\)/);
 });
 test('corrects the actual GLB joined-hands skin and deletes bridging hand faces',()=>{
