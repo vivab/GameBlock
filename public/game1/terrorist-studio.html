@@ -141,8 +141,15 @@ try{state.config=JSON.parse(localStorage.getItem('GameBlockOperatorStudioV1')||'
 const inline=$('#embedded-model');if(inline&&inline.textContent.trim()){
  status('Загружаем встроенного террориста...');try{const raw=atob(inline.textContent.trim());const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);loadActor(arr.buffer,'твоя модель террориста')}catch(e){status('Ошибка встроенного GLB: '+e.message)}
 }else{
- status('Нажми «Заменить модель GLB», чтобы загрузить именно своего террориста.');
- $('#loading').textContent='Доступен импорт GLB с телефона; оружие берётся из GameBlock.';
+ status('Загружаем твою модель террориста...');
+ $('#loading').textContent='Персонаж 23 кости · загрузка GLB…';
+ loader.load('terrorist-pistol-optimized.glb',g=>{
+  setupActor(g.scene,'твой террорист (23 кости)');
+  $('#loading').textContent='Твой террорист загружен · AK, Glock и нож доступны';
+ },undefined,e=>{
+  status('Не удалось загрузить модель: '+(e?.message||e));
+  $('#loading').textContent='Выбери GLB вручную, если сеть не загрузила файл.';
+ });
 }
 })();
 </script></body></html>
