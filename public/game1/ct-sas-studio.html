@@ -16,7 +16,7 @@
 (()=>{'use strict';
 const THREE=window.THREE, $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], RAD=Math.PI/180;
 const LABELS={right:'Правая рука',left:'Левая рука',both:'Обе руки',weapon:'Только оружие',all:'Оружие вместе с обеими руками',legs:'Ноги и корпус'};
-const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand','RightThumb','RightIndex','RightMiddle','RightRing','RightPinky'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand','LeftThumb','LeftIndex','LeftMiddle','LeftRing','LeftPinky'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase','RightUpLeg','RightLeg','RightFoot','RightToeBase']};
+const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand','RightThumb','RightIndex','RightMiddle','RightRing','RightPinky'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand','LeftThumb','LeftIndex','LeftMiddle','LeftRing','LeftPinky'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase','Neck','Head','RightUpLeg','RightLeg','RightFoot','RightToeBase']};
 // World-oriented movements are separate from the original weapon/bone pose (x/y/z).
 // This preserves legacy JSON settings and lets users move consistently in 6 directions.
 const FIELDS=[
@@ -128,17 +128,17 @@ const COMBAT_LEGS={
 for(const weapon of ['glock','ak','knife']){
  USER_POSES[weapon].legs=copyConfig(COMBAT_LEGS);
 }
-// Combat-ready half-crouch: bend at hips and knees, keep the head upright.
-// Apply to all weapon stances, without replacing the SAS mesh or skin.
+// SAS knees bend on their imported Y-axis, not the terrorist's X-axis.
+// Pose pelvis, torso, neck and head as well as the legs.
 for(const weapon of ['glock','ak','knife']){
  const legs=USER_POSES[weapon].legs;
- const set=(bone,rx,ry=0,rz=0)=>{legs[bone]={...zero(),rx,ry,rz};};
- set('Hips',-5);set('Spine',8);set('Spine1',3);
- set('LeftUpLeg',-23,0,-3);set('RightUpLeg',-23,0,3);
- set('LeftLeg',43);set('RightLeg',43);
- set('LeftFoot',-17);set('RightFoot',-17);
- // Keep boots near the ground as the knee joints fold.
- USER_POSES[weapon].all.y=-.10;
+ const set=(bone,rx=0,ry=0,rz=0)=>{legs[bone]={...zero(),rx,ry,rz};};
+ set('Hips',0,0,0);set('Spine',5,0,0);set('Spine1',4,0,0);
+ set('Spine2',2,0,0);set('Neck',-6,0,0);set('Head',-5,0,0);
+ set('LeftUpLeg',0,28,-3);set('RightUpLeg',0,28,3);
+ set('LeftLeg',0,-49);set('RightLeg',0,-49);
+ set('LeftFoot',0,20);set('RightFoot',0,20);
+ USER_POSES[weapon].all.y=-.12;
 }
 const MATCHED_POSES=copyConfig(USER_POSES);
 const CT_BONE_NAMES={
@@ -153,7 +153,7 @@ const CT_BONE_NAMES={
  RightLeg:'leg_lower_R_08',RightFoot:'ankle_R_09',
  RightToeBase:'ball_R_010',
  WeaponSocketR:'weapon_hand_R_039',WeaponSocketL:'weapon_hand_L_072',
- Head:'head_0_097',
+ Head:'head_0_097',Neck:'neck_0_096',
  RightThumb:'finger_thumb_1_R_046',RightIndex:'finger_index_1_R_051',
  RightMiddle:'finger_middle_1_R_060',RightRing:'finger_ring_1_R_042',
  RightPinky:'finger_pinky_1_R_055',LeftThumb:'finger_thumb_1_L_079',
