@@ -1,0 +1,16 @@
+CTM SAS — 3D character attribution
+
+Title: Ctm Sas
+Creator: yttur6453
+Source: https://sketchfab.com/3d-models/ctm-sas-05e0ea795e314c49b099000de002e719
+Original license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License: https://creativecommons.org/licenses/by/4.0/
+
+Changes made for GameBlock:
+- Converted embedded color textures to compact high-quality JPEG.
+- Resized embedded textures for mobile rendering, including PNG normal maps.
+- Preserved the original model geometry, single skin, 111 skeleton joints and materials.
+- Added the model to the dedicated CT SAS pose and animation editor.
+
+This model is an independently credited asset. GameBlock and its other assets are
+not automatically covered by the model's CC BY 4.0 license.
