@@ -16,7 +16,7 @@
 (()=>{'use strict';
 const THREE=window.THREE, $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], RAD=Math.PI/180;
 const LABELS={right:'Правая рука',left:'Левая рука',both:'Обе руки',weapon:'Только оружие',all:'Оружие вместе с обеими руками',legs:'Ноги и корпус'};
-const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','RightUpLeg','RightLeg','RightFoot']};
+const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand','RightThumb','RightIndex','RightMiddle','RightRing','RightPinky'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand','LeftThumb','LeftIndex','LeftMiddle','LeftRing','LeftPinky'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','RightUpLeg','RightLeg','RightFoot']};
 const FIELDS=[['x','X ↔',-.35,.35,.005],['y','Y ↕',-.35,.35,.005],['z','Z ↗',-.35,.35,.005],['rx','Поворот X',-135,135,1],['ry','Поворот Y',-135,135,1],['rz','Поворот Z',-135,135,1],['scale','Масштаб оружия',.3,2.5,.01]];
 const BIND_PRESETS={glock:{},ak:{},knife:{},none:{}};
 const zero=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
@@ -40,7 +40,12 @@ const CT_BONE_NAMES={
  RightLeg:'leg_lower_R_08',RightFoot:'ankle_R_09',
  RightToeBase:'ball_R_010',
  WeaponSocketR:'weapon_hand_R_039',WeaponSocketL:'weapon_hand_L_072',
- Head:'head_0_097'
+ Head:'head_0_097',
+ RightThumb:'finger_thumb_1_R_046',RightIndex:'finger_index_1_R_051',
+ RightMiddle:'finger_middle_1_R_060',RightRing:'finger_ring_1_R_042',
+ RightPinky:'finger_pinky_1_R_055',LeftThumb:'finger_thumb_1_L_079',
+ LeftIndex:'finger_index_1_L_083',LeftMiddle:'finger_middle_1_L_092',
+ LeftRing:'finger_ring_1_L_075',LeftPinky:'finger_pinky_1_L_088'
 };
 const copyConfig=o=>JSON.parse(JSON.stringify(o));
 const state={weapon:'glock',motion:'idle',tab:'right',part:{right:'RightArm',left:'LeftArm',legs:'LeftUpLeg'},config:copyConfig(USER_POSES),paused:false,t:0,camYaw:0,speed:1};
@@ -245,6 +250,15 @@ function blendGait(from,to,blend){
  }
  return result;
 }
+// The 111-bone CT rig has different joint axes from the terrorist's 23-bone rig.
+function ctRigMotion(name,p){
+ if(!p)return {};
+ if(['RightUpLeg','RightLeg','RightFoot','RightToeBase'].includes(name))
+  return {...p,rx:0,ry:(p.ry||0)+(p.rx||0)};
+ if(['LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase'].includes(name))
+  return {...p,rx:0,rz:(p.rz||0)+(p.rx||0)};
+ return p;
+}
 function animate(dt){
  if(!state.paused)state.t+=dt*state.speed;
  const action=state.motion;
@@ -258,7 +272,7 @@ function animate(dt){
  const motion=frame.motion;
  const c=current(),pre=BIND_PRESETS[state.weapon]||{};
  for(const [name,bone] of Object.entries(bones)){
-  const base=rest[name];if(!base)continue;const edits=transforms(name),anim=motion[name]||{};
+  const base=rest[name];if(!base)continue;const edits=transforms(name),anim=ctRigMotion(name,motion[name]);
   const offsets=edits.reduce((acc,v)=>{for(const k of ['x','y','z','rx','ry','rz'])acc[k]+=d(v[k]);return acc},{x:0,y:0,z:0,rx:0,ry:0,rz:0});
   const p=pre[name]||[0,0,0];const rot=new THREE.Euler((offsets.rx*RAD)+(p[0]||0)+(anim.rx||0),(offsets.ry*RAD)+(p[1]||0)+(anim.ry||0),(offsets.rz*RAD)+(p[2]||0)+(anim.rz||0),'XYZ');
   bone.position.copy(base.position).add(vec(offsets).divideScalar(Math.max(.0001,bodyScale)));bone.position.y+=(anim.y||0)/Math.max(.0001,bodyScale);
