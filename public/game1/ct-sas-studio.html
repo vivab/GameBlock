@@ -1,0 +1,361 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>GameBlock · CT SAS — студия поз и оружия</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0a1521;color:#f3f6fa;font-family:system-ui,Arial;overflow:hidden}button,input,select{font:inherit}button{color:#fff;background:#28435b;border:1px solid #638398;border-radius:8px;padding:9px;cursor:pointer}button.active{background:#a4793f;border-color:#f3cc8a;color:#111f2b}button:disabled{opacity:.4}input[type=range]{width:100%;accent-color:#e5b06e}select,input[type=number]{background:#192e40;color:#fff;border:1px solid #5f778e;border-radius:7px;padding:7px;min-width:0}main{display:grid;grid-template-columns:minmax(0,1fr) min(385px,43vw);height:100dvh}#view{position:relative;min-width:0;background:radial-gradient(ellipse at 50% 65%,#30465a,#101c2b 75%)}canvas{display:block;width:100%;height:100%;touch-action:none}#hint{position:absolute;top:12px;left:12px;background:#0b203ac9;border:1px solid #47647c;border-radius:9px;padding:10px;font-size:12px;max-width:min(370px,92%)}#hint strong{color:#f8d3a2}#status{color:#afeac6;font-size:11px;margin-top:5px}#panel{display:flex;min-height:0;flex-direction:column;background:#102337;border-left:1px solid #547184}header{padding:10px 12px;background:#1a334a;border-bottom:1px solid #47647f}header b{display:block;font-size:15px}header small{color:#b5cadd}#scroll{padding:10px;overflow-y:auto;flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}label{display:block;font-size:12px;color:#cce0f1;margin:7px 0 4px}select{width:100%}#tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:11px 0}#tabs button{font-size:11px;min-height:47px;padding:5px 2px}#controls{margin-top:8px}section{border:1px solid #4a657b;border-radius:9px;padding:9px;margin:9px 0;background:#172d41}section h3{margin:0 0 8px;font-size:13px;color:#f5cf9b}.control{display:grid;grid-template-columns:1fr 70px;gap:4px 8px;margin:9px 0;padding-bottom:5px;border-bottom:1px solid #ffffff13}.control label{grid-column:1;margin:0}.control output{text-align:right;font-size:11px;color:#f1c38b}.control input[type=range]{grid-column:1}.control input[type=number]{grid-column:2;width:100%;font-size:11px;text-align:center;padding:5px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:6px}.buttons button{min-height:39px;font-size:11px}#modelFile,#importFile{width:100%;font-size:11px;color:#bdd4e7}#loading{font-size:11px;color:#e7c795}#timeline{width:100%}#view-tools{position:absolute;bottom:14px;left:12px;display:flex;gap:6px;flex-wrap:wrap}#view-tools button{font-size:11px;background:#19364bcc}.foot{font-size:11px;color:#adc3d2;line-height:1.45}.pill{color:#f5c17d}.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:44dvh minmax(0,1fr)}#panel{border-left:0;border-top:1px solid #547184}#hint{padding:7px;font-size:10px;top:5px;left:5px}#view-tools{bottom:6px;left:6px}#view-tools button{padding:6px;font-size:10px}header{padding:8px 10px}#scroll{padding:8px}#tabs button{min-height:42px}}
+</style></head><body><main><div id="view"><canvas id="canvas"></canvas><div id="hint"><strong>GameBlock · Мастерская спецназа SAS</strong><div>Пальцем вращай бойца · двумя пальцами приближай</div><div id="status">Загрузка модели...</div></div><div id="view-tools"><button id="front">Спереди</button><button id="back">Сзади</button><button id="leftCam">Сбоку</button><button id="bonesToggle">Скелет</button><button id="pause">Пауза</button></div></div>
+<div id="panel"><header><b>Спецназ SAS · редактор анимаций и оружия</b><small>Раздельные настройки суставов, хвата и оружия</small></header><div id="scroll">
+<section><h3>Модель</h3><p class="foot"><a href="CTM_SAS_ATTRIBUTION.txt" style="color:#a8cfff">CTM SAS · модель yttur6453 · CC BY 4.0</a></p><p class="foot pill" id="skinRepair">Проверяем кисти и скелет…</p><div id="loading">Загружается...</div><label for="modelFile">Заменить модель GLB</label><input id="modelFile" type="file" accept=".glb,model/gltf-binary"><p class="foot">Загруженная через файл модель не отправляется на сервер. В комплектной версии нужный террорист открывается сразу.</p></section>
+<div class="row"><div><label for="weaponSelect">Оружие</label><select id="weaponSelect"><option value="glock">Glock 18</option><option value="ak">АК-47</option><option value="knife">Обычный нож</option><option value="none">Без оружия</option></select></div><div><label for="motion">Анимация</label><select id="motion"><option value="idle">Стойка</option><option value="walk">Ходьба</option><option value="run">Бег</option><option value="jump">Прыжок</option><option value="crouch">Присед CS</option><option value="shoot">Выстрел</option></select></div></div>
+<div id="tabs"><button data-tab="right" class="active">Правая рука</button><button data-tab="left">Левая рука</button><button data-tab="both">Обе руки</button><button data-tab="weapon">Оружие</button><button data-tab="all">Руки + оружие</button><button data-tab="legs">Ноги / тело</button></div>
+<section><h3 id="editTitle">Правая рука</h3><div id="partWrap"><label for="part">Выбери сустав</label><select id="part"></select></div><div id="controls"></div><div class="buttons"><button id="resetPart">Сбросить раздел</button><button id="resetWeapon">Сбросить стойку</button><button id="freeHands">Развести руки</button><button id="restoreGlock">Мой Glock-пресет</button></div></section>
+<section><h3>Воспроизведение</h3><div class="row"><div><label for="speed">Скорость</label><input id="speed" type="range" min="0.25" max="2" step="0.05" value="1"></div><div><label for="timeline">Кадр / фаза</label><input id="timeline" type="range" min="0" max="1" step="0.005" value="0"></div></div><div class="foot" id="frameInfo">Анимация: стойка</div></section>
+<section><h3>Сохранение настроек</h3><div class="buttons"><button id="save">Сохранить на устройстве</button><button id="copy">Копировать JSON</button><button id="export">Скачать настройки</button><button id="import">Импорт JSON</button></div><input type="file" id="importFile" accept=".json,application/json" hidden><p class="foot">Отдельная мастерская спецназа SAS · 111 костей и подвижные пальцы. Бег/ходьба: ноги и чуть корпус; оружие стабильно. Выстрел: отдача. Редактор меняет настоящие кости GLB. Настройки для Glock, АК и ножа раздельные. Экспорт нужен для переноса поз в GameBlock 2.0.</p></section>
+</div></div></main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://vivab.github.io/GameBlock/game1/GLTFLoader.js?v=italy-r128-textures-20261024"></script>
+<script>
+(()=>{'use strict';
+const THREE=window.THREE, $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)], RAD=Math.PI/180;
+const LABELS={right:'Правая рука',left:'Левая рука',both:'Обе руки',weapon:'Только оружие',all:'Оружие вместе с обеими руками',legs:'Ноги и корпус'};
+const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand'],left:['LeftShoulder','LeftArm','LeftForeArm','LeftHand'],legs:['Hips','Spine','Spine1','Spine2','LeftUpLeg','LeftLeg','LeftFoot','RightUpLeg','RightLeg','RightFoot']};
+const FIELDS=[['x','X ↔',-.35,.35,.005],['y','Y ↕',-.35,.35,.005],['z','Z ↗',-.35,.35,.005],['rx','Поворот X',-135,135,1],['ry','Поворот Y',-135,135,1],['rz','Поворот Z',-135,135,1],['scale','Масштаб оружия',.3,2.5,.01]];
+const BIND_PRESETS={glock:{},ak:{},knife:{},none:{}};
+const zero=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
+const CT_DEFAULT={
+ right:{},left:{},legs:{},
+ both:zero(),weapon:zero(),all:zero()
+};
+const USER_GLOCK={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
+const USER_AK={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
+const USER_KNIFE={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
+const USER_POSES={glock:USER_GLOCK,ak:USER_AK,knife:USER_KNIFE};
+const CT_BONE_NAMES={
+ RightShoulder:'clavicle_R_030',RightArm:'arm_upper_R_031',
+ RightForeArm:'arm_lower_R_034',RightHand:'hand_R_037',
+ LeftShoulder:'clavicle_L_062',LeftArm:'arm_upper_L_064',
+ LeftForeArm:'arm_lower_L_067',LeftHand:'hand_L_070',
+ Hips:'pelvis_03',Spine:'spine_0_021',Spine1:'spine_1_022',
+ Spine2:'spine_2_023',LeftUpLeg:'leg_upper_L_012',
+ LeftLeg:'leg_lower_L_017',LeftFoot:'ankle_L_018',
+ LeftToeBase:'ball_L_019',RightUpLeg:'leg_upper_R_04',
+ RightLeg:'leg_lower_R_08',RightFoot:'ankle_R_09',
+ RightToeBase:'ball_R_010',
+ WeaponSocketR:'weapon_hand_R_039',WeaponSocketL:'weapon_hand_L_072',
+ Head:'head_0_097'
+};
+const copyConfig=o=>JSON.parse(JSON.stringify(o));
+const state={weapon:'glock',motion:'idle',tab:'right',part:{right:'RightArm',left:'LeftArm',legs:'LeftUpLeg'},config:copyConfig(USER_POSES),paused:false,t:0,camYaw:0,speed:1};
+function configFor(w){if(!state.config[w])state.config[w]={right:{},left:{},legs:{},both:zero(),weapon:zero(),all:zero()};return state.config[w]}
+const current=()=>configFor(state.weapon);
+function valuesFor(){const c=current();return state.tab==='right'||state.tab==='left'||state.tab==='legs'?(c[state.tab][state.part[state.tab]]||(c[state.tab][state.part[state.tab]]=zero())):c[state.tab]}
+function d(v){return Number(v)||0}
+function vec(obj){return new THREE.Vector3(d(obj.x),d(obj.y),d(obj.z))}
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x182939);
+scene.add(new THREE.HemisphereLight(0xf3f7ff,0x677b88,2.1));const light=new THREE.DirectionalLight(0xffe3b8,2.1);light.position.set(-3,7,4);scene.add(light);
+const camera=new THREE.PerspectiveCamera(38,1,.04,90);camera.position.set(2.4,1.45,3.1);
+const renderer=new THREE.WebGLRenderer({canvas:$('#canvas'),antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6));renderer.outputEncoding=THREE.sRGBEncoding;
+const ground=new THREE.Mesh(new THREE.CircleGeometry(1.65,64),new THREE.MeshStandardMaterial({color:0x394957,roughness:1}));ground.rotation.x=-Math.PI/2;ground.position.y=-.015;scene.add(ground);
+const axes=new THREE.GridHelper(5,20,0x69869a,0x36556d);axes.position.y=-.02;scene.add(axes);
+const root=new THREE.Group();scene.add(root);const loader=new THREE.GLTFLoader();
+let rig=null,bones={},rest={},bodyScale=1,baseRigY=0,standingToeY=0,footGroundOffset=0,holder=null,weaponModel=null,weaponPivot=null,weaponRequest=0,helper=null;
+const asset={glock:'https://vivab.github.io/GameBlock/models/g18.glb',ak:'https://vivab.github.io/GameBlock/models/ak47.glb',knife:'https://vivab.github.io/GameBlock/game1/knife_default_t__cs2.glb'};
+const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,y:.06,z:.17,rx:0,ry:0,rz:0,scale:1},knife:{x:.02,y:.09,z:.14,rx:0,ry:0,rz:0,scale:1}};
+function status(msg){$('#status').textContent=msg}
+function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>status('Ошибка GLB: '+(e.message||e)))}
+function setupActor(model,from){
+ while(root.children.length)root.remove(root.children[0]);rig=model;root.add(model);
+ model.position.set(0,0,0);// Sketchfab FBX is -Z-up; rotate into Three.js +Y-up before fitting.
+ model.rotation.set(Math.PI/2,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
+ const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
+ bodyScale=1.8/Math.max(.01,sz.y);model.scale.setScalar(bodyScale);model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
+ bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
+// Map the 111-bone CS SAS rig onto the existing editable arm/leg controls.
+for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
+ const bone=model.getObjectByName(actual);
+ if(!bone?.isBone)continue;
+ bones[logical]=bone;
+ rest[logical]={position:bone.position.clone(),quaternion:bone.quaternion.clone()};
+}
+ if(!bones.RightHand||!bones.LeftHand||!bones.LeftUpLeg||!bones.RightUpLeg){status('Скелет не подходит: нужны кисти и ноги');return}
+ baseRigY=model.position.y;
+ footGroundOffset=0;
+ model.updateMatrixWorld(true);
+ const leftToe=bones.LeftToeBase||bones.LeftFoot,rightToe=bones.RightToeBase||bones.RightFoot;
+ standingToeY=Math.min(leftToe.getWorldPosition(new THREE.Vector3()).y,rightToe.getWorldPosition(new THREE.Vector3()).y);
+ const repaired=releaseJoinedHands(model);
+  $('#skinRepair').textContent=repaired.vertices||repaired.faces?
+    '✓ Руки разделены · '+repaired.vertices+' вершин и '+repaired.faces+' соединяющих полигонов':
+    'Независимые руки: исправление не потребовалось';
+  if(helper)scene.remove(helper);helper=new THREE.SkeletonHelper(model);helper.material.depthTest=false;helper.visible=false;scene.add(helper);
+ holder=bones.WeaponSocketR||bones.RightHand;weaponPivot=new THREE.Group();holder.add(weaponPivot);
+ status('Модель: '+from+' · '+Object.keys(bones).length+' суставов · редактирование готово');
+ loadWeapon();renderControls();
+}
+// Some vertices in the uploaded skin follow BOTH palms, and 110 polygons
+// physically bridge the hands. Detach only that seam without replacing the rig.
+function releaseJoinedHands(model){
+ let vertices=0,faces=0;
+ const get=['getX','getY','getZ','getW'],set=['setX','setY','setZ','setW'];
+ model.traverse(mesh=>{
+  if(!mesh.isSkinnedMesh)return;
+  const g=mesh.geometry,ji=g?.getAttribute('skinIndex'),sw=g?.getAttribute('skinWeight'),pos=g?.getAttribute('position');
+  if(!ji||!sw||!pos)return;
+  const names=mesh.skeleton.bones.map(b=>b.name.replace(/_\d+$/,''));
+  const left=new Set(names.map((n,i)=>n.startsWith('Left')&&/Shoulder|Arm|Hand/.test(n)?i:-1).filter(i=>i>=0));
+  const right=new Set(names.map((n,i)=>n.startsWith('Right')&&/Shoulder|Arm|Hand/.test(n)?i:-1).filter(i=>i>=0));
+  if(!left.size||!right.size)return;
+  const owner=new Int8Array(ji.count);
+  for(let i=0;i<ji.count;i++){
+   const ids=get.map(k=>ji[k](i)),weights=get.map(k=>sw[k](i));
+   let l=0,r=0;
+   for(let k=0;k<4;k++){
+    if(left.has(ids[k]))l+=weights[k];
+    else if(right.has(ids[k]))r+=weights[k];
+   }
+   if(Math.max(l,r)<.1)continue;
+   const chosen=l>=r?left:right,other=chosen===left?right:left;
+   owner[i]=chosen===left?1:-1;
+   if(Math.min(l,r)<.015)continue;
+   const winner=ids.findIndex((j,k)=>chosen.has(j)&&weights[k]>.005);
+   if(winner<0)continue;
+   for(let k=0;k<4;k++)if(other.has(ids[k])){
+    weights[winner]+=weights[k];weights[k]=0;ids[k]=ids[winner];
+   }
+   const total=weights.reduce((a,b)=>a+b,0)||1;
+   for(let k=0;k<4;k++){ji[set[k]](i,ids[k]);sw[set[k]](i,weights[k]/total);}
+   vertices++;
+  }
+  const idx=g.getIndex();
+  if(idx){
+   for(let i=0;i<idx.count;i+=3){
+    const a=idx.getX(i),b=idx.getX(i+1),c=idx.getX(i+2);
+    if(Math.min(owner[a],owner[b],owner[c])<0&&Math.max(owner[a],owner[b],owner[c])>0&&
+       Math.min(pos.getY(a),pos.getY(b),pos.getY(c))>.22&&
+       Math.min(pos.getZ(a),pos.getZ(b),pos.getZ(c))>.2){
+      idx.setX(i+1,a);idx.setX(i+2,a);faces++;
+    }
+   }
+   idx.needsUpdate=true;
+  }
+  ji.needsUpdate=true;sw.needsUpdate=true;g.computeBoundingSphere();
+ });
+ return {vertices,faces};
+}
+function loadWeapon(){const n=++weaponRequest;if(weaponPivot&&weaponModel){weaponPivot.remove(weaponModel);weaponModel=null}
+ if(state.weapon==='none'||!weaponPivot)return;
+ $('#loading').textContent='Загружаем '+state.weapon+'...';
+ loader.load(asset[state.weapon],g=>{
+  if(n!==weaponRequest)return;weaponModel=g.scene;
+  const bb=new THREE.Box3().setFromObject(weaponModel),sz=bb.getSize(new THREE.Vector3()),ct=bb.getCenter(new THREE.Vector3());
+  const len=state.weapon==='ak'?.8:state.weapon==='knife'?.42:.3;
+  const sc=len/(Math.max(.001,sz.x,sz.y,sz.z)*bodyScale);
+  // Offset the weapon geometry so pivot sits at its approximate grip.
+  weaponModel.scale.setScalar(sc);weaponModel.position.copy(ct).multiplyScalar(-sc);
+  weaponPivot.add(weaponModel);$('#loading').textContent='Оружие загружено';
+ },undefined,e=>{$('#loading').textContent='Ошибка загрузки оружия (интернет): '+(e.message||e)});
+}
+function transforms(name){const c=current(),items=[];
+ for(const side of ['right','left','legs'])if(c[side]?.[name])items.push(c[side][name]);
+ if(['RightShoulder','LeftShoulder'].includes(name))items.push(c.both,c.all);
+ return items;
+}
+// Shooter gait v3: heel strike -> planted support -> toe-off -> foot recovery.
+// This is not a pair of sine-driven pendulums. Knees bend BACKWARD (negative X)
+// on this specific imported 23-bone rig. Neither shoulder ever joins the gait.
+function sampleMotion(action,time,paused,timeline){
+ const motion={};
+ function add(b,rx=0,ry=0,rz=0,y=0){
+  const a=motion[b]||(motion[b]={rx:0,ry:0,rz:0,y:0});
+  a.rx+=rx;a.ry+=ry;a.rz+=rz;a.y+=y;
+ }
+ const clamp01=n=>Math.max(0,Math.min(1,n));
+ const ease=n=>{const u=clamp01(n);return u*u*(3-2*u)};
+ const phase=paused?clamp01(Number(timeline)||0)*Math.PI*2:
+   Math.max(0,time)*(action==='run'?7.5:5.0);
+ let jumpHeight=0,recoil=0,groundFeet=false;
+ if(action==='walk'||action==='run'){
+  const running=action==='run';
+  // A walking stride is small and deliberately different from running:
+  // stance occupies 63-65% of the cycle; flight/leg recovery takes the rest.
+  const span=running?.275:.165, kneeLift=running?.43:.26;
+  const support=running?.60:.65;
+  const gaitLeg=(side,offset)=>{
+   const u=((phase/(Math.PI*2)+offset)%1+1)%1;
+   const stance=u<support;
+   const q=stance?u/support:(u-support)/(1-support);
+   const eased=ease(q);
+   // The stance foot travels from in front of the pelvis to behind it.
+   // Only the swinging leg comes forward, lifting the knee naturally.
+   const thigh=stance?span*(1-2*eased):span*(-1+2*eased);
+   const lift=stance?0:Math.pow(Math.sin(Math.PI*q),1.25);
+   const kneeBase=running?.045:.035;
+   const knee=-kneeBase-(stance?.033*Math.sin(Math.PI*q):kneeLift*lift);
+   // Continuous ankle/toe roll from heel strike to toe-off. Both values
+   // agree precisely at stance/swing boundaries, avoiding a frame snap.
+   const roll=stance?
+     .052*Math.pow(1-q,8)-.070*Math.pow(q,8):
+     -.070*Math.pow(1-q,8)+.052*Math.pow(q,8)-.030*lift;
+   const ankle=-.72*thigh-.57*knee+roll;
+   const toe=stance?
+     .030*Math.pow(1-q,8)-.045*Math.pow(q,8):
+     -.045*Math.pow(1-q,8)+.030*Math.pow(q,8)+.022*lift;
+   add(side+'UpLeg',thigh);
+   add(side+'Leg',knee);
+   add(side+'Foot',ankle);
+   add(side+'ToeBase',toe);
+  };
+  gaitLeg('Left',0);
+  gaitLeg('Right',.5);
+  // Just a hint of torso weight transfer; the upper chest counterbalances,
+  // leaving an AK or pistol nearly fixed while walking/running.
+  const sway=Math.sin(phase)*(running?.012:.008);
+  add('Spine',0,0,sway);
+  add('Spine1',0,0,-sway);
+  groundFeet=true;
+ }else if(action==='crouch'){
+  add('Hips',0,0,0,-.08);
+  add('LeftUpLeg',.40);add('RightUpLeg',.34);
+  add('LeftLeg',-1.02);add('RightLeg',-.95);
+  add('Spine',.095);
+  groundFeet=true;
+ }else if(action==='jump'){
+  const u=paused?clamp01(Number(timeline)||0):(Math.max(0,time)*.65)%1;
+  const tuck=Math.sin(u*Math.PI);
+  add('LeftUpLeg',.32*tuck);add('RightUpLeg',.29*tuck);
+  add('LeftLeg',-1.05*tuck);add('RightLeg',-.98*tuck);
+  jumpHeight=.25*tuck;
+ }else if(action==='shoot'){
+  recoil=Math.pow(Math.max(0,Math.sin(time*9)),6);
+  add('RightArm',-.045*recoil);
+  add('LeftArm',-.035*recoil);
+ }
+ return {motion,jumpHeight,recoil,groundFeet};
+}
+const emptyMotion={motion:{},jumpHeight:0,recoil:0,groundFeet:false};
+let lastMotion=emptyMotion,lastAction='idle',fadeFrom=emptyMotion,fadeElapsed=1;
+function blendGait(from,to,blend){
+ const t=Math.max(0,Math.min(1,blend)),sm=t*t*(3-2*t);
+ const lerp=(a,b)=>a+(b-a)*sm;
+ const result={motion:{},jumpHeight:lerp(from.jumpHeight,to.jumpHeight),
+  recoil:lerp(from.recoil,to.recoil),groundFeet:to.groundFeet};
+ const keys=new Set([...Object.keys(from.motion),...Object.keys(to.motion)]);
+ for(const name of keys){
+  const src=from.motion[name]||{},dest=to.motion[name]||{},val={};
+  for(const k of ['rx','ry','rz','y'])val[k]=lerp(src[k]||0,dest[k]||0);
+  result.motion[name]=val;
+ }
+ return result;
+}
+function animate(dt){
+ if(!state.paused)state.t+=dt*state.speed;
+ const action=state.motion;
+ if(lastAction!==action){
+  fadeFrom=lastMotion;fadeElapsed=0;lastAction=action;
+ }
+ const targetFrame=sampleMotion(action,state.t,state.paused,$('#timeline').value);
+ fadeElapsed=Math.min(.24,fadeElapsed+dt);
+ const frame=fadeElapsed<.24?blendGait(fadeFrom,targetFrame,fadeElapsed/.24):targetFrame;
+ lastMotion=frame;
+ const motion=frame.motion;
+ const c=current(),pre=BIND_PRESETS[state.weapon]||{};
+ for(const [name,bone] of Object.entries(bones)){
+  const base=rest[name];if(!base)continue;const edits=transforms(name),anim=motion[name]||{};
+  const offsets=edits.reduce((acc,v)=>{for(const k of ['x','y','z','rx','ry','rz'])acc[k]+=d(v[k]);return acc},{x:0,y:0,z:0,rx:0,ry:0,rz:0});
+  const p=pre[name]||[0,0,0];const rot=new THREE.Euler((offsets.rx*RAD)+(p[0]||0)+(anim.rx||0),(offsets.ry*RAD)+(p[1]||0)+(anim.ry||0),(offsets.rz*RAD)+(p[2]||0)+(anim.rz||0),'XYZ');
+  bone.position.copy(base.position).add(vec(offsets).divideScalar(Math.max(.0001,bodyScale)));bone.position.y+=(anim.y||0)/Math.max(.0001,bodyScale);
+  bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(rot));
+ }
+ // Stance foot stays near the floor with damped vertical compensation;
+ // no sudden jumps in the whole body at heel strike or toe-off.
+ if(rig){
+  rig.position.y=baseRigY+frame.jumpHeight;
+  let groundTarget=0;
+  if(frame.groundFeet){
+   rig.updateMatrixWorld(true);
+   const l=(bones.LeftToeBase||bones.LeftFoot)?.getWorldPosition(new THREE.Vector3()).y;
+   const r=(bones.RightToeBase||bones.RightFoot)?.getWorldPosition(new THREE.Vector3()).y;
+   if(Number.isFinite(l)&&Number.isFinite(r))
+    groundTarget=Math.max(-.55,Math.min(.45,standingToeY-Math.min(l,r)));
+  }
+  const groundBlend=1-Math.exp(-Math.min(.05,Math.max(0,dt))*16);
+  footGroundOffset+=(groundTarget-footGroundOffset)*groundBlend;
+  rig.position.y=baseRigY+frame.jumpHeight+footGroundOffset;
+ }
+ if(weaponPivot){const mount=defaultGuns[state.weapon]||zero(),w=c.weapon||zero(),all=c.all||zero();
+  weaponPivot.position.set((mount.x+d(w.x)+d(all.x))/bodyScale,(mount.y+d(w.y)+d(all.y))/bodyScale,(mount.z+d(w.z)+d(all.z))/bodyScale);
+  weaponPivot.rotation.set((mount.rx+d(w.rx)+d(all.rx))*RAD,(mount.ry+d(w.ry)+d(all.ry))*RAD,(mount.rz+d(w.rz)+d(all.rz))*RAD);
+  weaponPivot.scale.setScalar(d(w.scale)||1);
+  if(action==='shoot'){
+   const amount=frame.recoil*(state.weapon==='ak'?1:state.weapon==='glock'?.48:.25);
+   weaponPivot.position.z-=amount*.055;
+   weaponPivot.rotation.x-=amount*.085;
+   weaponPivot.rotation.z+=amount*.024;
+  }
+ }
+ if(!state.paused)$('#timeline').value=String((state.t*.4138)%1);
+ $('#frameInfo').textContent='Анимация: '+action+' · '+(state.paused?'пауза':'воспроизведение')+' · '+state.weapon;
+}
+function renderControls(){const c=current();const tab=state.tab;$('#editTitle').textContent=LABELS[tab];$$('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+ const options=BONE[tab];$('#partWrap').hidden=!options;if(options){$('#part').replaceChildren(...options.map(n=>{const op=document.createElement('option');op.value=n;op.textContent=n;return op}));$('#part').value=state.part[tab]||options[0]}
+ const values=valuesFor();const box=$('#controls');box.replaceChildren();
+ for(const [key,label,min,max,step] of FIELDS){if(key==='scale'&&tab!=='weapon')continue;
+  const line=document.createElement('div');line.className='control';const cap=document.createElement('label');cap.textContent=label;const out=document.createElement('output');const r=document.createElement('input');r.type='range';r.min=min;r.max=max;r.step=step;r.value=values[key]??(key==='scale'?1:0);
+  const num=document.createElement('input');num.type='number';num.min=min;num.max=max;num.step=step;num.value=r.value;
+  const set=v=>{const n=Math.max(min,Math.min(max,Number(v)||0));values[key]=n;r.value=n;num.value=n;out.textContent=(key[0]==='r'?'° ':'')+n;};
+  r.addEventListener('input',()=>set(r.value));num.addEventListener('change',()=>set(num.value));
+  out.textContent=r.value;line.append(cap,out,r,num);box.append(line);
+ }
+}
+function changeWeapon(w){state.weapon=w;$('#weaponSelect').value=w;configFor(w);loadWeapon();renderControls()}
+$('#weaponSelect').addEventListener('change',e=>changeWeapon(e.target.value));$('#motion').addEventListener('change',e=>{state.motion=e.target.value;state.t=0});$('#speed').addEventListener('input',e=>{state.speed=Number(e.target.value)});
+$$('#tabs button').forEach(b=>b.addEventListener('click',()=>{state.tab=b.dataset.tab;renderControls()}));$('#part').addEventListener('change',e=>{state.part[state.tab]=e.target.value;renderControls()});
+$('#resetPart').addEventListener('click',()=>{const c=current(),tab=state.tab;if(BONE[tab])c[tab][state.part[tab]]=zero();else c[tab]=zero();renderControls()});
+$('#resetWeapon').addEventListener('click',()=>{
+ state.config[state.weapon]=USER_POSES[state.weapon]?copyConfig(USER_POSES[state.weapon]):null;
+ configFor(state.weapon);renderControls();
+ status('Восстановлена сохранённая тобой стойка: '+state.weapon);
+});
+$('#restoreGlock').addEventListener('click',()=>{state.config.glock=copyConfig(USER_GLOCK);changeWeapon('glock');status('Исходный Glock для CT восстановлен')});
+$('#freeHands').addEventListener('click',()=>{
+ const c=current();
+ for(const [side,names] of [['right',['RightShoulder','RightForeArm']],['left',['LeftShoulder','LeftForeArm']]])
+  for(const n of names)if(!c[side][n])c[side][n]=zero();
+ c.right.RightShoulder.ry-=22;c.left.LeftShoulder.ry+=22;
+ c.right.RightForeArm.rz-=12;c.left.LeftForeArm.rz+=12;
+ renderControls();status('Кости разделены. Редактируй каждую руку отдельно.');
+});
+$('#pause').addEventListener('click',()=>{state.paused=!state.paused;$('#pause').textContent=state.paused?'Продолжить':'Пауза'});
+$('#save').addEventListener('click',()=>{localStorage.setItem('GameBlockCT_SAS_StudioV1',JSON.stringify(state.config));status('Настройки сохранены на этом устройстве')});
+function exportText(){return JSON.stringify({version:1,model:'ct sas 111-bone',config:state.config},null,2)}
+$('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(exportText());status('JSON скопирован')}catch{status('Буфер обмена недоступен — скачай JSON')}});
+$('#export').addEventListener('click',()=>{const blob=new Blob([exportText()],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gameblock-terrorist-poses.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)});
+$('#import').addEventListener('click',()=>$('#importFile').click());$('#importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());state.config=parsed.config||parsed;configFor(state.weapon);renderControls();status('Позиции импортированы')}catch{status('Ошибка JSON')}});
+$('#modelFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;loadActor(await file.arrayBuffer(),file.name)});
+const canvas=$('#canvas'),target=new THREE.Vector3(0,1.0,0);let yaw=0,pitch=.06,dist=2.8,pointers=new Map();
+function orbit(){camera.position.set(target.x+Math.sin(yaw)*Math.cos(pitch)*dist,target.y+Math.sin(pitch)*dist,target.z+Math.cos(yaw)*Math.cos(pitch)*dist);camera.lookAt(target)}
+$('#front').onclick=()=>{yaw=0;orbit()};$('#back').onclick=()=>{yaw=Math.PI;orbit()};$('#leftCam').onclick=()=>{yaw=-Math.PI/2;orbit()};$('#bonesToggle').onclick=()=>{if(helper)helper.visible=!helper.visible};
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY})});
+canvas.addEventListener('pointermove',e=>{const p=pointers.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+ if(pointers.size===1){yaw-=dx*.008;pitch=Math.max(-.35,Math.min(1.2,pitch+dy*.006))}else dist=Math.min(7,Math.max(1.2,dist+dy*.012))});
+for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>pointers.delete(e.pointerId));canvas.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(1.2,Math.min(7,dist+e.deltaY*.002))},{passive:false});
+let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+ animate(Math.min(.05,(now-last)/1000));last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
+try{
+ const savedV2=JSON.parse(localStorage.getItem('GameBlockOperatorStudioV2')||'null');
+ state.config={...copyConfig(USER_POSES),...(savedV2||{})};
+}catch{state.config=copyConfig(USER_POSES)}
+renderControls();
+const inline=$('#embedded-model');if(inline&&inline.textContent.trim()){
+ status('Загружаем встроенного спецназ SAS...');try{const raw=atob(inline.textContent.trim());const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);loadActor(arr.buffer,'твоя модель террориста')}catch(e){status('Ошибка встроенного GLB: '+e.message)}
+}else{
+ status('Загружаем твою модель спецназ SAS...');
+ $('#loading').textContent='Персонаж SAS · 111 костей · загрузка GLB…';
+ loader.load('ctm_sas_gameblock.glb',g=>{
+  setupActor(g.scene,'спецназ SAS (111 костей)');
+  $('#loading').textContent='Спецназ SAS загружен · 111 костей · AK, Glock и нож';
+ },undefined,e=>{
+  status('Не удалось загрузить модель: '+(e?.message||e));
+  $('#loading').textContent='Выбери GLB вручную, если сеть не загрузила файл.';
+ });
+}
+})();
+</script></body></html>
