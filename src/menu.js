@@ -54,6 +54,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
     #retroHome #retroAnimationLab {padding:11px 13px;text-align:center;
       background:#24465b;border:1px solid #68a1b3;color:#dcf4ff;
       font-size:12px;border-radius:4px}
+    #retroHome #retroCtStudio {padding:12px 14px;text-align:center;background:#294c66;border:1px solid #85b5d5;color:#ecf6ff;border-radius:4px;font-size:12px;font-weight:800}
     #retroHome #retroTerroristStudio {padding:12px 14px;text-align:center;background:#3d5b49;border:1px solid #9dd8ac;color:#edfff1;border-radius:4px;font-size:12px;font-weight:800}
     #retroHome #retroFighter {padding:12px 14px;text-align:center;
       background:linear-gradient(110deg,#d3a362,#ac7743);color:#172430;
@@ -128,7 +129,8 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
         <button data-tab="friends" type="button"><b>☷</b> ДРУЗЬЯ</button>
         <button data-tab="settings" type="button"><b>⚙</b> ПРОФИЛЬ</button>
       </nav>
-      <button id="retroTerroristStudio" type="button">🛠 ТЕРРОРИСТ · РУКИ, АК, GLOCK, НОЖ · 3D РЕДАКТОР</button>
+      <button id="retroCtStudio" type="button">🛡 СПЕЦНАЗ SAS · 111 КОСТЕЙ · 3D РЕДАКТОР</button>
+       <button id="retroTerroristStudio" type="button">🛠 ТЕРРОРИСТ · РУКИ, АК, GLOCK, НОЖ · 3D РЕДАКТОР</button>
        <button id="retroFighter" type="button">◈ ПЕРСОНАЖ v1.0 · РЕДАКТОР</button>
       <button id="retroAnimationLab" type="button">▶ 5 АНИМАЦИЙ · ПОЛИГОН</button>
       <button id="retroGallery" type="button" hidden>◈ СТАРАЯ ГАЛЕРЕЯ (АРХИВ)</button>
@@ -201,6 +203,7 @@ export function installRetroMenu({onPlay=()=>{},onSound=()=>{},onGallery=()=>{},
     }));
   $('retroShop').addEventListener('click',()=>onArmory());
   $('retroPlay').addEventListener('click',()=>{showTab(null);onPlay();});
+  $('retroCtStudio').addEventListener('click',()=>window.location.assign(import.meta.env.BASE_URL+'game1/ct-sas-studio.html'));
   $('retroTerroristStudio').addEventListener('click',()=>window.location.assign(import.meta.env.BASE_URL+'game1/terrorist-studio.html'));
   $('retroFighter').addEventListener('click',()=>{window.location.href=new URL('fighter-v1.html',window.location.href).href;});
   $('retroAnimationLab').addEventListener('click',()=>{window.location.href=new URL('animation-lab.html',window.location.href).href;});
