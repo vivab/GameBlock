@@ -147,28 +147,56 @@ function transforms(name){const c=current(),items=[];
  if(['RightShoulder','LeftShoulder'].includes(name))items.push(c.both,c.all);
  return items;
 }
-// Stable upper-body shooter motion. Arms keep the editable weapon grip while walking,
-// running, jumping and crouching. This GLB bends knees BACKWARD at negative local X.
+// Shooter gait v3: heel strike -> planted support -> toe-off -> foot recovery.
+// This is not a pair of sine-driven pendulums. Knees bend BACKWARD (negative X)
+// on this specific imported 23-bone rig. Neither shoulder ever joins the gait.
 function sampleMotion(action,time,paused,timeline){
  const motion={};
  function add(b,rx=0,ry=0,rz=0,y=0){
   const a=motion[b]||(motion[b]={rx:0,ry:0,rz:0,y:0});
   a.rx+=rx;a.ry+=ry;a.rz+=rz;a.y+=y;
  }
- const u=Math.max(0,Math.min(1,Number(timeline)||0));
- const phase=paused?u*Math.PI*2:time*(action==='run'?7.4:5.0);
- const gait=Math.sin(phase),opposite=-gait;
+ const clamp01=n=>Math.max(0,Math.min(1,n));
+ const ease=n=>{const u=clamp01(n);return u*u*(3-2*u)};
+ const phase=paused?clamp01(Number(timeline)||0)*Math.PI*2:
+   Math.max(0,time)*(action==='run'?7.5:5.0);
  let jumpHeight=0,recoil=0,groundFeet=false;
  if(action==='walk'||action==='run'){
-  const k=action==='run'?.30:.19;
-  const knee=action==='run'?.26:.14;
-  add('LeftUpLeg',gait*k);add('RightUpLeg',opposite*k);
-  // Negative knee X moves the ankle behind the knee on this imported rig.
-  add('LeftLeg',-Math.max(0,-gait)*knee);
-  add('RightLeg',-Math.max(0,-opposite)*knee);
-  // No vertical bounce, no moving weapon grip or either arm.
-  add('Spine',0,0,Math.sin(phase)*.011);
-  add('Spine1',action==='run'?.025:.009);
+  const running=action==='run';
+  // A walking stride is small and deliberately different from running:
+  // stance occupies 63-65% of the cycle; flight/leg recovery takes the rest.
+  const span=running?.275:.165, kneeLift=running?.43:.26;
+  const support=running?.60:.65;
+  const gaitLeg=(side,offset)=>{
+   const u=((phase/(Math.PI*2)+offset)%1+1)%1;
+   const stance=u<support;
+   const q=stance?u/support:(u-support)/(1-support);
+   const eased=ease(q);
+   // The stance foot travels from in front of the pelvis to behind it.
+   // Only the swinging leg comes forward, lifting the knee naturally.
+   const thigh=stance?span*(1-2*eased):span*(-1+2*eased);
+   const lift=stance?0:Math.pow(Math.sin(Math.PI*q),1.25);
+   const knee=stance?
+     -(running?.047:.035)-Math.sin(Math.PI*q)*(running?.048:.032):
+     -(running?.06:.045)-kneeLift*lift;
+   // Counter-rotate the ankle so the sole is fairly level at ground contact.
+   // Toe pivots up on heel strike and down before push-off.
+   const ankle=clamp01(1)*(-.72*thigh-.57*knee)+
+     (stance?(.065*Math.exp(-q*17)-.085*Math.pow(q,4)):-.035*lift);
+   const toe=stance?-.085*Math.pow(q,4)+.045*Math.exp(-q*17):.045*lift;
+   add(side+'UpLeg',thigh);
+   add(side+'Leg',knee);
+   add(side+'Foot',ankle);
+   add(side+'ToeBase',toe);
+  };
+  gaitLeg('Left',0);
+  gaitLeg('Right',.5);
+  // Just a hint of torso weight transfer; the upper chest counterbalances,
+  // leaving an AK or pistol nearly fixed while walking/running.
+  const sway=Math.sin(phase)*(running?.012:.008);
+  add('Spine',0,0,sway);
+  add('Spine1',0,0,-sway);
+  groundFeet=true;
  }else if(action==='crouch'){
   add('Hips',0,0,0,-.08);
   add('LeftUpLeg',.40);add('RightUpLeg',.34);
@@ -176,25 +204,43 @@ function sampleMotion(action,time,paused,timeline){
   add('Spine',.095);
   groundFeet=true;
  }else if(action==='jump'){
-  const jumpPhase=paused?u:(time*.65)%1;
-  const tuck=Math.sin(jumpPhase*Math.PI);
+  const u=paused?clamp01(Number(timeline)||0):(Math.max(0,time)*.65)%1;
+  const tuck=Math.sin(u*Math.PI);
   add('LeftUpLeg',.32*tuck);add('RightUpLeg',.29*tuck);
   add('LeftLeg',-1.05*tuck);add('RightLeg',-.98*tuck);
   jumpHeight=.25*tuck;
-  // No shoulder raising or weapon sway in the air.
  }else if(action==='shoot'){
-  // Mechanical recoil is applied to the WEAPON, not a running arm swing.
-  const frequency=9;
-  recoil=Math.pow(Math.max(0,Math.sin(time*frequency)),6);
+  recoil=Math.pow(Math.max(0,Math.sin(time*9)),6);
   add('RightArm',-.045*recoil);
   add('LeftArm',-.035*recoil);
  }
  return {motion,jumpHeight,recoil,groundFeet};
 }
+const emptyMotion={motion:{},jumpHeight:0,recoil:0,groundFeet:false};
+let lastMotion=emptyMotion,lastAction='idle',fadeFrom=emptyMotion,fadeElapsed=1;
+function blendGait(from,to,blend){
+ const t=Math.max(0,Math.min(1,blend)),sm=t*t*(3-2*t);
+ const lerp=(a,b)=>a+(b-a)*sm;
+ const result={motion:{},jumpHeight:lerp(from.jumpHeight,to.jumpHeight),
+  recoil:lerp(from.recoil,to.recoil),groundFeet:to.groundFeet};
+ const keys=new Set([...Object.keys(from.motion),...Object.keys(to.motion)]);
+ for(const name of keys){
+  const src=from.motion[name]||{},dest=to.motion[name]||{},val={};
+  for(const k of ['rx','ry','rz','y'])val[k]=lerp(src[k]||0,dest[k]||0);
+  result.motion[name]=val;
+ }
+ return result;
+}
 function animate(dt){
  if(!state.paused)state.t+=dt*state.speed;
  const action=state.motion;
- const frame=sampleMotion(action,state.t,state.paused,$('#timeline').value);
+ if(lastAction!==action){
+  fadeFrom=lastMotion;fadeElapsed=0;lastAction=action;
+ }
+ const targetFrame=sampleMotion(action,state.t,state.paused,$('#timeline').value);
+ fadeElapsed=Math.min(.24,fadeElapsed+dt);
+ const frame=fadeElapsed<.24?blendGait(fadeFrom,targetFrame,fadeElapsed/.24):targetFrame;
+ lastMotion=frame;
  const motion=frame.motion;
  const c=current(),pre=BIND_PRESETS[state.weapon]||{};
  for(const [name,bone] of Object.entries(bones)){
@@ -204,7 +250,7 @@ function animate(dt){
   bone.position.copy(base.position).add(vec(offsets));bone.position.y+=(anim.y||0);
   bone.quaternion.copy(base.quaternion).multiply(new THREE.Quaternion().setFromEuler(rot));
  }
- // Ground the actual toe joints during crouch, avoiding floating or sinking.
+ // Keep stance toes at the floor on every walking/running frame as well as crouch.
  if(rig){
   rig.position.y=baseRigY+frame.jumpHeight;
   if(frame.groundFeet){
