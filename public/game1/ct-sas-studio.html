@@ -195,6 +195,8 @@ const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,
 function status(msg){$('#status').textContent=msg}
 function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>status('Ошибка GLB: '+(e.message||e)))}
 function setupActor(model,from){
+ const sourceName=String(from||'').toLowerCase();
+ const fixedSwat=sourceName.includes('swat_animated')||sourceName.includes('swat animated')?'animated':sourceName.includes('zeal_swat')||sourceName.includes('zeal swat')?'zeal':null;
  // Force a safe initial scale for unfamiliar rigs even when the imported
  // skin bounds are corrupted or report only a tiny part of the mesh.
  const isImported=!model.getObjectByName('ctm_sas_qc_skeleton');
@@ -210,7 +212,18 @@ function setupActor(model,from){
  while(root.children.length)root.remove(root.children[0]);rig=model;root.add(model);
  model.position.set(0,0,0);
  const isSAS=!!model.getObjectByName('ctm_sas_qc_skeleton');
- if(isSAS){
+ if(fixedSwat){
+  // Verified directly from uploaded GLB mesh bounds, not skeleton bind bounds.
+  // SWAT Animated: Z [-0.000017,0.031521], Zeal: Z [-74.5391,0.22444].
+  const animated=fixedSwat==='animated';
+  const sourceHeight=animated?0.03153808:74.76350312;
+  bodyScale=1.8/sourceHeight;
+  model.rotation.set(animated?-Math.PI/2:Math.PI/2,0,0);
+  model.scale.setScalar(bodyScale);
+  model.position.set(0,animated?0.0000171182614*bodyScale:0.22444084*bodyScale,0);
+  model.updateMatrixWorld(true);
+  $('#swatNote').textContent='GLB '+(animated?'SWAT Animated':'Zeal SWAT')+' · проверенный масштаб 1,80 м · коэффициент '+bodyScale.toFixed(5);
+ }else if(isSAS){
   // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
   // transforms already correct them to an upright Y-axis pose. DO NOT
   // apply any extra 90-degree rotation to the loaded scene.
@@ -278,7 +291,7 @@ function setupActor(model,from){
  // Critical: animated GLBs can have tiny mesh bind-pose bounds but enormous
  // skeleton coordinates. THREE.Box3(mesh) alone does NOT bound those bones.
  // Measure the actual rig landmarks in world coordinates and enforce 1.8m.
- if(importedActor){
+ if(importedActor&&!fixedSwat){
    const boneBounds=new THREE.Box3().makeEmpty();
    let count=0;
    model.traverse(n=>{
