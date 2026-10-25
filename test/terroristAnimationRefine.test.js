@@ -67,8 +67,8 @@ test('crouch grounds both toes instead of lowering character through the floor',
  assert.ok(f.motion.LeftLeg.rx<0&&f.motion.RightLeg.rx<0);
  assert.ok(!Object.keys(f.motion).some(k=>/Arm|Hand|Shoulder/.test(k)));
  assert.match(script,/standingToeY-Math\.min\(l,r\)/);
- assert.match(script,/rig\.position\.y\+=Math\.max\(-\.55,Math\.min\(\.45,adjustment\)\)/);
- assert.match(script,/rig\.position\.y=baseRigY\+frame\.jumpHeight/);
+ assert.match(script,/groundTarget=Math\.max\(-\.55,Math\.min\(\.45,standingToeY-Math\.min\(l,r\)\)\)/);
+ assert.match(script,/rig\.position\.y=baseRigY\+frame\.jumpHeight\+footGroundOffset/);
 });
 test('only shooting moves arms and applies recoil to gun transform',()=>{
  for(const action of ['idle','walk','run','jump','crouch']){
