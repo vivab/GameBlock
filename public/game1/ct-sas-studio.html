@@ -234,9 +234,22 @@ function setupActor(model,from){
   // Keep support for other user-imported GLB rigs.
   model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
   const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
-  bodyScale=1.8/Math.max(.01,sz.y);
+  // Imported SWAT models use different source units. Normalize against the
+  // terrorist's 1.8 m height, including after the first scale pass.
+  const measuredHeight=Math.max(.000001,sz.y);
+  bodyScale=1.8/measuredHeight;
   model.scale.setScalar(bodyScale);
   model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
+  model.updateMatrixWorld(true);
+  const verify=new THREE.Box3().setFromObject(model);
+  const renderedHeight=verify.getSize(new THREE.Vector3()).y;
+  if(Number.isFinite(renderedHeight)&&renderedHeight>.000001){
+    const correction=1.8/renderedHeight;
+    bodyScale*=correction;
+    model.scale.setScalar(bodyScale);
+    model.position.multiplyScalar(correction);
+    model.updateMatrixWorld(true);
+  }
  }
  model.updateMatrixWorld(true);
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
