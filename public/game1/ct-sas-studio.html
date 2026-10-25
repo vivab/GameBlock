@@ -20,14 +20,47 @@ const BONE={right:['RightShoulder','RightArm','RightForeArm','RightHand','RightT
 const FIELDS=[['x','X ↔',-.35,.35,.005],['y','Y ↕',-.35,.35,.005],['z','Z ↗',-.35,.35,.005],['rx','Поворот X',-135,135,1],['ry','Поворот Y',-135,135,1],['rz','Поворот Z',-135,135,1],['scale','Масштаб оружия',.3,2.5,.01]];
 const BIND_PRESETS={glock:{},ak:{},knife:{},none:{}};
 const zero=()=>({x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1});
-const CT_DEFAULT={
- right:{},left:{},legs:{},
- both:zero(),weapon:zero(),all:zero()
+// SAS 111-bone combat stance based on our terrorist's relaxed weapon hold.
+// Every pose remains editable through the existing studio sliders.
+const CT_DEFAULT={right:{},left:{},legs:{},both:zero(),weapon:zero(),all:zero()};
+const P=(x=0,y=0,z=0,rx=0,ry=0,rz=0,scale=1)=>({x,y,z,rx,ry,rz,scale});
+const copyConfig=o=>JSON.parse(JSON.stringify(o));
+const USER_GLOCK={
+ right:{RightShoulder:P(-.02,.01,.02,8,-10,-5),RightArm:P(-.03,-.01,.07,-6,-6,-7),
+  RightForeArm:P(0,0,.03,-18,2,4),RightHand:P(0,0,0,4,8,0),
+  RightThumb:P(0,0,0,15),RightIndex:P(0,0,0,10),RightMiddle:P(0,0,0,22),
+  RightRing:P(0,0,0,26),RightPinky:P(0,0,0,30)},
+ left:{LeftShoulder:P(0,0,-.01,-6,6,4),LeftArm:P(.02,.01,0,-22,18,6),
+  LeftForeArm:P(0,0,.02,-10,10,8),LeftHand:P(0,0,0,0,4)},
+ legs:{Hips:P(),Spine:P(0,0,0,2),Spine1:P(0,0,0,2),
+  LeftUpLeg:P(0,0,0,2),RightUpLeg:P(0,0,0,-2)},
+ both:zero(),weapon:P(-.02,0,-.03,-5,4),all:zero()
 };
-const USER_GLOCK={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
-const USER_AK={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
-const USER_KNIFE={...CT_DEFAULT,weapon:{x:0,y:0,z:0,rx:0,ry:0,rz:0,scale:1}};
-const USER_POSES={glock:USER_GLOCK,ak:USER_AK,knife:USER_KNIFE};
+const USER_AK=copyConfig(USER_GLOCK);
+Object.assign(USER_AK.right,{
+ RightShoulder:P(-.02,0,.03,7,-14,-6),RightArm:P(-.06,-.01,.07,-8,-8,-10),
+ RightForeArm:P(0,0,.04,-20,0,2),RightHand:P(0,0,0,2,6)
+});
+Object.assign(USER_AK.left,{
+ LeftShoulder:P(.01,0,.03,8,16,7),LeftArm:P(-.02,0,-.01,20,22,8),
+ LeftForeArm:P(0,0,-.03,26,4,4),LeftHand:P(0,0,0,0,-4),
+ LeftThumb:P(0,0,0,10),LeftIndex:P(0,0,0,12),LeftMiddle:P(0,0,0,18),
+ LeftRing:P(0,0,0,20),LeftPinky:P(0,0,0,22)
+});
+USER_AK.legs={Spine:P(0,0,0,3),Spine1:P(0,0,0,2)};
+USER_AK.weapon=P(-.03,.01,-.01,-14,-8,0,1.08);
+const USER_KNIFE=copyConfig(USER_GLOCK);
+Object.assign(USER_KNIFE.right,{
+ RightShoulder:P(-.02,0,.03,4,-10,-6),RightArm:P(-.05,.02,.06,6,-28,-8),
+ RightForeArm:P(0,0,.02,18,-12,4),RightHand:P(0,0,0,8,10,6)
+});
+Object.assign(USER_KNIFE.left,{
+ LeftShoulder:P(.01,0,.02,-6,8,6),LeftArm:P(.04,.02,.02,-24,24,8),
+ LeftForeArm:P(0,0,0,-10,14),LeftHand:P(0,0,0,0,6)
+});
+USER_KNIFE.legs={};
+USER_KNIFE.weapon=P(-.01,.02,-.03,128,76,92,.95);
+const USER_POSES={glock:USER_GLOCK,ak:USER_AK,knife:USER_KNIFE,none:CT_DEFAULT};
 const CT_BONE_NAMES={
  RightShoulder:'clavicle_R_030',RightArm:'arm_upper_R_031',
  RightForeArm:'arm_lower_R_034',RightHand:'hand_R_037',
@@ -68,8 +101,9 @@ function status(msg){$('#status').textContent=msg}
 function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>status('Ошибка GLB: '+(e.message||e)))}
 function setupActor(model,from){
  while(root.children.length)root.remove(root.children[0]);rig=model;root.add(model);
- model.position.set(0,0,0);// Sketchfab FBX is -Z-up; rotate into Three.js +Y-up before fitting.
- model.rotation.set(Math.PI/2,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
+ model.position.set(0,0,0);
+ // GLB is already Y-up. The extra 90-degree rotation previously laid SAS flat.
+ model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
  const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
  bodyScale=1.8/Math.max(.01,sz.y);model.scale.setScalar(bodyScale);model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
  bones={};rest={};model.traverse(n=>{if(n.isBone){const key=n.name.replace(/_\d+$/,'');bones[key]=n;rest[key]={position:n.position.clone(),quaternion:n.quaternion.clone()}}});
@@ -326,7 +360,7 @@ $('#resetPart').addEventListener('click',()=>{const c=current(),tab=state.tab;if
 $('#resetWeapon').addEventListener('click',()=>{
  state.config[state.weapon]=USER_POSES[state.weapon]?copyConfig(USER_POSES[state.weapon]):null;
  configFor(state.weapon);renderControls();
- status('Восстановлена сохранённая тобой стойка: '+state.weapon);
+ status('Восстановлена базовая стойка SAS: '+state.weapon);
 });
 $('#restoreGlock').addEventListener('click',()=>{state.config.glock=copyConfig(USER_GLOCK);changeWeapon('glock');status('Исходный Glock для CT восстановлен')});
 $('#freeHands').addEventListener('click',()=>{
@@ -338,13 +372,13 @@ $('#freeHands').addEventListener('click',()=>{
  renderControls();status('Кости разделены. Редактируй каждую руку отдельно.');
 });
 $('#pause').addEventListener('click',()=>{state.paused=!state.paused;$('#pause').textContent=state.paused?'Продолжить':'Пауза'});
-$('#save').addEventListener('click',()=>{localStorage.setItem('GameBlockCT_SAS_StudioV1',JSON.stringify(state.config));status('Настройки сохранены на этом устройстве')});
+$('#save').addEventListener('click',()=>{localStorage.setItem('GameBlockCT_SAS_StudioV2',JSON.stringify(state.config));status('Настройки сохранены на этом устройстве')});
 function exportText(){return JSON.stringify({version:1,model:'ct sas 111-bone',config:state.config},null,2)}
 $('#copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(exportText());status('JSON скопирован')}catch{status('Буфер обмена недоступен — скачай JSON')}});
 $('#export').addEventListener('click',()=>{const blob=new Blob([exportText()],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='gameblock-ct-sas-poses.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)});
 $('#import').addEventListener('click',()=>$('#importFile').click());$('#importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());state.config=parsed.config||parsed;configFor(state.weapon);renderControls();status('Позиции импортированы')}catch{status('Ошибка JSON')}});
 $('#modelFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;loadActor(await file.arrayBuffer(),file.name)});
-const canvas=$('#canvas'),target=new THREE.Vector3(0,1.0,0);let yaw=0,pitch=.06,dist=2.8,pointers=new Map();
+const canvas=$('#canvas'),target=new THREE.Vector3(0,1.05,0);let yaw=.15,pitch=.08,dist=2.85,pointers=new Map();
 function orbit(){camera.position.set(target.x+Math.sin(yaw)*Math.cos(pitch)*dist,target.y+Math.sin(pitch)*dist,target.z+Math.cos(yaw)*Math.cos(pitch)*dist);camera.lookAt(target)}
 $('#front').onclick=()=>{yaw=0;orbit()};$('#back').onclick=()=>{yaw=Math.PI;orbit()};$('#leftCam').onclick=()=>{yaw=-Math.PI/2;orbit()};$('#bonesToggle').onclick=()=>{if(helper)helper.visible=!helper.visible};
 canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY})});
@@ -354,18 +388,18 @@ for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>poin
 let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
  animate(Math.min(.05,(now-last)/1000));last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
 try{
- const savedV2=JSON.parse(localStorage.getItem('GameBlockOperatorStudioV2')||'null');
+ const savedV2=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV2')||'null');
  state.config={...copyConfig(USER_POSES),...(savedV2||{})};
 }catch{state.config=copyConfig(USER_POSES)}
 renderControls();
 const inline=$('#embedded-model');if(inline&&inline.textContent.trim()){
- status('Загружаем встроенного спецназ SAS...');try{const raw=atob(inline.textContent.trim());const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);loadActor(arr.buffer,'твоя модель террориста')}catch(e){status('Ошибка встроенного GLB: '+e.message)}
+ status('Загружаем встроенного спецназ SAS...');try{const raw=atob(inline.textContent.trim());const arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);loadActor(arr.buffer,'спецназ SAS (111 костей)')}catch(e){status('Ошибка встроенного GLB: '+e.message)}
 }else{
  status('Загружаем твою модель спецназ SAS...');
  $('#loading').textContent='Персонаж SAS · 111 костей · загрузка GLB…';
  loader.load('ctm_sas_gameblock.glb',g=>{
   setupActor(g.scene,'спецназ SAS (111 костей)');
-  $('#loading').textContent='Спецназ SAS загружен · 111 костей · AK, Glock и нож';
+  $('#loading').textContent='Спецназ SAS: боевая стойка · Glock, AK, нож';
  },undefined,e=>{
   status('Не удалось загрузить модель: '+(e?.message||e));
   $('#loading').textContent='Выбери GLB вручную, если сеть не загрузила файл.';
