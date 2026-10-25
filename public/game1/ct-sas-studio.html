@@ -195,6 +195,16 @@ const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,
 function status(msg){$('#status').textContent=msg}
 function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>status('Ошибка GLB: '+(e.message||e)))}
 function setupActor(model,from){
+ // Force a safe initial scale for unfamiliar rigs even when the imported
+ // skin bounds are corrupted or report only a tiny part of the mesh.
+ const isImported=!model.getObjectByName('ctm_sas_qc_skeleton');
+ if(isImported){
+   const oldBounds=new THREE.Box3().setFromObject(model);
+   const ext=oldBounds.getSize(new THREE.Vector3());
+   const largest=Math.max(ext.x,ext.y,ext.z,0.001);
+   model.userData.sourceExtent=largest;
+ }
+
  importedActor=!model.getObjectByName("ctm_sas_qc_skeleton");
  $("#swatScale").value="100";$("#swatScaleValue").textContent="100%";
  while(root.children.length)root.remove(root.children[0]);rig=model;root.add(model);
@@ -248,6 +258,9 @@ function setupActor(model,from){
   // terrorist's 1.8 m height, including after the first scale pass.
   const measuredHeight=Math.max(.000001,sz.y);
   bodyScale=1.8/measuredHeight;
+  // Some GLBs have broken skinned bounds: cap source-space size too.
+  const maxSourceSize=Math.max(sz.x,sz.y,sz.z,.001);
+  bodyScale=Math.min(bodyScale,1.8/maxSourceSize);
   model.scale.setScalar(bodyScale);
   model.position.set(-ctr.x*bodyScale,-bb.min.y*bodyScale,-ctr.z*bodyScale);
   model.updateMatrixWorld(true);
@@ -255,7 +268,7 @@ function setupActor(model,from){
   const renderedHeight=verify.getSize(new THREE.Vector3()).y;
   if(Number.isFinite(renderedHeight)&&renderedHeight>.000001){
     const correction=1.8/renderedHeight;
-    bodyScale*=correction;
+    bodyScale*=Math.min(1,correction);
     model.scale.setScalar(bodyScale);
     model.position.multiplyScalar(correction);
     model.updateMatrixWorld(true);
