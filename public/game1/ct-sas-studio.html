@@ -80,7 +80,7 @@ const CT_BONE_NAMES={
  LeftIndex:'finger_index_1_L_084',LeftMiddle:'finger_middle_1_L_093',
  LeftRing:'finger_ring_1_L_075',LeftPinky:'finger_pinky_1_L_088'
 };
-const copyConfig=o=>JSON.parse(JSON.stringify(o));
+
 const state={weapon:'glock',motion:'idle',tab:'right',part:{right:'RightArm',left:'LeftArm',legs:'LeftUpLeg'},config:copyConfig(USER_POSES),paused:false,t:0,camYaw:0,speed:1};
 function configFor(w){if(!state.config[w])state.config[w]={right:{},left:{},legs:{},both:zero(),weapon:zero(),all:zero()};return state.config[w]}
 const current=()=>configFor(state.weapon);
