@@ -233,6 +233,14 @@ function setupActor(model,from){
  }else{
   // Keep support for other user-imported GLB rigs.
   model.rotation.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
+  // SWAT Animated and Zeal SWAT are Z-up GLBs; unlike SAS, their height
+  // is encoded on Z. Rotate into Three.js Y-up BEFORE measuring height.
+  const rawBox=new THREE.Box3().setFromObject(model);
+  const rawSize=rawBox.getSize(new THREE.Vector3());
+  if(rawSize.z>rawSize.y*1.35 && rawSize.z>rawSize.x*1.35){
+    model.rotation.x=-Math.PI/2;
+    model.updateMatrixWorld(true);
+  }
   const bb=new THREE.Box3().setFromObject(model),sz=bb.getSize(new THREE.Vector3()),ctr=bb.getCenter(new THREE.Vector3());
   // Imported SWAT models use different source units. Normalize against the
   // terrorist's 1.8 m height, including after the first scale pass.
