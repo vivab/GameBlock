@@ -34,7 +34,7 @@ test('CT editor supports independent arm joints, all fingers and weapon attachme
   assert.ok(js.includes(part),part);
  }
  assert.match(js,/model\.rotation\.set\(0,0,0\)/);
- assert.match(js,/holder=bones\.WeaponSocketR\|\|bones\.RightHand/);
+ assert.match(js,/holder=bones\.WeaponSocketR\|\|bones\.RightHand\|\|model/);
  assert.match(js,/model\.getObjectByName\(actual\)/);
  assert.match(js,/function ctRigMotion\(name,p\)/);
  assert.match(js,/GameBlockCT_SAS_StudioV2/);
