@@ -194,7 +194,7 @@ const asset={glock:'https://vivab.github.io/GameBlock/models/g18.glb',ak:'https:
 const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,y:.06,z:.17,rx:0,ry:0,rz:0,scale:1},knife:{x:.02,y:.09,z:.14,rx:0,ry:0,rz:0,scale:1}};
 function status(msg){$('#status').textContent=msg}
 let swatMixer=null;
-function loadActor(buf,from){loader.parse(buf,'',g=>{try{setupActor(g.scene,from);if(from.includes('swat_animated')){swatMixer=new THREE.AnimationMixer(g.scene);const idle=g.animations.find(a=>/idle/i.test(a.name))||g.animations[0];if(idle)swatMixer.clipAction(idle).play();}$('#loading').textContent='SWAT Animated · загружен';}catch(e){console.error('SWAT setup failed',e);status('ОШИБКА SWAT: '+(e.message||e));$('#loading').textContent='ОШИБКА: '+(e.message||e);}},e=>{status('Ошибка GLB: '+(e.message||e));$('#loading').textContent='Ошибка GLB: '+(e.message||e)})}
+function loadActor(buf,from){loader.parse(buf,'',g=>{try{setupActor(g.scene,from);if(from.includes('swat_animated')){swatMixer=null;status('SWAT: собственный редактируемый скелет активен · анимация отключена для настройки');}$('#loading').textContent='SWAT Animated · загружен';}catch(e){console.error('SWAT setup failed',e);status('ОШИБКА SWAT: '+(e.message||e));$('#loading').textContent='ОШИБКА: '+(e.message||e);}},e=>{status('Ошибка GLB: '+(e.message||e));$('#loading').textContent='Ошибка GLB: '+(e.message||e)})}
 function setupActor(model,from){
  const sourceName=String(from||'').toLowerCase();
  swatMixer=null;
@@ -378,6 +378,13 @@ for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
  rest[logical]={position:bone.position.clone(),quaternion:bone.quaternion.clone()};
 }
  if(!bones.RightHand||!bones.LeftHand||!bones.LeftUpLeg||!bones.RightUpLeg){status('Модель загружена. Её скелет отличается от SAS — масштаб и обзор работают, настройка суставов требует адаптации.');}
+ // Snapshot actual skinned skeleton bind pose for the new independent editor rig.
+ const seenRigBones=new Set();
+ for(const bone of Object.values(bones)){
+  if(!bone?.isBone||seenRigBones.has(bone))continue;
+  seenRigBones.add(bone);
+  bone.userData.editorRest={position:bone.position.clone(),quaternion:bone.quaternion.clone(),scale:bone.scale.clone()};
+ }
  baseRigY=model.position.y;
  footGroundOffset=0;
  model.updateMatrixWorld(true);
@@ -556,38 +563,39 @@ function ctRigMotion(name,p){
   return {...p,rx:0,rz:(p.rz||0)+(p.rx||0)};
  return p;
 }
+// Dedicated editable SWAT rig: the original skin stays bound to these bones.
+// No AnimationMixer overwrites the control pose during editing.
 function animate(dt){
- if(swatMixer&&importedActor){
-  // Native animation sets the base pose, then controls override it every frame.
-  if(!state.paused)swatMixer.update(dt*state.speed);
-  // Reset imported bones to the sampled Idle pose before applying user offsets.
-  // When paused, repeated edits must not accumulate every animation frame.
-  if(state.paused&&swatMixer){swatMixer.update(0);}
-  const edited=new Set();
+ if(importedActor&&rig){
+  const config=current();
+  const all=config.all||zero();
+  // Restore exact bind-pose transforms every frame: no drifting or accumulation.
+  const restored=new Set();
+  for(const bone of Object.values(bones)){
+   if(!bone?.isBone||restored.has(bone))continue;
+   restored.add(bone);
+   const baseline=bone.userData.editorRest;
+   if(baseline){bone.position.copy(baseline.position);bone.quaternion.copy(baseline.quaternion);bone.scale.copy(baseline.scale)}
+  }
+  const touched=new Set();
   for(const name of [...BONE.right,...BONE.left,...BONE.legs]){
-    const bone=bones[name];if(!bone||edited.has(bone))continue;edited.add(bone);
-    const offset={x:0,y:0,z:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0};
-    for(const v of transforms(name))for(const k of Object.keys(offset))offset[k]+=d(v[k]);
-    // 'Весь персонаж' controls affect the complete model, not only shoulders.
-    if(state.tab==='all'&&current().all)for(const k of Object.keys(offset))offset[k]+=d(current().all[k]);
-    bone.position.add(new THREE.Vector3(offset.x,offset.y,offset.z).divideScalar(Math.max(.00001,bodyScale)));
-    bone.position.add(worldMoveInParent(bone.parent,offset));
-    bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(offset.rx*RAD,offset.ry*RAD,offset.rz*RAD,'XYZ')));
+   const bone=bones[name];if(!bone?.isBone||touched.has(bone))continue;
+   touched.add(bone);
+   const offset={x:0,y:0,z:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0};
+   for(const value of transforms(name))for(const k of Object.keys(offset))offset[k]+=d(value[k]);
+   bone.position.add(new THREE.Vector3(offset.x,offset.y,offset.z).divideScalar(Math.max(.00001,bodyScale)));
+   bone.position.add(worldMoveInParent(bone.parent,offset));
+   bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(offset.rx*RAD,offset.ry*RAD,offset.rz*RAD,'XYZ')));
   }
-  // Move/rotate the whole imported actor with the All controls.
-  const global=current().all||zero();
-  if(rig&&state.tab==='all'){
-    rig.position.set(d(global.wx)+d(global.x),d(global.wy)+d(global.y),d(global.wz)+d(global.z));
-    rig.rotation.set(d(global.rx)*RAD,d(global.ry)*RAD,d(global.rz)*RAD);
-  }
-  // The weapon tab must also update the pivot for imported Mixamo characters.
+  // Entire character movement is independent from bone controls.
+  rig.position.set(d(all.x)+d(all.wx),baseRigY+d(all.y)+d(all.wy),d(all.z)+d(all.wz));
+  rig.rotation.set(d(all.rx)*RAD,d(all.ry)*RAD,d(all.rz)*RAD);
   if(weaponPivot){
-    const c=current(),mount=defaultGuns[state.weapon]||zero(),w=c.weapon||zero(),all=c.all||zero();
-    const move={wx:d(w.wx)+d(all.wx),wy:d(w.wy)+d(all.wy),wz:d(w.wz)+d(all.wz)};
-    weaponPivot.position.set((d(mount.x)+d(w.x)+d(all.x))/Math.max(.00001,bodyScale),(d(mount.y)+d(w.y)+d(all.y))/Math.max(.00001,bodyScale),(d(mount.z)+d(w.z)+d(all.z))/Math.max(.00001,bodyScale));
-    weaponPivot.position.add(worldMoveInParent(holder,move));
-    weaponPivot.rotation.set((d(mount.rx)+d(w.rx)+d(all.rx))*RAD,(d(mount.ry)+d(w.ry)+d(all.ry))*RAD,(d(mount.rz)+d(w.rz)+d(all.rz))*RAD);
-    if(weaponModel)weaponModel.scale.setScalar((weaponModel.userData.baseScale||weaponModel.scale.x)*(d(w.scale)||1));
+   const mount=defaultGuns[state.weapon]||zero(),w=config.weapon||zero();
+   weaponPivot.position.set((d(mount.x)+d(w.x))/Math.max(.00001,bodyScale),(d(mount.y)+d(w.y))/Math.max(.00001,bodyScale),(d(mount.z)+d(w.z))/Math.max(.00001,bodyScale));
+   weaponPivot.position.add(worldMoveInParent(holder,{wx:d(w.wx),wy:d(w.wy),wz:d(w.wz)}));
+   weaponPivot.rotation.set((d(mount.rx)+d(w.rx))*RAD,(d(mount.ry)+d(w.ry))*RAD,(d(mount.rz)+d(w.rz))*RAD);
+   if(weaponModel)weaponModel.scale.setScalar((weaponModel.userData.baseScale||1)*(d(w.scale)||1));
   }
   return;
  }
