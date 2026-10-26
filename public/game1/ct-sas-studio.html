@@ -228,33 +228,36 @@ function setupActor(model,from){
   model.updateMatrixWorld(true);
   $('#swatNote').textContent='GLB '+(animated?'SWAT Animated':'Zeal SWAT')+' · проверенный масштаб 1,80 м · коэффициент '+bodyScale.toFixed(5);
  }else if(already180){
-  // Normalize using the actual Mixamo skeleton rather than unreliable mesh bounds.
-  const wrapper=model.getObjectByName('GameBlock_180cm_Wrapper');
-  if(!wrapper)throw Error('SWAT Animated wrapper missing');
-  wrapper.scale.setScalar(1);wrapper.position.set(0,0,0);
-  wrapper.rotation.set(Math.PI/2,0,0);
-  model.rotation.set(0,0,0);model.scale.setScalar(1);model.position.set(0,0,0);
-  model.updateMatrixWorld(true);
+  // Fit using real head-to-feet skeleton vector. Avoid throwing on differing bone names.
+  const wrapper=model.getObjectByName('GameBlock_180cm_Wrapper')||model;
+  wrapper.scale.setScalar(1);wrapper.position.set(0,0,0);wrapper.quaternion.identity();
+  model.position.set(0,0,0);model.scale.setScalar(1);model.updateMatrixWorld(true);
   const allBones=[];model.traverse(n=>{if(n.isBone)allBones.push(n)});
-  const findBone=(re)=>allBones.find(n=>re.test(n.name));
-  const head=findBone(/HeadTop_End|Head$/i);
-  const leftFoot=findBone(/LeftToeBase|LeftFoot/i),rightFoot=findBone(/RightToeBase|RightFoot/i);
-  if(!head||!leftFoot||!rightFoot)throw Error('SWAT Animated: head/feet bones missing');
-  const measure=()=>{
-    model.updateMatrixWorld(true);
+  const findBone=re=>allBones.find(n=>re.test(n.name));
+  const head=findBone(/HeadTop_End|Head_\d+|Head$/i);
+  const left=findBone(/LeftToeBase|LeftFoot/i),right=findBone(/RightToeBase|RightFoot/i);
+  if(head&&left&&right){
     const h=head.getWorldPosition(new THREE.Vector3());
-    const l=leftFoot.getWorldPosition(new THREE.Vector3());
-    const r=rightFoot.getWorldPosition(new THREE.Vector3());
-    return {height:h.y-Math.min(l.y,r.y),floor:Math.min(l.y,r.y),center:new THREE.Vector3().addVectors(l,r).multiplyScalar(.5)};
-  };
-  let m=measure();
-  if(m.height<0){wrapper.rotation.set(-Math.PI/2,0,0);m=measure()}
-  if(!Number.isFinite(m.height)||m.height<1)throw Error('SWAT Animated: invalid skeleton height '+m.height);
-  bodyScale=1.8/m.height;
-  wrapper.scale.setScalar(bodyScale);
-  wrapper.position.set(-m.center.x*bodyScale,-m.floor*bodyScale,-m.center.z*bodyScale);
+    const l=left.getWorldPosition(new THREE.Vector3()),r=right.getWorldPosition(new THREE.Vector3());
+    const foot=new THREE.Vector3().addVectors(l,r).multiplyScalar(.5);
+    const up=h.clone().sub(foot);
+    if(up.length()>0.001){
+      wrapper.quaternion.setFromUnitVectors(up.normalize(),new THREE.Vector3(0,1,0));
+      model.updateMatrixWorld(true);
+      const top=head.getWorldPosition(new THREE.Vector3());
+      const fl=left.getWorldPosition(new THREE.Vector3()),fr=right.getWorldPosition(new THREE.Vector3());
+      const floor=Math.min(fl.y,fr.y);
+      const height=top.y-floor;
+      bodyScale=height>0.001?1.8/height:1;
+      wrapper.scale.setScalar(bodyScale);
+      wrapper.position.set(-.5*(fl.x+fr.x)*bodyScale,-floor*bodyScale,-.5*(fl.z+fr.z)*bodyScale);
+    }
+  }else{
+    bodyScale=1;
+    status('SWAT Animated: загружена, но кости головы/ног не найдены');
+  }
   model.updateMatrixWorld(true);
-  $('#swatNote').textContent='SWAT Animated · масштаб скелета 1,80 м · Idle';
+  $('#swatNote').textContent='SWAT Animated · размер по скелету · анимация Idle';
  }else if(isSAS){
   // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
   // transforms already correct them to an upright Y-axis pose. DO NOT
