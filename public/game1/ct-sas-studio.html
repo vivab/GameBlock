@@ -366,7 +366,11 @@ function setupActor(model,from){
 if(importedActor){
  const aliases={RightShoulder:'RightShoulder',RightArm:'RightArm',RightForeArm:'RightForeArm',RightHand:'RightHand',LeftShoulder:'LeftShoulder',LeftArm:'LeftArm',LeftForeArm:'LeftForeArm',LeftHand:'LeftHand',RightUpLeg:'RightUpLeg',RightLeg:'RightLeg',RightFoot:'RightFoot',RightToeBase:'RightToeBase',LeftUpLeg:'LeftUpLeg',LeftLeg:'LeftLeg',LeftFoot:'LeftFoot',LeftToeBase:'LeftToeBase',Spine:'Spine',Spine1:'Spine1',Spine2:'Spine2',Neck:'Neck',Head:'Head'};
  for(const [logical,suffix] of Object.entries(aliases)){
-  const found=Object.values(bones).find(n=>new RegExp('(?:^|:)'+suffix+'(?:_\\d+)?
+  const found=Object.values(bones).find(n=>n.name.replace(/^.*:/,'').replace(/_\d+$/,'')===suffix);
+  if(found){bones[logical]=found;rest[logical]={position:found.position.clone(),quaternion:found.quaternion.clone()}}
+ }
+}
+// Map the 111-bone CS SAS rig onto the existing editable arm/leg controls.
 for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
  const bone=model.getObjectByName(actual);
  if(!bone?.isBone)continue;
