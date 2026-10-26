@@ -679,11 +679,21 @@ $('#export').addEventListener('click',()=>{const blob=new Blob([exportText()],{t
 $('#import').addEventListener('click',()=>$('#importFile').click());$('#importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const parsed=JSON.parse(await file.text());state.config=parsed.config||parsed;configFor(state.weapon);renderControls();status('Позиции импортированы')}catch{status('Ошибка JSON')}});
 const swatBuffers={};let swatPending=null;
 async function showSwat(which){
- if(swatBuffers[which]){loadActor(swatBuffers[which],which==='animated'?'SWAT Animated':'Zeal SWAT');return}
- swatPending=which;
- $('#swatNote').textContent='Выбери '+(which==='animated'?'swat_animated.glb':'zeal_swat_payday2.glb')+' — затем модель появится прямо в мастерской.';
- $('#modelFile').value='';
- $('#modelFile').click();
+ const label=which==='animated'?'swat_animated.glb':'zeal_swat_payday2.glb';
+ if(swatBuffers[which]){loadActor(swatBuffers[which],label);return}
+ swatPending=null;
+ $('#swatNote').textContent='Загружаю '+label+' из репозитория GameBlock...';
+ status('Загрузка '+label);
+ try{
+  const response=await fetch('../../'+label+'?v=20261026');
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const buffer=await response.arrayBuffer();
+  swatBuffers[which]=buffer;
+  loadActor(buffer,label);
+ }catch(error){
+  status('Ошибка загрузки '+label+': '+error.message);
+  $('#swatNote').textContent='Не удалось загрузить из GitHub: '+error.message+'. Можно выбрать файл вручную.';
+ }
 }
 $('#swatScale').addEventListener('input',e=>{if(!rig||!importedActor)return;const percent=Number(e.target.value)||100;rig.scale.setScalar(importedBaseScale*percent/100);rig.updateMatrixWorld(true);$('#swatScaleValue').textContent=percent+'%';status('Масштаб бойца: '+percent+'%');});
 $('#swatAnimatedBtn').onclick=()=>showSwat('animated');
