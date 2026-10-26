@@ -193,9 +193,11 @@ let importedActor=false,importedBaseScale=1,rig=null,bones={},rest={},bodyScale=
 const asset={glock:'https://vivab.github.io/GameBlock/models/g18.glb',ak:'https://vivab.github.io/GameBlock/models/ak47.glb',knife:'https://vivab.github.io/GameBlock/game1/knife_default_t__cs2.glb'};
 const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,y:.06,z:.17,rx:0,ry:0,rz:0,scale:1},knife:{x:.02,y:.09,z:.14,rx:0,ry:0,rz:0,scale:1}};
 function status(msg){$('#status').textContent=msg}
-function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>status('Ошибка GLB: '+(e.message||e)))}
+let swatMixer=null;
+function loadActor(buf,from){loader.parse(buf,'',g=>{setupActor(g.scene,from);if(from.includes('swat_animated')){swatMixer=new THREE.AnimationMixer(g.scene);const idle=g.animations.find(a=>/idle/i.test(a.name))||g.animations[0];if(idle)swatMixer.clipAction(idle).play();}},e=>status('Ошибка GLB: '+(e.message||e)))}
 function setupActor(model,from){
  const sourceName=String(from||'').toLowerCase();
+ swatMixer=null;
  const already180=sourceName.includes('_180cm');
  const preNormalized=sourceName.includes('_180cm');
  const fixedSwat=preNormalized?null:sourceName.includes('swat_animated')||sourceName.includes('swat animated')?'animated':sourceName.includes('zeal_swat')||sourceName.includes('zeal swat')?'zeal':null;
@@ -226,13 +228,35 @@ function setupActor(model,from){
   model.updateMatrixWorld(true);
   $('#swatNote').textContent='GLB '+(animated?'SWAT Animated':'Zeal SWAT')+' · проверенный масштаб 1,80 м · коэффициент '+bodyScale.toFixed(5);
  }else if(already180){
-  // The normalized GLB contains a parent wrapper with exact 1.8m scale.
-  // Never normalize or rotate a second time.
-  bodyScale=1;
-  model.rotation.set(0,0,0);
-  model.scale.setScalar(1);
-  model.position.set(0,0,0);
+  // Undo the unreliable baked conversion. Fit the actual loaded Three.js
+  // geometry instead of trusting exporter axis/units or wrapper scale.
+  const wrapper=model.getObjectByName('GameBlock_180cm_Wrapper');
+  if(wrapper){wrapper.scale.set(1,1,1);wrapper.rotation.set(0,0,0);wrapper.position.set(0,0,0)}
+  model.rotation.set(0,0,0);model.scale.setScalar(1);model.position.set(0,0,0);
   model.updateMatrixWorld(true);
+  const hips=model.getObjectByName('mixamorig:Hips_68');
+  const head=model.getObjectByName('mixamorig:Head_1')||model.getObjectByName('mixamorig:Head_0')||
+   model.getObjectByName('mixamorig:Head_2')||model.getObjectByName('mixamorig:Head_3');
+  const foot=model.getObjectByName('mixamorig:LeftFoot_')||Object.values(model.children).find(n=>n.name.includes('Foot'));
+  // The original file may be Z-up; identify up from the hip-to-head bone
+  // direction, not a guessed 90-degree rotation.
+  if(hips&&head){
+   const up=head.getWorldPosition(new THREE.Vector3()).sub(hips.getWorldPosition(new THREE.Vector3()));
+   if(up.lengthSq()>1e-12){
+    model.quaternion.setFromUnitVectors(up.normalize(),new THREE.Vector3(0,1,0));
+    model.updateMatrixWorld(true);
+   }
+  }
+  const bounds=new THREE.Box3().setFromObject(model);
+  const size=bounds.getSize(new THREE.Vector3());
+  const span=Math.max(size.y,1e-9);
+  bodyScale=1.8/span;
+  model.scale.setScalar(bodyScale);
+  model.position.set(-bounds.getCenter(new THREE.Vector3()).x*bodyScale,
+                     -bounds.min.y*bodyScale,
+                     -bounds.getCenter(new THREE.Vector3()).z*bodyScale);
+  model.updateMatrixWorld(true);
+  $('#swatNote').textContent='SWAT Animated · масштаб по геометрии: 1,80 м · Idle-анимация';
  }else if(isSAS){
   // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
   // transforms already correct them to an upright Y-axis pose. DO NOT
@@ -523,6 +547,7 @@ function ctRigMotion(name,p){
  return p;
 }
 function animate(dt){
+ if(swatMixer&&importedActor){if(!state.paused)swatMixer.update(dt*state.speed);return;}
  if(!state.paused)state.t+=dt*state.speed;
  const action=state.motion;
  if(lastAction!==action){
