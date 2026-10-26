@@ -1,0 +1,25 @@
+name: Build 180cm SWAT models
+on:
+  push:
+    paths:
+      - 'scripts/normalize_swat_glbs.py'
+      - 'swat_animated.glb'
+      - 'zeal_swat_payday2.glb'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python scripts/normalize_swat_glbs.py
+      - name: Commit normalized models
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/game1/swat_animated_180cm.glb public/game1/zeal_swat_payday2_180cm.glb
+          git diff --cached --quiet || (git commit -m "assets: normalized SWAT GLBs to 1.8m" && git push)
