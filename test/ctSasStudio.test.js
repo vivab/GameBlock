@@ -26,7 +26,7 @@ test('SAS uses an optimized valid glTF 2.0 with intact 111-bone rig and 8 textur
 });
 
 test('CT editor supports independent arm joints, all fingers and weapon attachment',()=>{
- assert.match(html,/ctm_sas_gameblock\.glb/);
+ assert.match(html,/swat_animated_180cm\.glb/);
  assert.match(html,/CTM_SAS_ATTRIBUTION\.txt/);
  for(const part of ['RightShoulder','RightArm','RightForeArm','RightHand','LeftShoulder',
  'LeftArm','LeftForeArm','LeftHand','LeftThumb','LeftIndex','RightThumb','RightIndex',
