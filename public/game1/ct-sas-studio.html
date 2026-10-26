@@ -682,12 +682,12 @@ const swatBuffers={};let swatPending=null;
 async function showSwat(which){
  const label=which==='animated'?'swat_animated.glb':'zeal_swat_payday2.glb';
  const normalized=which==='animated'?'swat_animated_180cm.glb':'zeal_swat_payday2_180cm.glb';
- if(swatBuffers[which]){loadActor(swatBuffers[which],label);return}
+ if(swatBuffers[which]){loadActor(swatBuffers[which],normalized);return}
  swatPending=null;
- $('#swatNote').textContent='Загружаю '+label+' из репозитория GameBlock...';
+ $('#swatNote').textContent='Загружаю '+normalized+' (готовая модель 1,8 м) из GitHub...';
  status('Загрузка '+label);
  try{
-  let response=await fetch('./'+normalized+'?v=20261026');
+  let response=await fetch('./'+normalized+'?v=20261026-fixed');
   let actual=normalized;
   if(!response.ok){response=await fetch('../../'+label+'?v=20261026');actual=label;}
   if(!response.ok)throw Error('HTTP '+response.status);
