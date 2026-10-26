@@ -348,14 +348,14 @@ for(const [logical,actual] of Object.entries(CT_BONE_NAMES)){
  footGroundOffset=0;
  model.updateMatrixWorld(true);
  const leftToe=bones.LeftToeBase||bones.LeftFoot,rightToe=bones.RightToeBase||bones.RightFoot;
- standingToeY=Math.min(leftToe.getWorldPosition(new THREE.Vector3()).y,rightToe.getWorldPosition(new THREE.Vector3()).y);
- const repaired=releaseJoinedHands(model);
+ standingToeY=leftToe&&rightToe?Math.min(leftToe.getWorldPosition(new THREE.Vector3()).y,rightToe.getWorldPosition(new THREE.Vector3()).y):0;
+ const repaired=isSAS?releaseJoinedHands(model):{vertices:0,faces:0};
   $('#skinRepair').textContent=repaired.vertices||repaired.faces?
     '✓ Руки разделены · '+repaired.vertices+' вершин и '+repaired.faces+' соединяющих полигонов':
     'Независимые руки: исправление не потребовалось';
   if(helper)scene.remove(helper);helper=new THREE.SkeletonHelper(model);helper.material.depthTest=false;helper.visible=false;scene.add(helper);
- holder=bones.WeaponSocketR||bones.RightHand;weaponPivot=new THREE.Group();holder.add(weaponPivot);
- status('Модель: '+from+' · 1,8 м как террорист · '+Object.keys(bones).length+' суставов · готово');
+ holder=bones.WeaponSocketR||bones.RightHand||model;weaponPivot=new THREE.Group();holder.add(weaponPivot);
+ status('Модель: '+from+' · '+(isSAS?'SAS': 'SWAT из GitHub')+' · '+Object.keys(bones).length+' костей · загружена');
  loadWeapon();renderControls();
 }
 // Some vertices in the uploaded skin follow BOTH palms, and 110 polygons
