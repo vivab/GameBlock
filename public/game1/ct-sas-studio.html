@@ -197,7 +197,7 @@ function loadActor(buf,from){loader.parse(buf,'',g=>setupActor(g.scene,from),e=>
 function setupActor(model,from){
  const sourceName=String(from||'').toLowerCase();
  const already180=sourceName.includes('_180cm');
- const fixedSwat=sourceName.includes('swat_animated')||sourceName.includes('swat animated')?'animated':sourceName.includes('zeal_swat')||sourceName.includes('zeal swat')?'zeal':null;
+ const fixedSwat=sourceName.includes('_180cm')?null:sourceName.includes('swat_animated')||sourceName.includes('swat animated')?'animated':sourceName.includes('zeal_swat')||sourceName.includes('zeal swat')?'zeal':null;
  // Force a safe initial scale for unfamiliar rigs even when the imported
  // skin bounds are corrupted or report only a tiny part of the mesh.
  const isImported=!model.getObjectByName('ctm_sas_qc_skeleton');
@@ -680,16 +680,19 @@ $('#import').addEventListener('click',()=>$('#importFile').click());$('#importFi
 const swatBuffers={};let swatPending=null;
 async function showSwat(which){
  const label=which==='animated'?'swat_animated.glb':'zeal_swat_payday2.glb';
+ const normalized=which==='animated'?'swat_animated_180cm.glb':'zeal_swat_payday2_180cm.glb';
  if(swatBuffers[which]){loadActor(swatBuffers[which],label);return}
  swatPending=null;
  $('#swatNote').textContent='Загружаю '+label+' из репозитория GameBlock...';
  status('Загрузка '+label);
  try{
-  const response=await fetch('../../'+label+'?v=20261026');
+  let response=await fetch('./'+normalized+'?v=20261026');
+  let actual=normalized;
+  if(!response.ok){response=await fetch('../../'+label+'?v=20261026');actual=label;}
   if(!response.ok)throw Error('HTTP '+response.status);
   const buffer=await response.arrayBuffer();
   swatBuffers[which]=buffer;
-  loadActor(buffer,label);
+  loadActor(buffer,actual);
  }catch(error){
   status('Ошибка загрузки '+label+': '+error.message);
   $('#swatNote').textContent='Не удалось загрузить из GitHub: '+error.message+'. Можно выбрать файл вручную.';
