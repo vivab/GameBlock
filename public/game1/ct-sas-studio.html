@@ -228,35 +228,33 @@ function setupActor(model,from){
   model.updateMatrixWorld(true);
   $('#swatNote').textContent='GLB '+(animated?'SWAT Animated':'Zeal SWAT')+' · проверенный масштаб 1,80 м · коэффициент '+bodyScale.toFixed(5);
  }else if(already180){
-  // Undo the unreliable baked conversion. Fit the actual loaded Three.js
-  // geometry instead of trusting exporter axis/units or wrapper scale.
+  // Normalize using the actual Mixamo skeleton rather than unreliable mesh bounds.
   const wrapper=model.getObjectByName('GameBlock_180cm_Wrapper');
-  if(wrapper){wrapper.scale.set(1,1,1);wrapper.rotation.set(0,0,0);wrapper.position.set(0,0,0)}
+  if(!wrapper)throw Error('SWAT Animated wrapper missing');
+  wrapper.scale.setScalar(1);wrapper.position.set(0,0,0);
+  wrapper.rotation.set(Math.PI/2,0,0);
   model.rotation.set(0,0,0);model.scale.setScalar(1);model.position.set(0,0,0);
   model.updateMatrixWorld(true);
-  const hips=model.getObjectByName('mixamorig:Hips_68');
-  const head=model.getObjectByName('mixamorig:Head_1')||model.getObjectByName('mixamorig:Head_0')||
-   model.getObjectByName('mixamorig:Head_2')||model.getObjectByName('mixamorig:Head_3');
-  const foot=model.getObjectByName('mixamorig:LeftFoot_')||Object.values(model.children).find(n=>n.name.includes('Foot'));
-  // The original file may be Z-up; identify up from the hip-to-head bone
-  // direction, not a guessed 90-degree rotation.
-  if(hips&&head){
-   const up=head.getWorldPosition(new THREE.Vector3()).sub(hips.getWorldPosition(new THREE.Vector3()));
-   if(up.lengthSq()>1e-12){
-    model.quaternion.setFromUnitVectors(up.normalize(),new THREE.Vector3(0,1,0));
+  const allBones=[];model.traverse(n=>{if(n.isBone)allBones.push(n)});
+  const findBone=(re)=>allBones.find(n=>re.test(n.name));
+  const head=findBone(/HeadTop_End|Head$/i);
+  const leftFoot=findBone(/LeftToeBase|LeftFoot/i),rightFoot=findBone(/RightToeBase|RightFoot/i);
+  if(!head||!leftFoot||!rightFoot)throw Error('SWAT Animated: head/feet bones missing');
+  const measure=()=>{
     model.updateMatrixWorld(true);
-   }
-  }
-  const bounds=new THREE.Box3().setFromObject(model);
-  const size=bounds.getSize(new THREE.Vector3());
-  const span=Math.max(size.y,1e-9);
-  bodyScale=1.8/span;
-  model.scale.setScalar(bodyScale);
-  model.position.set(-bounds.getCenter(new THREE.Vector3()).x*bodyScale,
-                     -bounds.min.y*bodyScale,
-                     -bounds.getCenter(new THREE.Vector3()).z*bodyScale);
+    const h=head.getWorldPosition(new THREE.Vector3());
+    const l=leftFoot.getWorldPosition(new THREE.Vector3());
+    const r=rightFoot.getWorldPosition(new THREE.Vector3());
+    return {height:h.y-Math.min(l.y,r.y),floor:Math.min(l.y,r.y),center:new THREE.Vector3().addVectors(l,r).multiplyScalar(.5)};
+  };
+  let m=measure();
+  if(m.height<0){wrapper.rotation.set(-Math.PI/2,0,0);m=measure()}
+  if(!Number.isFinite(m.height)||m.height<1)throw Error('SWAT Animated: invalid skeleton height '+m.height);
+  bodyScale=1.8/m.height;
+  wrapper.scale.setScalar(bodyScale);
+  wrapper.position.set(-m.center.x*bodyScale,-m.floor*bodyScale,-m.center.z*bodyScale);
   model.updateMatrixWorld(true);
-  $('#swatNote').textContent='SWAT Animated · масштаб по геометрии: 1,80 м · Idle-анимация';
+  $('#swatNote').textContent='SWAT Animated · масштаб скелета 1,80 м · Idle';
  }else if(isSAS){
   // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
   // transforms already correct them to an upright Y-axis pose. DO NOT
@@ -737,7 +735,7 @@ canvas.addEventListener('pointermove',e=>{const p=pointers.get(e.pointerId);if(!
  if(pointers.size===1){yaw-=dx*.008;pitch=Math.max(-.35,Math.min(1.2,pitch+dy*.006))}else dist=Math.min(7,Math.max(1.2,dist+dy*.012))});
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>pointers.delete(e.pointerId));canvas.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(1.2,Math.min(7,dist+e.deltaY*.002))},{passive:false});
 let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
- animate(Math.min(.05,(now-last)/1000));last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
+ const dt=Math.min(.05,(now-last)/1000);animate(dt);if(swatMixer&&!state.paused)swatMixer.update(dt*state.speed);last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
 try{
  const savedV3=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV3')||'null');
  state.config={...copyConfig(MATCHED_POSES),...(savedV3||{})};
