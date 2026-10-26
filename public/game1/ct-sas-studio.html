@@ -843,6 +843,24 @@ try{
  state.config={...copyConfig(MATCHED_POSES),...(savedV3||{})};
 }catch{state.config=copyConfig(MATCHED_POSES)}
 renderControls();
+// Load the user's German KSK GLB directly from phone storage without hosting.
+const kskPicker=document.createElement('input');
+kskPicker.type='file';kskPicker.accept='.glb,model/gltf-binary';kskPicker.id='kskFilePicker';kskPicker.hidden=true;
+document.body.appendChild(kskPicker);
+const kskButton=document.createElement('button');
+kskButton.type='button';kskButton.textContent='📂 Загрузить German KSK (.glb)';
+kskButton.style.cssText='position:fixed;top:12px;right:12px;z-index:99999;background:#155f86;color:white;border:1px solid #7ed7ff;padding:12px 14px;border-radius:8px;font-weight:bold;max-width:65vw';
+document.body.appendChild(kskButton);
+kskButton.addEventListener('click',()=>kskPicker.click());
+kskPicker.addEventListener('change',async()=>{
+ const file=kskPicker.files?.[0];if(!file)return;
+ try{
+  status('Загружаем German KSK: '+file.name);
+  const bytes=await file.arrayBuffer();
+  loadActor(bytes,'german_ksk_operator_-_rigged.glb');
+  kskButton.textContent='✓ German KSK · выбрать другую модель';
+ }catch(err){status('Ошибка German KSK: '+(err.message||err))}
+});
 status('Загружаем SWAT Animated из GitHub...');
 $('#loading').textContent='SWAT Animated · загрузка GLB из репозитория...';
 showSwat('animated');
