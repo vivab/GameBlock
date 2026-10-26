@@ -24,4 +24,4 @@ for name,height,positive in [('swat_animated',0.03153808,True),('zeal_swat_payda
  output=BASE/'public'/'game1'/(name+'_180cm.glb')
  output.parent.mkdir(parents=True,exist_ok=True)
  output.write_bytes(struct.pack('<III',magic,version,12+len(payload))+payload)
- print(output,len(payload))
+ print('Normalized model to 1.8m:',output,len(payload))
