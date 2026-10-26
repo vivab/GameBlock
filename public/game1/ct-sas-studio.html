@@ -194,7 +194,7 @@ const asset={glock:'https://vivab.github.io/GameBlock/models/g18.glb',ak:'https:
 const defaultGuns={glock:{x:.02,y:.055,z:.115,rx:0,ry:0,rz:0,scale:1},ak:{x:.04,y:.06,z:.17,rx:0,ry:0,rz:0,scale:1},knife:{x:.02,y:.09,z:.14,rx:0,ry:0,rz:0,scale:1}};
 function status(msg){$('#status').textContent=msg}
 let swatMixer=null;
-function loadActor(buf,from){loader.parse(buf,'',g=>{setupActor(g.scene,from);if(from.includes('swat_animated')){swatMixer=new THREE.AnimationMixer(g.scene);const idle=g.animations.find(a=>/idle/i.test(a.name))||g.animations[0];if(idle)swatMixer.clipAction(idle).play();}},e=>status('Ошибка GLB: '+(e.message||e)))}
+function loadActor(buf,from){loader.parse(buf,'',g=>{try{setupActor(g.scene,from);if(from.includes('swat_animated')){swatMixer=new THREE.AnimationMixer(g.scene);const idle=g.animations.find(a=>/idle/i.test(a.name))||g.animations[0];if(idle)swatMixer.clipAction(idle).play();}$('#loading').textContent='SWAT Animated · загружен';}catch(e){console.error('SWAT setup failed',e);status('ОШИБКА SWAT: '+(e.message||e));$('#loading').textContent='ОШИБКА: '+(e.message||e);}},e=>{status('Ошибка GLB: '+(e.message||e));$('#loading').textContent='Ошибка GLB: '+(e.message||e)})}
 function setupActor(model,from){
  const sourceName=String(from||'').toLowerCase();
  swatMixer=null;
@@ -257,7 +257,8 @@ function setupActor(model,from){
     status('SWAT Animated: загружена, но кости головы/ног не найдены');
   }
   model.updateMatrixWorld(true);
-  $('#swatNote').textContent='SWAT Animated · размер по скелету · анимация Idle';
+  const visualBounds=new THREE.Box3().setFromObject(model);const visualSize=visualBounds.getSize(new THREE.Vector3());
+  $('#swatNote').textContent='SWAT Animated · кости '+bodyScale.toFixed(5)+' · видимый размер '+visualSize.y.toFixed(3)+' м · Idle';
  }else if(isSAS){
   // The mesh vertices use Z-oriented bind coordinates, but GLTF skeleton
   // transforms already correct them to an upright Y-axis pose. DO NOT
