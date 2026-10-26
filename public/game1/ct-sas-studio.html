@@ -560,14 +560,25 @@ function animate(dt){
  if(swatMixer&&importedActor){
   // Native animation sets the base pose, then controls override it every frame.
   if(!state.paused)swatMixer.update(dt*state.speed);
+  // Reset imported bones to the sampled Idle pose before applying user offsets.
+  // When paused, repeated edits must not accumulate every animation frame.
+  if(state.paused&&swatMixer){swatMixer.update(0);}
   const edited=new Set();
   for(const name of [...BONE.right,...BONE.left,...BONE.legs]){
     const bone=bones[name];if(!bone||edited.has(bone))continue;edited.add(bone);
     const offset={x:0,y:0,z:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0};
     for(const v of transforms(name))for(const k of Object.keys(offset))offset[k]+=d(v[k]);
+    // 'Весь персонаж' controls affect the complete model, not only shoulders.
+    if(state.tab==='all'&&current().all)for(const k of Object.keys(offset))offset[k]+=d(current().all[k]);
     bone.position.add(new THREE.Vector3(offset.x,offset.y,offset.z).divideScalar(Math.max(.00001,bodyScale)));
     bone.position.add(worldMoveInParent(bone.parent,offset));
     bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(offset.rx*RAD,offset.ry*RAD,offset.rz*RAD,'XYZ')));
+  }
+  // Move/rotate the whole imported actor with the All controls.
+  const global=current().all||zero();
+  if(rig&&state.tab==='all'){
+    rig.position.set(d(global.wx)+d(global.x),d(global.wy)+d(global.y),d(global.wz)+d(global.z));
+    rig.rotation.set(d(global.rx)*RAD,d(global.ry)*RAD,d(global.rz)*RAD);
   }
   // The weapon tab must also update the pivot for imported Mixamo characters.
   if(weaponPivot){
