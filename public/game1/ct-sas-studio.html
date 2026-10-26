@@ -734,12 +734,61 @@ $('#modelFile').addEventListener('change',async e=>{const file=e.target.files?.[
 const canvas=$('#canvas'),target=new THREE.Vector3(0,1.05,0);let yaw=.15,pitch=.08,dist=2.85,pointers=new Map();
 function orbit(){camera.position.set(target.x+Math.sin(yaw)*Math.cos(pitch)*dist,target.y+Math.sin(pitch)*dist,target.z+Math.cos(yaw)*Math.cos(pitch)*dist);camera.lookAt(target)}
 $('#front').onclick=()=>{yaw=0;orbit()};$('#back').onclick=()=>{yaw=Math.PI;orbit()};$('#leftCam').onclick=()=>{yaw=-Math.PI/2;orbit()};$('#bonesToggle').onclick=()=>{if(helper)helper.visible=!helper.visible};
-canvas.addEventListener('pointerdown',e=>{window.__swatCameraUserTouched=true;canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY})});
-canvas.addEventListener('pointermove',e=>{const p=pointers.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
- if(pointers.size===1){yaw-=dx*.008;pitch=Math.max(-.35,Math.min(1.2,pitch+dy*.006))}else dist=Math.min(7,Math.max(1.2,dist+dy*.012))});
-for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>pointers.delete(e.pointerId));canvas.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(1.2,Math.min(7,dist+e.deltaY*.002))},{passive:false});
+// Mobile camera: one finger rotates, two fingers pan and pinch to zoom.
+let cameraAutoFit=true,fitOnce=false,gesture=null;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+canvas.style.touchAction='none';
+function touchInfo(){
+ const arr=[...pointers.values()];
+ if(arr.length<2)return null;
+ const dx=arr[1].x-arr[0].x,dy=arr[1].y-arr[0].y;
+ return {x:(arr[0].x+arr[1].x)/2,y:(arr[0].y+arr[1].y)/2,spread:Math.hypot(dx,dy)};
+}
+canvas.addEventListener('pointerdown',e=>{
+ canvas.setPointerCapture(e.pointerId);
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ window.__swatCameraUserTouched=true;cameraAutoFit=false;
+ gesture=touchInfo();
+});
+canvas.addEventListener('pointermove',e=>{
+ const p=pointers.get(e.pointerId);if(!p)return;
+ const dx=e.clientX-p.x,dy=e.clientY-p.y;
+ p.x=e.clientX;p.y=e.clientY;
+ if(pointers.size===1){
+   yaw-=dx*.005;
+   pitch=clamp(pitch+dy*.004,-1.35,1.35);
+ }else if(pointers.size>=2){
+   const next=touchInfo();
+   if(gesture&&next){
+     const zoom=gesture.spread/Math.max(1,next.spread);
+     dist=clamp(dist*zoom,.15,500);
+     const panX=next.x-gesture.x,panY=next.y-gesture.y;
+     const panScale=dist*.0018;
+     const right=new THREE.Vector3().setFromMatrixColumn(camera.matrix,0);
+     target.addScaledVector(right,-panX*panScale);
+     target.y+=panY*panScale;
+   }
+   gesture=next;
+ }
+});
+for(const ev of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(ev,e=>{
+ pointers.delete(e.pointerId);gesture=touchInfo();
+});
+canvas.addEventListener('wheel',e=>{
+ e.preventDefault();cameraAutoFit=false;
+ dist=clamp(dist*Math.exp(e.deltaY*.001),.15,500);
+},{passive:false});
+const cameraToolbar=document.createElement('div');
+cameraToolbar.style.cssText='position:absolute;left:12px;bottom:14px;display:flex;gap:6px;flex-wrap:wrap;z-index:10;max-width:calc(100% - 24px)';
+cameraToolbar.innerHTML='<button type="button" id="camReset">⛶ Весь боец</button><button type="button" id="camNear">＋ Ближе</button><button type="button" id="camFar">－ Дальше</button><button type="button" id="camUp">↑</button><button type="button" id="camDown">↓</button>';
+canvas.parentElement.appendChild(cameraToolbar);
+$('#camReset').onclick=()=>{cameraAutoFit=true;fitOnce=false;yaw=.15;pitch=.08;};
+$('#camNear').onclick=()=>{cameraAutoFit=false;dist=clamp(dist*.75,.15,500)};
+$('#camFar').onclick=()=>{cameraAutoFit=false;dist=clamp(dist*1.33,.15,500)};
+$('#camUp').onclick=()=>{cameraAutoFit=false;target.y+=dist*.15};
+$('#camDown').onclick=()=>{cameraAutoFit=false;target.y-=dist*.15};
 let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
- const dt=Math.min(.05,(now-last)/1000);animate(dt);last=now;if(importedActor&&rig){rig.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(rig);if(!bb.isEmpty()){const size=bb.getSize(new THREE.Vector3()),center=bb.getCenter(new THREE.Vector3());const span=Math.max(size.x,size.y,size.z);if(Number.isFinite(span)&&span>0.00001&&span<100000){target.lerp(center,.15);const wanted=Math.max(.6,span*1.8);if(!window.__swatCameraUserTouched)dist+=(wanted-dist)*.15;}}}orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
+ const dt=Math.min(.05,(now-last)/1000);animate(dt);last=now;if(importedActor&&rig){rig.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(rig);if(!bb.isEmpty()){const size=bb.getSize(new THREE.Vector3()),center=bb.getCenter(new THREE.Vector3());const span=Math.max(size.x,size.y,size.z);if(Number.isFinite(span)&&span>0.00001&&span<100000){if(cameraAutoFit){target.lerp(center,.25);const wanted=Math.max(.6,span*1.8);dist+=(wanted-dist)*.25;if(Math.abs(wanted-dist)<.02){cameraAutoFit=false;fitOnce=true;}}}}}orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
 try{
  const savedV3=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV3')||'null');
  state.config={...copyConfig(MATCHED_POSES),...(savedV3||{})};
