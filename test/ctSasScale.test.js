@@ -55,7 +55,7 @@ test('SAS fit uses head and toes rather than unposed mesh vertex bounding box',(
  assert.match(sas,/bodyScale=1\.8\/standingHeight/);
  assert.match(sas,/headP\.y>ankleLP\.y&&headP\.y>ankleRP\.y/);
  assert.match(sas,/model\.position\.set\(-footCenterX\*bodyScale,-toeFloor\*bodyScale/);
- assert.match(js,/bodyScale=1\.8\/Math\.max\(\.01,sz\.y\)/);
+ assert.match(js,/const preNormalized=sourceName\.includes\('_180cm'\)/);
  assert.doesNotThrow(()=>new vm.Script(js));
 });
 test('weapon poses remain user-editable and SAS saves separately',()=>{
