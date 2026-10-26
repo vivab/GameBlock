@@ -447,7 +447,7 @@ function loadWeapon(){const n=++weaponRequest;if(weaponPivot&&weaponModel){weapo
   const len=state.weapon==='ak'?.8:state.weapon==='knife'?.42:.3;
   const sc=len/(Math.max(.001,sz.x,sz.y,sz.z)*bodyScale);
   // Offset the weapon geometry so pivot sits at its approximate grip.
-  weaponModel.scale.setScalar(sc);weaponModel.position.copy(ct).multiplyScalar(-sc);
+  weaponModel.userData.baseScale=sc;weaponModel.scale.setScalar(sc);weaponModel.position.copy(ct).multiplyScalar(-sc);
   weaponPivot.add(weaponModel);$('#loading').textContent='Оружие загружено';
  },undefined,e=>{$('#loading').textContent='Ошибка загрузки оружия (интернет): '+(e.message||e)});
 }
@@ -554,19 +554,25 @@ function ctRigMotion(name,p){
 }
 function animate(dt){
  if(swatMixer&&importedActor){
+  // Native animation sets the base pose, then controls override it every frame.
   if(!state.paused)swatMixer.update(dt*state.speed);
-  // Apply slider offsets AFTER native animation; otherwise the mixer overwrites edits.
-  const seen=new Set();
-  for(const [name,bone] of Object.entries(bones)){
-    if(!bone||seen.has(bone))continue;
-    if(!['RightShoulder','RightArm','RightForeArm','RightHand','LeftShoulder','LeftArm','LeftForeArm','LeftHand','RightUpLeg','RightLeg','RightFoot','RightToeBase','LeftUpLeg','LeftLeg','LeftFoot','LeftToeBase'].includes(name))continue;
-    seen.add(bone);
-    const edits=transforms(name);
+  const edited=new Set();
+  for(const name of [...BONE.right,...BONE.left,...BONE.legs]){
+    const bone=bones[name];if(!bone||edited.has(bone))continue;edited.add(bone);
     const offset={x:0,y:0,z:0,rx:0,ry:0,rz:0,wx:0,wy:0,wz:0};
-    for(const v of edits)for(const k of Object.keys(offset))offset[k]+=d(v[k]);
+    for(const v of transforms(name))for(const k of Object.keys(offset))offset[k]+=d(v[k]);
     bone.position.add(new THREE.Vector3(offset.x,offset.y,offset.z).divideScalar(Math.max(.00001,bodyScale)));
     bone.position.add(worldMoveInParent(bone.parent,offset));
     bone.quaternion.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(offset.rx*RAD,offset.ry*RAD,offset.rz*RAD,'XYZ')));
+  }
+  // The weapon tab must also update the pivot for imported Mixamo characters.
+  if(weaponPivot){
+    const c=current(),mount=defaultGuns[state.weapon]||zero(),w=c.weapon||zero(),all=c.all||zero();
+    const move={wx:d(w.wx)+d(all.wx),wy:d(w.wy)+d(all.wy),wz:d(w.wz)+d(all.wz)};
+    weaponPivot.position.set((d(mount.x)+d(w.x)+d(all.x))/Math.max(.00001,bodyScale),(d(mount.y)+d(w.y)+d(all.y))/Math.max(.00001,bodyScale),(d(mount.z)+d(w.z)+d(all.z))/Math.max(.00001,bodyScale));
+    weaponPivot.position.add(worldMoveInParent(holder,move));
+    weaponPivot.rotation.set((d(mount.rx)+d(w.rx)+d(all.rx))*RAD,(d(mount.ry)+d(w.ry)+d(all.ry))*RAD,(d(mount.rz)+d(w.rz)+d(all.rz))*RAD);
+    if(weaponModel)weaponModel.scale.setScalar((weaponModel.userData.baseScale||weaponModel.scale.x)*(d(w.scale)||1));
   }
   return;
  }
