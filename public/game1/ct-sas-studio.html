@@ -734,12 +734,12 @@ $('#modelFile').addEventListener('change',async e=>{const file=e.target.files?.[
 const canvas=$('#canvas'),target=new THREE.Vector3(0,1.05,0);let yaw=.15,pitch=.08,dist=2.85,pointers=new Map();
 function orbit(){camera.position.set(target.x+Math.sin(yaw)*Math.cos(pitch)*dist,target.y+Math.sin(pitch)*dist,target.z+Math.cos(yaw)*Math.cos(pitch)*dist);camera.lookAt(target)}
 $('#front').onclick=()=>{yaw=0;orbit()};$('#back').onclick=()=>{yaw=Math.PI;orbit()};$('#leftCam').onclick=()=>{yaw=-Math.PI/2;orbit()};$('#bonesToggle').onclick=()=>{if(helper)helper.visible=!helper.visible};
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY})});
+canvas.addEventListener('pointerdown',e=>{window.__swatCameraUserTouched=true;canvas.setPointerCapture(e.pointerId);pointers.set(e.pointerId,{x:e.clientX,y:e.clientY})});
 canvas.addEventListener('pointermove',e=>{const p=pointers.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
  if(pointers.size===1){yaw-=dx*.008;pitch=Math.max(-.35,Math.min(1.2,pitch+dy*.006))}else dist=Math.min(7,Math.max(1.2,dist+dy*.012))});
 for(const ev of ['pointerup','pointercancel'])canvas.addEventListener(ev,e=>pointers.delete(e.pointerId));canvas.addEventListener('wheel',e=>{e.preventDefault();dist=Math.max(1.2,Math.min(7,dist+e.deltaY*.002))},{passive:false});
 let last=performance.now();function frame(now){requestAnimationFrame(frame);const w=canvas.clientWidth,h=canvas.clientHeight;if(w&&h&&(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio()))){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
- const dt=Math.min(.05,(now-last)/1000);animate(dt);if(swatMixer&&!state.paused)swatMixer.update(dt*state.speed);last=now;orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
+ const dt=Math.min(.05,(now-last)/1000);animate(dt);last=now;if(importedActor&&rig){rig.updateMatrixWorld(true);const bb=new THREE.Box3().setFromObject(rig);if(!bb.isEmpty()){const size=bb.getSize(new THREE.Vector3()),center=bb.getCenter(new THREE.Vector3());const span=Math.max(size.x,size.y,size.z);if(Number.isFinite(span)&&span>0.00001&&span<100000){target.lerp(center,.15);const wanted=Math.max(.6,span*1.8);if(!window.__swatCameraUserTouched)dist+=(wanted-dist)*.15;}}}orbit();renderer.render(scene,camera)}requestAnimationFrame(frame);
 try{
  const savedV3=JSON.parse(localStorage.getItem('GameBlockCT_SAS_StudioV3')||'null');
  state.config={...copyConfig(MATCHED_POSES),...(savedV3||{})};
