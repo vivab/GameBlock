@@ -697,8 +697,7 @@ function frame(now) {
     firing: weapon !== 'knife' && match.time - player.lastShotAt < 0.045,
   });
   renderer.clear();
-  
-  else if(lobby) renderer.render(menuScene,menuCamera);
+  if(lobby) renderer.render(menuScene,menuCamera);
   else {
     renderer.render(scene,camera);
     renderer.clearDepth();
